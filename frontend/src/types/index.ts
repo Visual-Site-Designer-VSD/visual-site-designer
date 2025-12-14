@@ -8,11 +8,17 @@ export interface Deck {
   updatedAt?: string;
 }
 
+export type QuestionType = 'multiple_choice' | 'true_false';
+
 export interface Flashcard {
   id?: number;
   frontContent: string;
   backContent: string;
   deckId?: number;
+  questionType?: QuestionType;
+  answerOptions?: string; // JSON string array
+  correctAnswer?: string; // JSON string or value
+  correctAnswerExplanation?: string; // Explanation shown when incorrect
   createdAt?: string;
   updatedAt?: string;
   // Aliases for backward compatibility
@@ -38,6 +44,10 @@ export interface CreateDeckRequest {
 export interface CreateFlashcardRequest {
   frontContent: string;
   backContent: string;
+  questionType?: QuestionType;
+  answerOptions?: string;
+  correctAnswer?: string;
+  correctAnswerExplanation?: string;
 }
 
 // Course-related types
