@@ -32,6 +32,35 @@ public class FlashCard {
     @Column(name = "content_format", length = 20)
     private String contentFormat = "html";
 
+    /**
+     * Question type: "multiple_choice", "true_false"
+     */
+    @Column(name = "question_type", length = 20)
+    private String questionType = "multiple_choice";
+
+    /**
+     * Answer options for multiple choice questions (JSON array)
+     * Example: ["Option A", "Option B", "Option C", "Option D"]
+     */
+    @Column(name = "answer_options", columnDefinition = "TEXT")
+    private String answerOptions;
+
+    /**
+     * Correct answer(s) for automatic grading
+     * For multiple choice: JSON array of correct option indices (e.g., "[0, 2]" for options A and C)
+     * For true/false: "true" or "false"
+     */
+    @Column(name = "correct_answer", columnDefinition = "TEXT")
+    private String correctAnswer;
+
+    /**
+     * Correct answer explanation (shown when student answers incorrectly)
+     * For true/false: Rich text explanation of the correct answer
+     * For multiple choice: Optional explanation
+     */
+    @Column(name = "correct_answer_explanation", columnDefinition = "TEXT")
+    private String correctAnswerExplanation;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
