@@ -32,6 +32,12 @@ public class WebConfig implements WebMvcConfigurer {
      */
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        // Uploaded media files
+        registry.addResourceHandler("/uploads/**")
+                .addResourceLocations("file:uploads/")
+                .setCachePeriod(3600);
+
+        // React SPA static resources
         registry.addResourceHandler("/**")
                 .addResourceLocations("classpath:/static/")
                 .resourceChain(true)
@@ -39,12 +45,12 @@ public class WebConfig implements WebMvcConfigurer {
                     @Override
                     protected Resource getResource(String resourcePath, Resource location) throws IOException {
                         Resource requestedResource = location.createRelative(resourcePath);
-                        
+
                         // If the resource exists (JS, CSS, images, etc.), serve it
                         if (requestedResource.exists() && requestedResource.isReadable()) {
                             return requestedResource;
                         }
-                        
+
                         // Otherwise, serve index.html (for React Router routes)
                         // API calls won't reach here because they're handled by controllers
                         return new ClassPathResource("/static/index.html");

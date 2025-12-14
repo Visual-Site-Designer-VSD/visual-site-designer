@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  flashcard-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: flashcard-app
+    ports:
+      - "8080:8080"
+    volumes:
+      # Persist H2 database data
+      - ./data:/app/data
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:h2:file:/app/data/flashcarddb
+    restart: unless-stopped
