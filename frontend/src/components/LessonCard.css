@@ -1,0 +1,261 @@
+.lesson-card {
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  background: white;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.lesson-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #bbb;
+}
+
+.lesson-card.expanded {
+  border-color: #667eea;
+}
+
+/* Header layout */
+.lesson-card-header {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  gap: 16px;
+}
+
+/* Thumbnail section - left side */
+.lesson-thumbnail {
+  width: 120px;
+  height: 80px;
+  flex-shrink: 0;
+  cursor: pointer;
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  background: #f8f9fa;
+  border: 2px solid #ddd;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.lesson-thumbnail:hover {
+  transform: scale(1.05);
+  border-color: #667eea;
+}
+
+.lesson-thumbnail:focus {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+.no-media-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  color: #666;
+}
+
+.no-media-icon {
+  font-size: 32px;
+  margin-bottom: 4px;
+}
+
+.no-media-text {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.play-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+.lesson-thumbnail:hover .play-overlay {
+  opacity: 1;
+}
+
+/* Info section - center */
+.lesson-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.lesson-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 8px 0;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.lesson-description {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* Actions section - right */
+.lesson-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.reorder-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.btn-reorder {
+  background: #f1f1f1;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  width: 30px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  color: #555;
+  transition: all 0.2s;
+  padding: 0;
+}
+
+.btn-reorder:hover:not(:disabled) {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+  transform: scale(1.1);
+}
+
+.btn-reorder:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.view-lesson-btn {
+  display: inline-block;
+  padding: 10px 20px;
+  background: #667eea;
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.view-lesson-btn:hover {
+  background: #5568d3;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+.view-lesson-btn:active {
+  transform: translateY(0);
+}
+
+/* Expanded content section */
+.lesson-card-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease-in-out;
+  background: #f8f9fa;
+}
+
+.lesson-card-content.show {
+  max-height: 600px;
+  border-top: 2px solid #eee;
+}
+
+.expanded-media {
+  padding: 20px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .lesson-card-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .lesson-thumbnail {
+    width: 100%;
+    height: 120px;
+  }
+
+  .lesson-info {
+    text-align: center;
+  }
+
+  .lesson-actions {
+    width: 100%;
+  }
+
+  .view-lesson-btn {
+    display: block;
+    width: 100%;
+    text-align: center;
+  }
+
+  .lesson-card-content.show {
+    max-height: 500px;
+  }
+}
+
+@media (max-width: 480px) {
+  .lesson-card-header {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .lesson-title {
+    font-size: 16px;
+  }
+
+  .lesson-description {
+    font-size: 13px;
+  }
+
+  .view-lesson-btn {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+}
