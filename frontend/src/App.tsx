@@ -49,6 +49,8 @@ function App() {
               <Route path="/courses/:courseId" element={<CourseDetailPage />} />
               <Route path="/courses/:courseId/modules/:moduleId" element={<ModuleDetailPage />} />
               <Route path="/courses/:courseId/modules/:moduleId/lessons/:lessonId" element={<LessonDetailPage />} />
+              <Route path="/courses/:courseId/modules/:moduleId/quizzes/:id" element={<DeckDetailPage />} />
+              <Route path="/courses/:courseId/modules/:moduleId/study/:id" element={<StudyPage />} />
               <Route path="/decks" element={<DeckListPage />} />
               <Route path="/decks/:id" element={<DeckDetailPage />} />
               <Route path="/study/:id" element={<StudyPage />} />
