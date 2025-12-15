@@ -1,0 +1,27 @@
+plugin:
+  id: flashcard-plugin
+  name: Flashcard Management
+  version: 1.0.0
+  type: feature
+  description: Bundled plugin for managing flashcards, decks, and study sessions
+  main-class: dev.mainul35.plugins.flashcard.FlashcardPlugin
+
+  spring:
+    component-scan:
+      - dev.mainul35.plugins.flashcard
+    entities:
+      - dev.mainul35.plugins.flashcard.entity
+
+  api:
+    base-path: /api/decks
+
+  migrations:
+    tool: flyway
+    location: classpath:db/migration/flashcard
+
+  dependencies:
+    - course-plugin
+    - lesson-plugin
+
+  author: flashcard-app
+  bundled: true
