@@ -1,0 +1,30 @@
+plugin:
+  id: course-plugin
+  name: Course Management
+  version: 1.0.0
+  type: feature
+  description: Bundled plugin for managing courses and modules
+  main-class: dev.mainul35.plugins.course.CoursePlugin
+
+  # Spring configuration
+  spring:
+    component-scan:
+      - dev.mainul35.plugins.course
+    entities:
+      - dev.mainul35.plugins.course.entity
+
+  # API configuration
+  api:
+    base-path: /api/courses
+
+  # Database migrations
+  migrations:
+    tool: flyway
+    location: classpath:db/migration/course
+
+  # Dependencies
+  dependencies: []
+
+  # Plugin metadata
+  author: flashcard-app
+  bundled: true
