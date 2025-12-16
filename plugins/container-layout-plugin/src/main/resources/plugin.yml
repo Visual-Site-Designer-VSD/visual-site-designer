@@ -1,0 +1,21 @@
+plugin-id: container-layout-plugin
+plugin-name: Container Layout
+version: 1.0.0
+author: Mainul35
+description: A flexible container layout component that can hold child components
+main-class: dev.mainul35.plugins.layout.ContainerLayoutPlugin
+plugin-type: ui-component
+
+ui-component:
+  component-id: container
+  display-name: Container
+  category: layout
+  icon: 📦
+  description: Flexible container that holds child components
+  default-width: 100%
+  default-height: auto
+  resizable: true
+  min-width: 200px
+  max-width: 100%
+  min-height: 100px
+  react-component-path: /components/Container.jsx
