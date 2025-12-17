@@ -269,13 +269,6 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect 
           <span className="placeholder-id">{component.componentId}</span>
           {isLayout && <span className="layout-badge">Layout</span>}
         </div>
-        <div className="placeholder-props">
-          {Object.entries(component.props).map(([key, value]) => (
-            <div key={key} className="prop-item">
-              <strong>{key}:</strong> {String(value)}
-            </div>
-          ))}
-        </div>
 
         {/* Render children for layout components */}
         {isLayout && (
