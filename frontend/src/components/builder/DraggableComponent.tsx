@@ -189,18 +189,34 @@ export const DraggableComponent: React.FC<DraggableComponentProps> = ({
 
   // Calculate inline styles from component position and size
   const getComponentStyles = (): React.CSSProperties => {
-    const { position, size, styles, zIndex, componentCategory } = component;
+    const { position, size, styles, zIndex, componentCategory, parentId } = component;
 
-    // Check if this is a layout component with auto height
+    // Layout components use auto height only if height is 'auto', otherwise use stored height
     const isLayoutComponent = componentCategory?.toLowerCase() === 'layout';
-    const shouldAutoHeight = isLayoutComponent && size.height === 'auto';
+    const hasExplicitHeight = size.height && size.height !== 'auto';
+    const shouldAutoHeight = isLayoutComponent && !hasExplicitHeight;
 
+    // Child components (with parentId) should not have grid positioning
+    // They should let the parent container's grid/flex layout control their positioning
+    const isChildComponent = !!parentId;
+
+    if (isChildComponent) {
+      // Child components: no grid positioning, but apply dimensions for resizing
+      return {
+        zIndex: zIndex || 1,
+        width: size.width,
+        height: size.height,
+        ...styles
+      };
+    }
+
+    // Root-level components: apply grid positioning
     return {
       gridColumn: `${position.column} / span ${position.columnSpan}`,
       gridRow: `${position.row} / span ${position.rowSpan}`,
       width: size.width,
       height: shouldAutoHeight ? 'auto' : size.height,
-      minHeight: shouldAutoHeight ? '1200px' : undefined,
+      minHeight: shouldAutoHeight ? '40px' : undefined,
       zIndex: zIndex || 1,
       ...styles
     };
@@ -228,10 +244,13 @@ export const DraggableComponent: React.FC<DraggableComponentProps> = ({
     console.log('Move handle drag ended for:', component.instanceId);
   };
 
+  // Check if this is a child component
+  const isChildComponent = !!component.parentId;
+
   return (
     <div
       ref={componentRef}
-      className={`draggable-component ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''} ${!canDrag ? 'view-mode' : ''}`}
+      className={`draggable-component ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''} ${!canDrag ? 'view-mode' : ''} ${isChildComponent ? 'child-component' : ''}`}
       style={getComponentStyles()}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
