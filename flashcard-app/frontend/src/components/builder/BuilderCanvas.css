@@ -15,7 +15,6 @@
 
 .builder-canvas.preview-mode {
   cursor: default;
-  pointer-events: none;
 }
 
 .builder-canvas.drag-over {
@@ -48,7 +47,7 @@
     linear-gradient(to right, #dee2e6 1px, transparent 1px),
     linear-gradient(to bottom, #dee2e6 1px, transparent 1px);
   background-size: 20px 20px;
-  pointer-events: none;
+  pointer-events: auto !important;
 }
 
 /* Empty Canvas State */

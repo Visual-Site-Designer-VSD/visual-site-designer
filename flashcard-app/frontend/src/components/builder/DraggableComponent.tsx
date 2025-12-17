@@ -187,13 +187,18 @@ export const DraggableComponent: React.FC<DraggableComponentProps> = ({
 
   // Calculate inline styles from component position and size
   const getComponentStyles = (): React.CSSProperties => {
-    const { position, size, styles, zIndex } = component;
+    const { position, size, styles, zIndex, componentCategory } = component;
+
+    // Check if this is a layout component with auto height
+    const isLayoutComponent = componentCategory?.toLowerCase() === 'layout';
+    const shouldAutoHeight = isLayoutComponent && size.height === 'auto';
 
     return {
       gridColumn: `${position.column} / span ${position.columnSpan}`,
       gridRow: `${position.row} / span ${position.rowSpan}`,
       width: size.width,
-      height: size.height,
+      height: shouldAutoHeight ? 'auto' : size.height,
+      minHeight: shouldAutoHeight ? '1200px' : undefined,
       zIndex: zIndex || 1,
       ...styles
     };
