@@ -1,0 +1,110 @@
+import { useEffect } from 'react';
+import { useComponentStore } from '../stores/componentStore';
+import { RendererRegistry, RendererProps } from '../components/builder/renderers/RendererRegistry';
+import React from 'react';
+
+/**
+ * Hook to automatically load plugin renderers when components are registered
+ *
+ * This hook watches the component store and attempts to load renderers
+ * for any plugin components that have a reactBundlePath defined.
+ *
+ * Usage in your app:
+ * ```tsx
+ * function App() {
+ *   usePluginRenderers(); // Call once at app level
+ *   return <BuilderPage />;
+ * }
+ * ```
+ */
+export function usePluginRenderers(): void {
+  const components = useComponentStore((state) => state.components);
+
+  useEffect(() => {
+    // Load renderers for all components that have bundle paths
+    components.forEach(async (entry) => {
+      if (!entry.reactBundlePath || !entry.isActive) return;
+
+      // Check if already registered
+      if (RendererRegistry.has(entry.componentId, entry.pluginId)) return;
+
+      try {
+        await RendererRegistry.loadFromBundle(
+          entry.componentId,
+          entry.reactBundlePath,
+          entry.pluginId
+        );
+      } catch (error) {
+        console.warn(
+          `[usePluginRenderers] Failed to load renderer for ${entry.pluginId}:${entry.componentId}`,
+          error
+        );
+      }
+    });
+  }, [components]);
+}
+
+/**
+ * Create a renderer wrapper that adapts a plugin's component to the RendererProps interface
+ *
+ * Plugin components typically receive props directly (text, variant, etc.)
+ * but core renderers receive { component, isEditMode }
+ *
+ * This utility creates an adapter that bridges the two interfaces.
+ *
+ * @example
+ * // In your plugin's registration code:
+ * import Button from './Button'; // Your plugin's Button component
+ *
+ * const ButtonRenderer = createPluginRenderer(Button);
+ * RendererRegistry.register('Button', ButtonRenderer, 'my-plugin');
+ */
+export function createPluginRenderer(
+  PluginComponent: React.ComponentType<any>
+): React.FC<RendererProps> {
+  const PluginRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
+    // Merge props and styles for the plugin component
+    const pluginProps = {
+      ...component.props,
+      styles: component.styles,
+      isEditMode,
+    };
+
+    return React.createElement(PluginComponent, pluginProps);
+  };
+
+  return PluginRenderer;
+}
+
+/**
+ * Register a plugin renderer manually
+ *
+ * This is the main API for plugin developers to register their renderers.
+ * Call this in your plugin's initialization code.
+ *
+ * @example
+ * // In your plugin's entry point:
+ * import { registerPluginRenderer } from '@dynamic-site-builder/core';
+ * import MyCustomButton from './components/MyCustomButton';
+ *
+ * registerPluginRenderer('Button', MyCustomButton, 'my-custom-plugin');
+ */
+export function registerPluginRenderer(
+  componentId: string,
+  Component: React.ComponentType<any>,
+  pluginId: string
+): void {
+  const Renderer = createPluginRenderer(Component);
+  RendererRegistry.register(componentId, Renderer, pluginId);
+}
+
+/**
+ * Unregister a plugin renderer
+ *
+ * Call this when your plugin is being unloaded/disabled.
+ */
+export function unregisterPluginRenderer(componentId: string, pluginId: string): void {
+  RendererRegistry.unregister(componentId, pluginId);
+}
+
+export default usePluginRenderers;
