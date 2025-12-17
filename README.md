@@ -6,6 +6,7 @@ A plugin-based visual site builder platform with drag-and-drop components, live 
 
 - [Quick Start](#quick-start)
 - [Running the Application](#running-the-application)
+- [Builder Features](#builder-features)
 - [Plugin Development](#plugin-development)
 - [Plugin Management](#plugin-management)
 - [Architecture](#architecture)
@@ -103,6 +104,104 @@ Access H2 Console at: http://localhost:8080/h2-console
 - JDBC URL: `jdbc:h2:file:./data/flashcarddb`
 - Username: `sa`
 - Password: (empty)
+
+---
+
+## Builder Features
+
+The Visual Site Builder provides a comprehensive interface for creating and managing pages with drag-and-drop components.
+
+### Properties Panel
+
+The Properties Panel (right sidebar) allows you to customize selected components with four tabs:
+
+#### Props Tab
+
+Configure component-specific properties like text content, colors, variants, and sizes.
+
+#### Styles Tab
+
+Edit CSS styles including:
+
+- **Colors**: Background, text, and border colors with color picker
+- **Spacing**: Padding and margin values
+- **Typography**: Font size, weight, and family
+- **Borders**: Border width, style, and radius
+
+#### Layout Tab
+
+Control component positioning:
+
+- **Position**: Grid column and row placement
+- **Size**: Width and height (supports px, %, auto)
+- **Span**: Column and row span for grid layouts
+- **Z-Index**: Layer ordering
+
+#### Events Tab
+
+Add interactivity to components:
+
+**Available Event Types:**
+
+- `onClick` - Triggered when component is clicked
+- `onDoubleClick` - Triggered on double-click
+- `onMouseEnter` - Triggered when mouse enters component
+- `onMouseLeave` - Triggered when mouse leaves component
+- `onFocus` - Triggered when component receives focus
+- `onBlur` - Triggered when component loses focus
+- `onChange` - Triggered when value changes (inputs)
+- `onSubmit` - Triggered on form submission
+
+**Available Actions:**
+
+| Action | Description | Config Fields |
+|--------|-------------|---------------|
+| Navigate | Go to a URL | `url` |
+| Show Message | Display alert/toast | `message`, `type` (info/success/warning/error) |
+| Call Backend API | Invoke server handler | `endpoint`, `method` (GET/POST/PUT/DELETE) |
+| Toggle Visibility | Show/hide component | `targetComponentId` |
+| Update Property | Change another component's prop | `targetComponentId`, `propName`, `value` |
+| Submit Form | Submit a form | `formId` |
+| Open Modal | Open a modal dialog | `modalId` |
+| Close Modal | Close a modal dialog | `modalId` |
+| Emit Custom Event | Trigger custom event | `eventName`, `eventData` |
+| Custom Code | Execute JavaScript | `code` |
+
+**Event Options:**
+
+- **Prevent Default**: Stops the browser's default behavior
+- **Stop Propagation**: Prevents event bubbling to parent elements
+- **Preview Mode Only**: Event only fires in preview mode, not edit mode
+
+### Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+S` / `Cmd+S` | Save page |
+| `Ctrl+Z` / `Cmd+Z` | Undo |
+| `Ctrl+Shift+Z` / `Cmd+Shift+Z` | Redo |
+| `Ctrl+E` / `Cmd+E` | Toggle CSS Editor |
+| `Delete` | Remove selected component |
+| `Escape` | Close panels/modals |
+
+### Saving and Loading
+
+**With Backend Connection:**
+Pages are saved to the database when you have a valid `siteId` and `pageId` in the URL (e.g., `/builder/1/2`).
+
+**Demo Mode (localStorage):**
+When no backend connection is available, pages are automatically saved to browser localStorage:
+
+- Pages persist across browser sessions
+- Last saved page loads automatically on startup
+- Export pages as JSON for backup
+
+### Preview Mode
+
+Toggle between Edit and Preview modes using the toolbar button:
+
+- **Edit Mode**: Full editing capabilities with selection, drag-drop, resize handles
+- **Preview Mode**: See how the page looks to end users, events are active
 
 ---
 
@@ -976,16 +1075,170 @@ public class MyPluginData {
 }
 ```
 
-#### 5. **Event System** (Planned Feature)
+#### 5. **Event System**
+
+The platform provides a powerful event handling system that allows plugins to respond to UI events (onClick, onSubmit, etc.) with backend logic.
+
+**Frontend Event Configuration:**
+
+Components can have events configured in the Properties Panel's "Events" tab:
+
+- Event types: onClick, onDoubleClick, onMouseEnter, onMouseLeave, onFocus, onBlur, onChange, onSubmit
+- Action types: Navigate, Show Message, Call Backend API, Update Property, Toggle Visibility, Custom Code
+
+**Backend Event Handlers:**
+
+Create event handlers in your plugin to respond to frontend events:
 
 ```java
-@Override
-public void onActivate(PluginContext context) throws Exception {
-    // Subscribe to events
-    context.getEventBus().subscribe("component.added", event -> {
-        log.info("Component added: {}", event.getData());
-    });
+import dev.mainul35.cms.sdk.event.EventHandler;
+import dev.mainul35.cms.sdk.event.EventContext;
+import dev.mainul35.cms.sdk.event.EventResult;
+
+@PluginService
+public class MyComponentEventHandlers {
+
+    @EventHandler(
+        componentId = "my-component",
+        eventType = "onClick",
+        description = "Handles button click and logs to database"
+    )
+    public EventResult handleClick(EventContext context) {
+        // Get component props
+        String buttonText = context.getProp("text", String.class);
+        String variant = context.getProp("variant", String.class);
+
+        // Get event data from frontend
+        Integer clickCount = context.getEventData("clickCount", Integer.class);
+
+        // Access user/session info
+        String userId = context.getUserId().orElse("anonymous");
+
+        // Do business logic...
+
+        return EventResult.success()
+            .withData("message", "Button clicked: " + buttonText)
+            .showSuccess("Action completed!")
+            .build();
+    }
+
+    @EventHandler(
+        componentId = "my-component",
+        eventType = "onSubmit",
+        description = "Handles form submission"
+    )
+    public EventResult handleSubmit(EventContext context) {
+        try {
+            // Validate and process form
+            String email = context.getProp("email", String.class);
+
+            if (email == null || !email.contains("@")) {
+                return EventResult.failure("Invalid email")
+                    .withError("email", "Please enter a valid email address")
+                    .build();
+            }
+
+            // Save to database, call external API, etc.
+
+            return EventResult.success("Form submitted!")
+                .navigate("/thank-you")
+                .build();
+
+        } catch (Exception e) {
+            return EventResult.failure("Submission failed")
+                .showError("Something went wrong. Please try again.")
+                .build();
+        }
+    }
 }
+```
+
+**EventContext API:**
+
+```java
+// Component information
+String instanceId = context.getInstanceId();
+String componentId = context.getComponentId();
+String pluginId = context.getPluginId();
+
+// Get component props and styles
+String text = context.getProp("text", String.class);
+String color = context.getProp("color", String.class, "blue"); // with default
+Map<String, Object> allProps = context.getProps();
+Map<String, String> styles = context.getStyles();
+
+// Get event data from frontend
+Map<String, Object> eventData = context.getEventData();
+Integer count = context.getEventData("count", Integer.class);
+
+// User/session context
+Optional<String> userId = context.getUserId();
+Optional<String> sessionId = context.getSessionId();
+boolean isAuthenticated = context.isAuthenticated();
+boolean isAdmin = context.hasRole("ADMIN");
+
+// Access Spring beans
+MyService service = context.getBean(MyService.class);
+```
+
+**EventResult Builder:**
+
+```java
+// Simple success
+return EventResult.success().build();
+
+// Success with data
+return EventResult.success()
+    .withData("recordId", 123)
+    .withData("status", "created")
+    .build();
+
+// Navigate to another page
+return EventResult.success()
+    .navigate("/dashboard")
+    .build();
+
+// Show messages
+return EventResult.success()
+    .showSuccess("Saved successfully!")
+    .build();
+
+return EventResult.failure("Validation failed")
+    .showError("Please fix the errors below")
+    .withError("email", "Invalid email format")
+    .withError("name", "Name is required")
+    .build();
+
+// Update component props/styles
+return EventResult.success()
+    .updateProp("text", "Clicked!")
+    .updateProp("disabled", true)
+    .updateStyle("backgroundColor", "#4CAF50")
+    .build();
+
+// Open/close modals
+return EventResult.success()
+    .openModal("confirmDialog")
+    .build();
+
+// Broadcast real-time events (WebSocket)
+return EventResult.success()
+    .broadcast("cartUpdated", Map.of("itemCount", 5))
+    .build();
+```
+
+**@EventHandler Annotation Options:**
+
+```java
+@EventHandler(
+    componentId = "my-component",  // or "*" for all components
+    eventType = "onClick",         // or "*" for all events
+    description = "Handler description",
+    priority = 0,                  // Higher = runs first
+    async = false,                 // Run asynchronously
+    continueOnSuccess = true,      // Continue handler chain on success
+    continueOnError = false        // Continue handler chain on error
+)
 ```
 
 ---
