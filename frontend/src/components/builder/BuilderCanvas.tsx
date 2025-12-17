@@ -316,6 +316,9 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect 
         const maxWidth = component.props?.maxWidth;
         const centerContent = component.props?.centerContent;
 
+        // Get minimum height for empty containers (so they're visible in preview)
+        const minHeight = hasChildren ? undefined : '50px';
+
         return (
           <div
             className="layout-preview"
@@ -323,6 +326,7 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect 
               ...component.styles,
               ...layoutStyles,
               height: previewHeight,
+              minHeight: minHeight,
               maxWidth: maxWidth || undefined,
               marginLeft: centerContent ? 'auto' : undefined,
               marginRight: centerContent ? 'auto' : undefined,
