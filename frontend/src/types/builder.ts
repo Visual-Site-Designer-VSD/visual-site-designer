@@ -31,6 +31,49 @@ export interface ComponentSize {
 }
 
 /**
+ * Event action types for UI-based configuration
+ */
+export enum ActionType {
+  NONE = 'none',
+  NAVIGATE = 'navigate',
+  SHOW_MESSAGE = 'showMessage',
+  TOGGLE_VISIBILITY = 'toggleVisibility',
+  UPDATE_PROP = 'updateProp',
+  SUBMIT_FORM = 'submitForm',
+  OPEN_MODAL = 'openModal',
+  CLOSE_MODAL = 'closeModal',
+  CUSTOM_CODE = 'customCode',
+  CALL_API = 'callApi',
+  EMIT_EVENT = 'emitEvent',
+}
+
+/**
+ * Event action configuration
+ */
+export interface EventAction {
+  type: ActionType;
+  config: Record<string, any>;
+}
+
+/**
+ * Event configuration for a component
+ */
+export interface ComponentEventConfig {
+  /** The event type (e.g., 'onClick', 'onHover', 'onSubmit') */
+  eventType: string;
+  /** Simple action configured via UI */
+  action?: EventAction;
+  /** Custom JavaScript code for advanced handlers */
+  customCode?: string;
+  /** Prevent default browser behavior */
+  preventDefault?: boolean;
+  /** Stop event propagation */
+  stopPropagation?: boolean;
+  /** Only execute in preview mode (not edit mode) */
+  previewOnly?: boolean;
+}
+
+/**
  * Component instance on a page
  */
 export interface ComponentInstance {
@@ -45,6 +88,10 @@ export interface ComponentInstance {
   zIndex?: number;
   displayOrder?: number;
   isVisible?: boolean;
+  /** Event configurations for this component instance */
+  events?: ComponentEventConfig[];
+  /** Path to the React bundle for dynamic loading (from plugin) */
+  reactBundlePath?: string;
 }
 
 /**
