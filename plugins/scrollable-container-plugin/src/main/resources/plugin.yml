@@ -1,0 +1,32 @@
+plugin-id: scrollable-container-plugin
+plugin-name: Scrollable Container
+version: 1.0.0
+author: Mainul35
+description: A scrollable container component with configurable scroll behavior
+main-class: dev.mainul35.plugins.layout.ScrollableContainerPlugin
+plugin-type: ui-component
+
+# UI Component Configuration
+ui-component:
+  component-id: scrollable-container
+  display-name: Scrollable Container
+  category: layout
+  icon: "\uD83D\uDCDC"
+  description: Container with scrollable content area - vertical, horizontal, or both directions
+
+  # Default dimensions
+  default-width: 100%
+  default-height: 400px
+
+  # Size constraints
+  resizable: true
+  min-width: 100px
+  max-width: 100%
+  min-height: 100px
+  max-height: 2000px
+
+  # This container can hold children
+  can-have-children: true
+
+  # React component path (relative to plugin resources)
+  react-component-path: /components/ScrollableContainer.jsx
