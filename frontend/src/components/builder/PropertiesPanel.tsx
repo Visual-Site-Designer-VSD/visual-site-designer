@@ -429,36 +429,40 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ selectedCompon
     reorderComponent
   } = useBuilderStore();
 
-  const { getManifest } = useComponentStore();
+  const { getManifest, cacheManifest } = useComponentStore();
 
   const selectedComponent = selectedComponentId ? findComponent(selectedComponentId) : null;
 
+  // Extract stable values for useEffect dependency to prevent unnecessary re-runs
+  const pluginId = selectedComponent?.pluginId;
+  const componentId = selectedComponent?.componentId;
+
   // Load component manifest when selection changes
   useEffect(() => {
-    if (selectedComponent) {
-      console.log('Loading manifest for:', selectedComponent.pluginId, selectedComponent.componentId);
-      const m = getManifest(selectedComponent.pluginId, selectedComponent.componentId);
-      console.log('Manifest loaded:', m);
+    if (pluginId && componentId) {
+      const m = getManifest(pluginId, componentId);
 
-      // If manifest not in cache, try to parse from component itself
-      if (!m && selectedComponent.pluginId && selectedComponent.componentId) {
-        console.log('Manifest not in cache, will fetch from API');
-        // Try to get from component registry
+      if (m) {
+        // Manifest found in cache
+        setManifest(m);
+      } else {
+        // Manifest not in cache, fetch from API
         import('../../services/componentService').then(({ componentService }) => {
-          componentService.getComponentManifest(selectedComponent.pluginId, selectedComponent.componentId)
+          componentService.getComponentManifest(pluginId, componentId)
             .then(manifest => {
-              console.log('Fetched manifest from API:', manifest);
-              setManifest(manifest);
+              if (manifest) {
+                // Cache the manifest for future use
+                cacheManifest(`${pluginId}:${componentId}`, manifest);
+                setManifest(manifest);
+              }
             })
             .catch(err => console.error('Failed to fetch manifest:', err));
         });
-      } else {
-        setManifest(m);
       }
     } else {
       setManifest(null);
     }
-  }, [selectedComponent]);
+  }, [pluginId, componentId, getManifest, cacheManifest]);
 
   if (!selectedComponent) {
     return (

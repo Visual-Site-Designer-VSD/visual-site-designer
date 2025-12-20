@@ -429,8 +429,19 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect 
             ...component.styles,
             height: isScrollable ? containerHeight : undefined,
           }}
+          onClick={(e) => {
+            // Stop propagation to prevent parent containers from receiving the click
+            // The DraggableComponent wrapper will handle the selection
+            e.stopPropagation();
+          }}
         >
-          <div className="placeholder-header">
+          <div
+            className="placeholder-header"
+            onClick={(e) => {
+              // Stop propagation - clicking header should not bubble to parents
+              e.stopPropagation();
+            }}
+          >
             <span className="placeholder-id">{component.componentId}</span>
             <span className="layout-badge">Layout</span>
             <span className="layout-type-badge">{layoutType}</span>
@@ -455,11 +466,9 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect 
               scrollBehavior: component.props?.smoothScroll ? 'smooth' : 'auto',
             }}
             onClick={(e) => {
-              // Only stop propagation if clicking directly on children-container (not on children)
-              // This allows the parent DraggableComponent to handle selection
-              if (e.target === e.currentTarget) {
-                e.stopPropagation();
-              }
+              // Always stop propagation to prevent bubbling to parent containers
+              // Child DraggableComponents have their own click handlers that will fire first
+              e.stopPropagation();
             }}
             onDrop={(e) => handleNestedDrop(e, component.instanceId)}
             onDragOver={(e) => {

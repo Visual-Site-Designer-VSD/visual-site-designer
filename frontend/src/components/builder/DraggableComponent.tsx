@@ -53,36 +53,31 @@ export const DraggableComponent: React.FC<DraggableComponentProps> = ({
       return;
     }
 
+    // Check if the click originated from a nested DraggableComponent
+    // If so, don't handle this event - let the nested component handle it
+    const closestDraggable = (target as HTMLElement).closest('.draggable-component');
+    if (closestDraggable && closestDraggable !== componentRef.current) {
+      // Click was on a nested draggable component, don't handle here
+      return;
+    }
+
     e.stopPropagation();
 
     // Select component on mouse down
     onSelect?.(component.instanceId);
 
     if (componentRef.current) {
-      const canvas = componentRef.current.parentElement;
-      if (!canvas) return;
-
       const rect = componentRef.current.getBoundingClientRect();
-      const canvasRect = canvas.getBoundingClientRect();
 
-      // Calculate offset from mouse to component top-left
+      // Calculate offset from mouse to component top-left (for potential drag)
       setDragOffset({
         x: e.clientX - rect.left,
         y: e.clientY - rect.top
       });
-
-      // Store initial position relative to canvas for when we switch to absolute
-      const initialLeft = rect.left - canvasRect.left;
-      const initialTop = rect.top - canvasRect.top;
-
-      // Set initial absolute position to prevent jump when switching from grid to absolute
-      componentRef.current.style.left = `${initialLeft}px`;
-      componentRef.current.style.top = `${initialTop}px`;
-      componentRef.current.style.width = `${rect.width}px`;
-      componentRef.current.style.height = `${rect.height}px`;
     }
 
     // Record starting position for drag detection
+    // Don't set isDragging yet - only set it when mouse actually moves
     setDragStartPos({ x: e.clientX, y: e.clientY });
     setHasMoved(false);
     setIsDragging(true);
@@ -96,13 +91,29 @@ export const DraggableComponent: React.FC<DraggableComponentProps> = ({
     const deltaX = Math.abs(e.clientX - dragStartPos.x);
     const deltaY = Math.abs(e.clientY - dragStartPos.y);
 
-    if (deltaX > dragThreshold || deltaY > dragThreshold) {
-      setHasMoved(true);
+    // Only update position if we've moved beyond threshold
+    if (deltaX <= dragThreshold && deltaY <= dragThreshold) {
+      return;
     }
 
-    // Only update position if we've moved beyond threshold
-    if (!hasMoved && (deltaX <= dragThreshold && deltaY <= dragThreshold)) {
-      return;
+    // First time crossing threshold - set up the drag visual state
+    if (!hasMoved) {
+      setHasMoved(true);
+
+      const canvas = componentRef.current.parentElement;
+      if (!canvas) return;
+
+      const rect = componentRef.current.getBoundingClientRect();
+      const canvasRect = canvas.getBoundingClientRect();
+
+      // Set initial absolute position to prevent jump when switching from grid to absolute
+      const initialLeft = rect.left - canvasRect.left;
+      const initialTop = rect.top - canvasRect.top;
+
+      componentRef.current.style.left = `${initialLeft}px`;
+      componentRef.current.style.top = `${initialTop}px`;
+      componentRef.current.style.width = `${rect.width}px`;
+      componentRef.current.style.height = `${rect.height}px`;
     }
 
     e.preventDefault();
@@ -126,17 +137,17 @@ export const DraggableComponent: React.FC<DraggableComponentProps> = ({
 
     setIsDragging(false);
 
-    // Clear inline styles to return to grid positioning
+    // Only update position if component actually moved
+    if (!hasMoved) {
+      // Just a click, not a drag - don't update position or clear styles
+      return;
+    }
+
+    // Clear inline styles to return to grid positioning (only if we actually dragged)
     componentRef.current.style.left = '';
     componentRef.current.style.top = '';
     componentRef.current.style.width = '';
     componentRef.current.style.height = '';
-
-    // Only update position if component actually moved
-    if (!hasMoved) {
-      // Just a click, not a drag - don't update position
-      return;
-    }
 
     const canvas = componentRef.current.parentElement;
     if (!canvas) return;
@@ -163,12 +174,29 @@ export const DraggableComponent: React.FC<DraggableComponentProps> = ({
 
   const handleClick = (e: React.MouseEvent) => {
     if (!canDrag) return;
+
+    // Check if the click originated from a nested DraggableComponent
+    const target = e.target as HTMLElement;
+    const closestDraggable = target.closest('.draggable-component');
+    if (closestDraggable && closestDraggable !== componentRef.current) {
+      // Click was on a nested draggable component, don't handle here
+      return;
+    }
+
     e.stopPropagation();
     onSelect?.(component.instanceId);
   };
 
   const handleDoubleClick = (e: React.MouseEvent) => {
     if (!canDrag) return;
+
+    // Check if the double-click originated from a nested DraggableComponent
+    const target = e.target as HTMLElement;
+    const closestDraggable = target.closest('.draggable-component');
+    if (closestDraggable && closestDraggable !== componentRef.current) {
+      return;
+    }
+
     e.stopPropagation();
     onDoubleClick?.(component.instanceId);
   };
@@ -205,8 +233,8 @@ export const DraggableComponent: React.FC<DraggableComponentProps> = ({
 
     if (isChildComponent) {
       // Child components: no grid positioning, but apply dimensions for resizing
+      // Don't apply z-index for child components in flex layouts - let flex order handle stacking
       return {
-        zIndex: zIndex || 1,
         width: size.width,
         height: size.height,
         ...styles
