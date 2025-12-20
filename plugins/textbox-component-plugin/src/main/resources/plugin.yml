@@ -1,0 +1,29 @@
+plugin-id: textbox-component-plugin
+plugin-name: Textbox Component
+version: 1.0.0
+author: Mainul35
+description: A text input component for forms and user input
+main-class: dev.mainul35.plugins.ui.TextboxComponentPlugin
+plugin-type: ui-component
+
+# UI Component Configuration
+ui-component:
+  component-id: textbox
+  display-name: Textbox
+  category: ui
+  icon: I
+  description: Text input component for single-line or multi-line user input
+
+  # Default dimensions
+  default-width: 250px
+  default-height: 40px
+
+  # Size constraints
+  resizable: true
+  min-width: 100px
+  max-width: 100%
+  min-height: 32px
+  max-height: 300px
+
+  # React component path (relative to plugin resources)
+  react-component-path: /components/Textbox.jsx
