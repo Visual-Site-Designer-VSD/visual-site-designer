@@ -1,0 +1,29 @@
+plugin-id: navbar-component-plugin
+plugin-name: Navigation Bar Component
+version: 1.0.0
+author: Mainul35
+description: A customizable navigation bar component for the visual site builder
+main-class: dev.mainul35.plugins.ui.NavbarComponentPlugin
+plugin-type: ui-component
+
+# UI Component Configuration
+ui-component:
+  component-id: navbar
+  display-name: Navigation Bar
+  category: ui
+  icon: "\uD83E\uDDED"
+  description: Customizable navigation bar - drop inside a Container/Layout component
+
+  # Default dimensions
+  default-width: 100%
+  default-height: 60px
+
+  # Size constraints
+  resizable: true
+  min-width: 100%
+  max-width: 100%
+  min-height: 40px
+  max-height: 120px
+
+  # React component path (relative to plugin resources)
+  react-component-path: /components/Navbar.jsx
