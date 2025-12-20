@@ -19,6 +19,7 @@ const coreRendererModules = import.meta.glob<{ default: RendererComponent }>(
 );
 
 // Register all core renderers on module load
+console.log('[RendererRegistry] Discovered renderer modules:', Object.keys(coreRendererModules));
 for (const path in coreRendererModules) {
   // Extract component name from path: ./ButtonRenderer.tsx -> "Button"
   const match = /\.\/(.+)Renderer\.tsx$/.exec(path);
@@ -31,6 +32,7 @@ for (const path in coreRendererModules) {
     }
   }
 }
+console.log('[RendererRegistry] All registered keys after init:', RendererRegistry.debugGetAllKeys());
 
 interface ComponentRendererProps {
   component: ComponentInstance;
