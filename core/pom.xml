@@ -85,6 +85,10 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
+                    <!-- Include plugin JARs on classpath for entity/repository scanning -->
+                    <additionalClasspathElements>
+                        <additionalClasspathElement>${project.basedir}/plugins/label-component-plugin-1.0.0.jar</additionalClasspathElement>
+                    </additionalClasspathElements>
                 </configuration>
             </plugin>
 

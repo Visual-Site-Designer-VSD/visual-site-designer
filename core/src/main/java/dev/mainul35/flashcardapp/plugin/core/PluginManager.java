@@ -31,6 +31,9 @@ public class PluginManager {
     private final PluginRepository pluginRepository;
     private final ComponentRegistryService componentRegistryService;
     private final ApplicationContext applicationContext;
+    private final PluginContextManager pluginContextManager;
+    private final PluginControllerRegistrar pluginControllerRegistrar;
+    private final PluginEntityRegistrar pluginEntityRegistrar;
 
     @Value("${app.plugin.directory:plugins}")
     private String pluginDirectory;
@@ -185,6 +188,11 @@ public class PluginManager {
             }
         }
 
+        // Register plugin Spring components (controllers, services, repositories)
+        if (manifest.hasSpringComponents()) {
+            registerPluginSpringComponents(pluginId, manifest, classLoader);
+        }
+
         // Store loaded plugin
         loadedPlugins.put(pluginId, pluginInstance);
 
@@ -192,6 +200,42 @@ public class PluginManager {
         savePluginToDatabase(manifest, jarFile);
 
         log.info("Successfully loaded plugin: {}", pluginId);
+    }
+
+    /**
+     * Register Spring components (controllers, services, repositories) from a plugin
+     */
+    private void registerPluginSpringComponents(String pluginId, PluginManifest manifest, ClassLoader classLoader) {
+        log.info("Registering Spring components for plugin: {}", pluginId);
+
+        try {
+            // Get packages to scan
+            String[] packagesToScan = manifest.getComponentScanPackages().toArray(new String[0]);
+
+            if (packagesToScan.length == 0) {
+                log.info("No packages to scan for plugin: {}", pluginId);
+                return;
+            }
+
+            log.info("Scanning packages for plugin {}: {}", pluginId, Arrays.toString(packagesToScan));
+
+            // Register entity packages if any (for logging/tracking purposes)
+            if (manifest.hasEntities()) {
+                for (String entityPackage : manifest.getEntityPackages()) {
+                    pluginEntityRegistrar.scanAndRegisterEntities(pluginId, entityPackage, classLoader);
+                }
+            }
+
+            // Register controllers, services, and repositories directly in main context
+            // This approach ensures JPA repositories work correctly with the main EntityManager
+            pluginControllerRegistrar.registerPluginComponents(pluginId, classLoader, packagesToScan);
+
+            log.info("Successfully registered Spring components for plugin: {}", pluginId);
+
+        } catch (Exception e) {
+            log.error("Failed to register Spring components for plugin: {}", pluginId, e);
+            throw new RuntimeException("Failed to register plugin Spring components: " + pluginId, e);
+        }
     }
 
     /**
@@ -331,13 +375,20 @@ public class PluginManager {
         }
 
         try {
-            // TODO: Phase 1 - Basic structure only
-            // Future implementation will:
-            // 1. Call plugin onDeactivate() hook
-            // 2. Unregister plugin controllers
-            // 3. Close plugin Spring ApplicationContext
-            // 4. Unload plugin ClassLoader
-            // 5. Remove from loadedPlugins map
+            // Unregister plugin controllers from main Spring MVC
+            if (pluginControllerRegistrar.hasRegisteredControllers(pluginId)) {
+                pluginControllerRegistrar.unregisterControllers(pluginId);
+            }
+
+            // Unregister plugin entities
+            if (pluginEntityRegistrar.hasRegisteredEntities(pluginId)) {
+                pluginEntityRegistrar.unregisterEntities(pluginId);
+            }
+
+            // Destroy plugin Spring ApplicationContext
+            if (pluginContextManager.hasPluginContext(pluginId)) {
+                pluginContextManager.destroyPluginContext(pluginId);
+            }
 
             // Remove from maps
             loadedPlugins.remove(pluginId);

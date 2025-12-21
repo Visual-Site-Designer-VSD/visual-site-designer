@@ -25,6 +25,9 @@ public class TemporarySecurityConfig {
 
                 // Allow all requests without authentication
                 .authorizeHttpRequests(auth -> auth
+                        // Explicitly permit API endpoints
+                        .requestMatchers("/api/**").permitAll()
+                        // Permit all other requests
                         .anyRequest().permitAll()
                 )
 
@@ -32,7 +35,10 @@ public class TemporarySecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
 
                 // Disable form login
-                .formLogin(AbstractHttpConfigurer::disable);
+                .formLogin(AbstractHttpConfigurer::disable)
+
+                // Disable anonymous authentication filter that might interfere
+                .anonymous(AbstractHttpConfigurer::disable);
 
         return http.build();
     }

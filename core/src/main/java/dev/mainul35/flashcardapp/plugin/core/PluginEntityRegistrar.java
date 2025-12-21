@@ -1,10 +1,17 @@
 package dev.mainul35.flashcardapp.plugin.core;
 
+import jakarta.persistence.Entity;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.core.io.support.ResourcePatternResolver;
+import org.springframework.core.type.classreading.CachingMetadataReaderFactory;
+import org.springframework.core.type.classreading.MetadataReader;
+import org.springframework.core.type.classreading.MetadataReaderFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ClassUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -146,12 +153,46 @@ public class PluginEntityRegistrar {
     public void scanAndRegisterEntities(String pluginId, String packageName, ClassLoader classLoader) {
         log.info("Scanning package {} for entities in plugin: {}", packageName, pluginId);
 
-        // TODO: Phase 1 - Placeholder
-        // Future implementation will:
-        // 1. Scan the package for classes annotated with @Entity
-        // 2. Load each entity class using the provided ClassLoader
-        // 3. Register all found entities
+        try {
+            // Convert package name to resource path pattern
+            String packageSearchPath = ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX +
+                    ClassUtils.convertClassNameToResourcePath(packageName) + "/**/*.class";
 
-        log.warn("Entity package scanning not yet implemented - placeholder for Phase 2");
+            ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver(classLoader);
+            MetadataReaderFactory metadataReaderFactory = new CachingMetadataReaderFactory(resolver);
+            Resource[] resources = resolver.getResources(packageSearchPath);
+
+            List<Class<?>> entityClasses = new ArrayList<>();
+
+            for (Resource resource : resources) {
+                if (resource.isReadable()) {
+                    try {
+                        MetadataReader metadataReader = metadataReaderFactory.getMetadataReader(resource);
+                        String className = metadataReader.getClassMetadata().getClassName();
+
+                        // Load the class using the plugin's ClassLoader
+                        Class<?> clazz = classLoader.loadClass(className);
+
+                        // Check if it's an entity
+                        if (clazz.isAnnotationPresent(Entity.class)) {
+                            entityClasses.add(clazz);
+                            log.debug("Found entity class: {}", className);
+                        }
+                    } catch (Exception e) {
+                        log.debug("Could not read class from resource: {}", resource.getFilename(), e);
+                    }
+                }
+            }
+
+            if (!entityClasses.isEmpty()) {
+                registerEntities(pluginId, entityClasses);
+                log.info("Registered {} entity class(es) for plugin: {}", entityClasses.size(), pluginId);
+            } else {
+                log.info("No entity classes found in package {} for plugin: {}", packageName, pluginId);
+            }
+
+        } catch (Exception e) {
+            log.error("Failed to scan package {} for entities in plugin: {}", packageName, pluginId, e);
+        }
     }
 }
