@@ -1,20 +1,14 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { RendererProps } from './RendererRegistry';
-import { eventService } from '../../../services/eventService';
 
 /**
  * LabelRenderer - Renders a text label component
  * Supports various HTML element types (h1-h6, p, span, caption)
- * Fires an onLoad event when the component mounts, which can be
- * configured to call backend APIs through the event system.
  *
  * File naming convention: {ComponentName}Renderer.tsx
  * The component name "Label" is derived from filename "LabelRenderer.tsx"
  */
-const LabelRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
-  // Track if onLoad has been fired to prevent duplicate calls
-  const hasLoadedRef = useRef(false);
-
+const LabelRenderer: React.FC<RendererProps> = ({ component }) => {
   // Extract props with defaults
   const {
     text = 'Label Text',
@@ -23,32 +17,6 @@ const LabelRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
     truncate = false,
     maxLines = 0,
   } = component.props;
-
-  // Fire onLoad event when component mounts (only in non-edit mode)
-  useEffect(() => {
-    if (!isEditMode && !hasLoadedRef.current) {
-      hasLoadedRef.current = true;
-
-      // Invoke backend event handler for onLoad event
-      // The backend can respond with propUpdates to change the text content
-      eventService.invokeBackendHandler(component, 'onLoad', {
-        initialText: text,
-      }).then((response) => {
-        if (response.status === 'success') {
-          // Process any commands or updates from backend
-          eventService.processCommands(response, {
-            updateProps: (props) => {
-              // Props updates would need to be handled by parent component
-              // This is typically done through a state management solution
-              console.log('[LabelRenderer] Backend requested prop updates:', props);
-            },
-          });
-        }
-      }).catch((error) => {
-        console.error('[LabelRenderer] onLoad event failed:', error);
-      });
-    }
-  }, [component, isEditMode, text]);
 
   // Get styles from component
   const customStyles = component.styles || {};

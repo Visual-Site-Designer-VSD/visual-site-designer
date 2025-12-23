@@ -2,19 +2,38 @@
 
 A plugin-based visual site builder platform with drag-and-drop components, live CSS editing, and extensible architecture.
 
+---
+
 ## Table of Contents
 
-- [Quick Start](#quick-start)
-- [Running the Application](#running-the-application)
-- [Builder Features](#builder-features)
-- [Plugin Development](#plugin-development)
-- [Plugin Management](#plugin-management)
-- [Architecture](#architecture)
-- [API Reference](#api-reference)
+**Getting Started**
+
+- [Chapter 1: Quick Start](#chapter-1-quick-start)
+- [Chapter 2: Running the Application](#chapter-2-running-the-application)
+
+**Using the Builder**
+
+- [Chapter 3: Builder Features](#chapter-3-builder-features)
+
+**Plugin Development**
+
+- [Chapter 4: Plugin Development Basics](#chapter-4-plugin-development-basics)
+- [Chapter 5: Developing Dynamic Components](#chapter-5-developing-dynamic-components)
+- [Chapter 6: Plugin Management](#chapter-6-plugin-management)
+
+**Shipped Plugins**
+
+- [Chapter 7: Shipped Plugins Reference](#chapter-7-shipped-plugins-reference)
+
+**Reference**
+
+- [Chapter 8: Architecture](#chapter-8-architecture)
+- [Chapter 9: API Reference](#chapter-9-api-reference)
+- [Chapter 10: Troubleshooting](#chapter-10-troubleshooting)
 
 ---
 
-## Quick Start
+## Chapter 1: Quick Start
 
 ### Prerequisites
 
@@ -54,7 +73,7 @@ You'll see the Visual Site Builder with:
 
 ---
 
-## Running the Application
+## Chapter 2: Running the Application
 
 ### Backend Only
 
@@ -107,7 +126,7 @@ Access H2 Console at: http://localhost:8080/h2-console
 
 ---
 
-## Builder Features
+## Chapter 3: Builder Features
 
 The Visual Site Builder provides a comprehensive interface for creating and managing pages with drag-and-drop components.
 
@@ -205,7 +224,7 @@ Toggle between Edit and Preview modes using the toolbar button:
 
 ---
 
-## Plugin Development
+## Chapter 4: Plugin Development Basics
 
 ### Overview
 
@@ -1338,26 +1357,623 @@ describe('MyComponent', () => {
 
 ### Plugin Examples
 
-Check out these example plugins in the repository:
+Check out these example plugins in the repository (see [Chapter 7: Shipped Plugins Reference](#chapter-7-shipped-plugins-reference) for full documentation):
 
 1. **button-component-plugin** - Basic UI component
    - Single interactive element
-   - Multiple variants and sizes
-   - Simple prop validation
+   - Multiple variants (primary, secondary, success, danger, warning)
+   - Size options and disabled state
 
 2. **container-layout-plugin** - Layout component
    - Supports child components
-   - Flexible layout modes
-   - Dynamic sizing
+   - Flexible layout modes (flex-column, flex-row, grid-2col, grid-3col, etc.)
+   - Dynamic sizing with constraints
 
-3. **course-plugin** - Feature plugin
-   - Custom entities and database tables
-   - REST API endpoints
-   - Complex business logic
+3. **label-component-plugin** - Text display component
+   - Multiple typography variants (h1-h6, p, span, caption)
+   - Text truncation with ellipsis
+   - Configurable alignment and styling
 
 ---
 
-## Plugin Management
+## Chapter 5: Developing Dynamic Components
+
+This chapter explains how to build components that load data dynamically from backend APIs, respond to user interactions, and update their state based on backend responses.
+
+### Architecture Overview
+
+The dynamic component system uses an event-driven architecture where frontend components fire events that are handled by backend event handlers.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Frontend (React)                                                 │
+│ ┌─────────────────┐      ┌──────────────────┐                   │
+│ │ Component       │ ──── │ eventService     │                   │
+│ │ fires event     │      │ POST /api/events │                   │
+│ └─────────────────┘      └────────┬─────────┘                   │
+└───────────────────────────────────┼─────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ Backend (Spring Boot)                                            │
+│ ┌──────────────────┐     ┌───────────────────────┐              │
+│ │ EventController  │ ──► │ EventHandlerRegistry  │              │
+│ │ /api/events      │     │ finds matching        │              │
+│ └──────────────────┘     │ @EventHandler methods │              │
+│                          └───────────┬───────────┘              │
+│                                      │                          │
+│                          ┌───────────▼───────────┐              │
+│                          │ Your Event Handler    │              │
+│                          │ in Plugin             │              │
+│                          └───────────────────────┘              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Step 1: Frontend Component Fires Events
+
+Your component renderer fires events via `eventService`. Here's the pattern:
+
+```tsx
+import React, { useEffect, useRef } from 'react';
+import { RendererProps } from './RendererRegistry';
+import { eventService } from '../../../services/eventService';
+
+const MyComponentRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
+  const hasLoadedRef = useRef(false);
+  const { text = 'Default Text' } = component.props;
+
+  useEffect(() => {
+    // Only fire in non-edit mode, and only once
+    if (!isEditMode && !hasLoadedRef.current) {
+      hasLoadedRef.current = true;
+
+      // Fire onLoad event to backend
+      eventService.invokeBackendHandler(component, 'onLoad', {
+        initialText: text,  // Send any data the backend might need
+      }).then((response) => {
+        if (response.status === 'success') {
+          // Process commands from backend (prop updates, navigation, etc.)
+          eventService.processCommands(response, {
+            updateProps: (props) => {
+              console.log('Backend requested prop updates:', props);
+            },
+          });
+        }
+      }).catch((error) => {
+        console.error('onLoad event failed:', error);
+      });
+    }
+  }, [component, isEditMode, text]);
+
+  return <div className="my-component">{text}</div>;
+};
+
+export default MyComponentRenderer;
+```
+
+### Step 2: Create Backend Event Handler
+
+In your plugin, create a service class with `@EventHandler` annotated methods.
+
+```java
+package dev.mainul35.plugins.ui.service;
+
+import dev.mainul35.cms.sdk.event.EventContext;
+import dev.mainul35.cms.sdk.event.EventHandler;
+import dev.mainul35.cms.sdk.event.EventResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+@Service
+public class MyComponentEventHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(MyComponentEventHandler.class);
+
+    private final MyDataService dataService;
+
+    public MyComponentEventHandler(MyDataService dataService) {
+        this.dataService = dataService;
+    }
+
+    /**
+     * Handle onLoad event for MyComponent.
+     * Loads dynamic content from database and updates the component.
+     */
+    @EventHandler(
+        componentId = "my-component",    // Matches your component ID
+        eventType = "onLoad",            // Event type fired from frontend
+        description = "Load dynamic content from database"
+    )
+    public EventResult handleOnLoad(EventContext context) {
+        log.info("Handling onLoad for instance: {}", context.getInstanceId());
+
+        // Get the content key from component props
+        String contentKey = context.getProp("contentKey", String.class);
+
+        if (contentKey == null || contentKey.isBlank()) {
+            // No dynamic content requested, use static text
+            return EventResult.success()
+                .withMessage("Using static text")
+                .build();
+        }
+
+        // Fetch dynamic content from database
+        return dataService.getContentByKey(contentKey)
+            .map(content -> EventResult.success()
+                .updateProp("text", content.getText())  // Update the text prop
+                .withData("source", "database")
+                .withData("contentId", content.getId())
+                .build())
+            .orElseGet(() -> EventResult.success()
+                .withMessage("Content not found, using default")
+                .build());
+    }
+
+    /**
+     * Handle onClick event for MyComponent
+     */
+    @EventHandler(
+        componentId = "my-component",
+        eventType = "onClick",
+        description = "Handle component click"
+    )
+    public EventResult handleClick(EventContext context) {
+        String action = context.getProp("clickAction", String.class, "none");
+
+        switch (action) {
+            case "navigate":
+                String url = context.getProp("navigateUrl", String.class, "/");
+                return EventResult.success()
+                    .navigate(url)
+                    .build();
+
+            case "showMessage":
+                String message = context.getProp("message", String.class, "Hello!");
+                return EventResult.success()
+                    .showSuccess(message)
+                    .build();
+
+            default:
+                return EventResult.success().build();
+        }
+    }
+}
+```
+
+### Step 3: Understanding EventContext
+
+The `EventContext` provides access to component data, user context, and Spring beans:
+
+```java
+// Component information
+String instanceId = context.getInstanceId();
+String componentId = context.getComponentId();
+String pluginId = context.getPluginId();
+
+// Get component props and styles
+String text = context.getProp("text", String.class);
+String textWithDefault = context.getProp("text", String.class, "default");
+boolean hasProp = context.hasProp("text");
+String color = context.getStyle("color");
+
+// Get event data from frontend
+Map<String, Object> eventData = context.getEventData();
+Integer count = context.getEventData("count", Integer.class);
+String value = context.getEventData("value", String.class, "default");
+
+// Page context
+Optional<Long> pageId = context.getPageId();
+Optional<String> pageName = context.getPageName();
+
+// User/session context (if authenticated)
+Optional<String> userId = context.getUserId();
+Optional<String> sessionId = context.getSessionId();
+boolean isAuthenticated = context.isAuthenticated();
+boolean isAdmin = context.hasRole("ADMIN");
+
+// Request info
+Optional<String> clientIp = context.getClientIp();
+
+// Access Spring beans
+MyService service = context.getBean(MyService.class);
+MyRepository repo = context.getBean("myRepository", MyRepository.class);
+```
+
+### Step 4: Understanding EventResult
+
+The `EventResult` builder provides various ways to respond to events:
+
+#### Basic Responses
+
+```java
+// Simple success
+return EventResult.success().build();
+
+// Success with message
+return EventResult.success("Operation completed").build();
+
+// Failure with error
+return EventResult.failure("Something went wrong")
+    .withError("email", "Invalid format")
+    .build();
+
+// Partial success
+return EventResult.partial("Some items processed").build();
+```
+
+#### Return Data to Frontend
+
+```java
+return EventResult.success()
+    .withData("recordId", 123)
+    .withData("status", "created")
+    .withData("items", List.of("a", "b", "c"))
+    .build();
+```
+
+#### Update Component Props
+
+```java
+return EventResult.success()
+    .updateProp("text", "New dynamic text")
+    .updateProp("variant", "h1")
+    .updateProp("disabled", true)
+    .updateProp("count", 42)
+    .build();
+```
+
+#### Update Component Styles
+
+```java
+return EventResult.success()
+    .updateStyle("color", "#ff0000")
+    .updateStyle("fontSize", "24px")
+    .updateStyle("backgroundColor", "#f0f0f0")
+    .build();
+```
+
+#### Frontend Commands
+
+```java
+// Navigate to URL
+return EventResult.success()
+    .navigate("/dashboard")
+    .build();
+
+// Navigate in new tab
+return EventResult.success()
+    .navigate("/external-page", true)
+    .build();
+
+// Show messages
+return EventResult.success()
+    .showSuccess("Saved successfully!")
+    .build();
+
+return EventResult.failure("Validation failed")
+    .showError("Please fix the errors below")
+    .build();
+
+// Open/close modals
+return EventResult.success()
+    .openModal("confirmDialog")
+    .build();
+
+return EventResult.success()
+    .closeModal("editForm")
+    .build();
+
+// Refresh another component
+return EventResult.success()
+    .refreshComponent("data-table-1")
+    .build();
+
+// Custom command
+return EventResult.success()
+    .addCommand("customAction", Map.of("key", "value"))
+    .build();
+```
+
+#### Broadcast via WebSocket
+
+```java
+// Broadcast to all clients
+return EventResult.success()
+    .broadcast("dataUpdated", Map.of("itemId", 123, "action", "created"))
+    .build();
+
+// Broadcast to specific users
+return EventResult.success()
+    .broadcastToUsers("notification", Map.of("message", "New item"), "user1", "user2")
+    .build();
+```
+
+### Step 5: @EventHandler Annotation Options
+
+| Property | Type | Default | Description |
+| -------- | ---- | ------- | ----------- |
+| `componentId` | String | Required | Component ID to match (e.g., "label", "button") or "*" for all |
+| `eventType` | String | Required | Event type (e.g., "onLoad", "onClick") or "*" for all |
+| `description` | String | "" | Human-readable description |
+| `priority` | int | 0 | Higher values run first |
+| `async` | boolean | false | Run in background (non-blocking) |
+| `continueOnSuccess` | boolean | true | Continue to next handler on success |
+| `continueOnError` | boolean | false | Continue to next handler on error |
+
+#### Wildcard Handlers
+
+```java
+// Handle all events for a component
+@EventHandler(componentId = "my-component", eventType = "*")
+public EventResult handleAllEvents(EventContext context) {
+    log.info("Event: {} on {}", context.getEventType(), context.getComponentId());
+    return EventResult.success().build();
+}
+
+// Handle specific event for all components
+@EventHandler(componentId = "*", eventType = "onLoad")
+public EventResult handleAllOnLoad(EventContext context) {
+    log.info("onLoad for component: {}", context.getComponentId());
+    return EventResult.success().build();
+}
+```
+
+#### Priority and Chaining
+
+```java
+// High priority handler runs first
+@EventHandler(componentId = "form", eventType = "onSubmit", priority = 100)
+public EventResult validateForm(EventContext context) {
+    // Validation logic
+    if (hasErrors) {
+        return EventResult.failure("Validation failed").build();
+        // Chain stops here because continueOnError = false by default
+    }
+    return EventResult.success().build();
+    // Chain continues because continueOnSuccess = true by default
+}
+
+// Lower priority handler runs after
+@EventHandler(componentId = "form", eventType = "onSubmit", priority = 0)
+public EventResult saveForm(EventContext context) {
+    // Save logic - only runs if validation passed
+    return EventResult.success()
+        .navigate("/success")
+        .build();
+}
+```
+
+### Step 6: Adding REST APIs to Your Plugin
+
+Besides event handlers, you can add REST APIs to your plugin for CRUD operations:
+
+```java
+package dev.mainul35.plugins.ui.controller;
+
+import dev.mainul35.plugins.entities.MyEntity;
+import dev.mainul35.plugins.service.MyEntityService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/my-entities")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"})
+public class MyEntityController {
+
+    private final MyEntityService service;
+
+    public MyEntityController(MyEntityService service) {
+        this.service = service;
+    }
+
+    @GetMapping
+    public ResponseEntity<List<MyEntity>> getAll() {
+        return ResponseEntity.ok(service.findAll());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<MyEntity> getById(@PathVariable Long id) {
+        return service.findById(id)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/key/{key}")
+    public ResponseEntity<MyEntity> getByKey(@PathVariable String key) {
+        return service.findByKey(key)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping
+    public ResponseEntity<MyEntity> create(@RequestBody Map<String, String> request) {
+        MyEntity entity = service.create(
+            request.get("key"),
+            request.get("content")
+        );
+        return ResponseEntity.ok(entity);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<MyEntity> update(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> request) {
+        return service.update(id, request.get("content"))
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        service.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+}
+```
+
+### Step 7: JPA Entity Setup for Plugins
+
+To use JPA entities in your plugin, you need to configure entity scanning in the core application.
+
+#### Core Application Configuration
+
+In `Main.java`, add scanning for plugin packages:
+
+```java
+@SpringBootApplication
+@ComponentScan(basePackages = {"dev.mainul35.flashcardapp", "dev.mainul35.plugins"})
+@EntityScan(basePackages = {"dev.mainul35.flashcardapp", "dev.mainul35.plugins.entities"})
+@EnableJpaRepositories(basePackages = {"dev.mainul35.flashcardapp", "dev.mainul35.plugins"})
+public class Main {
+    public static void main(String[] args) {
+        SpringApplication.run(Main.class, args);
+    }
+}
+```
+
+#### Plugin pom.xml Classpath
+
+In `core/pom.xml`, add your plugin JAR to the classpath:
+
+```xml
+<plugin>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-maven-plugin</artifactId>
+    <configuration>
+        <additionalClasspathElements>
+            <additionalClasspathElement>
+                ${project.basedir}/plugins/my-component-plugin-1.0.0.jar
+            </additionalClasspathElement>
+        </additionalClasspathElements>
+    </configuration>
+</plugin>
+```
+
+#### Plugin Entity Example
+
+```java
+package dev.mainul35.plugins.entities.mycomponent;
+
+import jakarta.persistence.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+@Entity
+@Table(name = "my_component_data")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class MyComponentData {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "content_key", unique = true, nullable = false)
+    private String key;
+
+    @Column(columnDefinition = "TEXT")
+    private String content;
+
+    @Column(name = "language_code", length = 10)
+    private String language = "en";
+}
+```
+
+#### Plugin Repository Example
+
+```java
+package dev.mainul35.plugins.mycomponent.repository;
+
+import dev.mainul35.plugins.entities.mycomponent.MyComponentData;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
+
+@Repository
+public interface MyComponentDataRepository extends JpaRepository<MyComponentData, Long> {
+    Optional<MyComponentData> findByKeyAndLanguage(String key, String language);
+    Optional<MyComponentData> findByKey(String key);
+}
+```
+
+### Complete Example: Dynamic Label Component
+
+Here's a complete example putting it all together:
+
+#### 1. Add `contentKey` prop to your plugin
+
+In `LabelComponentPlugin.java`, add to `buildConfigurableProps()`:
+
+```java
+props.add(PropDefinition.builder()
+    .name("contentKey")
+    .type(PropDefinition.PropType.STRING)
+    .label("Content Key")
+    .defaultValue("")
+    .helpText("Database key for dynamic content (leave empty for static text)")
+    .build());
+```
+
+#### 2. Frontend renderer fires onLoad event
+
+```tsx
+useEffect(() => {
+  if (!isEditMode && !hasLoadedRef.current) {
+    hasLoadedRef.current = true;
+
+    eventService.invokeBackendHandler(component, 'onLoad', {
+      contentKey: component.props.contentKey,
+      language: navigator.language || 'en',
+    }).then((response) => {
+      if (response.status === 'success' && response.propUpdates) {
+        // Component will update with new text from database
+      }
+    });
+  }
+}, [component, isEditMode]);
+```
+
+#### 3. Backend handler fetches and returns content
+
+```java
+@EventHandler(componentId = "label", eventType = "onLoad")
+public EventResult handleLabelLoad(EventContext context) {
+    String contentKey = context.getProp("contentKey", String.class);
+    String language = context.getEventData("language", String.class, "en");
+
+    if (contentKey == null || contentKey.isBlank()) {
+        return EventResult.success().build();
+    }
+
+    return labelService.findByKeyAndLanguage(contentKey, language)
+        .map(label -> EventResult.success()
+            .updateProp("text", label.getContent())
+            .build())
+        .orElse(EventResult.success().build());
+}
+```
+
+### Summary Table
+
+| Component | Location | Purpose |
+| --------- | -------- | ------- |
+| Frontend Renderer | `frontend/src/components/builder/renderers/` | Fires events via `eventService` |
+| Event Service | `frontend/src/services/eventService.ts` | POST to `/api/events/invoke` |
+| Event Controller | `core/.../event/EventController.java` | Receives events, routes to handlers |
+| Event Handler Registry | `core/.../event/EventHandlerRegistry.java` | Discovers and manages handlers |
+| Your Event Handler | `plugins/.../service/*EventHandler.java` | Business logic, returns `EventResult` |
+| REST Controllers | `plugins/.../controller/*.java` | Additional CRUD APIs |
+
+---
+
+## Chapter 6: Plugin Management
 
 ### Install Plugin
 
@@ -1521,7 +2137,438 @@ plugin-cli publish my-component-plugin-1.0.0.jar \
 
 ---
 
-## Architecture
+## Chapter 7: Shipped Plugins Reference
+
+This chapter documents all plugins that ship with the Visual Site Builder platform. These plugins serve as both functional components and reference implementations for plugin development.
+
+### Plugin Overview
+
+The platform includes 6 plugins organized into two categories:
+
+| Plugin | Type | Category | Description |
+| ------ | ---- | -------- | ----------- |
+| Button | UI Component | ui | Interactive button with variants |
+| Label | UI Component | ui | Text display with typography options |
+| Textbox | UI Component | ui | Input field with validation |
+| Navbar | UI Component | ui | Navigation bar with dropdowns |
+| Container | Layout | layout | Flexible container with grid/flex layouts |
+| ScrollableContainer | Layout | layout | Scrollable area with snap support |
+
+### Plugin Directory Structure
+
+```text
+plugins/
+├── button-component-plugin/       # Basic button component
+├── label-component-plugin/        # Text/label component
+├── textbox-component-plugin/      # Input field component
+├── navbar-component-plugin/       # Navigation bar component
+├── container-layout-plugin/       # Flex/grid container
+└── scrollable-container-plugin/   # Scrollable container
+```
+
+---
+
+### UI Component Plugins
+
+#### Button Component
+
+A customizable button with multiple variants, sizes, and states.
+
+**Plugin Details:**
+
+| Property | Value |
+| -------- | ----- |
+| Plugin ID | `button-component-plugin` |
+| Component ID | `button` |
+| Category | `ui` |
+| Icon | 🔘 |
+| Can Have Children | No |
+
+**Configurable Props:**
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `text` | STRING | "Click Me" | Button label text |
+| `variant` | SELECT | "primary" | Style variant: primary, secondary, success, danger, warning |
+| `size` | SELECT | "medium" | Size: small, medium, large |
+| `disabled` | BOOLEAN | false | Disable button interactions |
+| `fullWidth` | BOOLEAN | false | Expand to full container width |
+
+**Configurable Styles:**
+
+| Style | Type | Default | Description |
+| ----- | ---- | ------- | ----------- |
+| `borderRadius` | SIZE | "6px" | Corner rounding |
+| `fontWeight` | SELECT | "500" | Font weight: 400, 500, 600, 700 |
+
+**Size Constraints:**
+
+- Default: 150px × 40px
+- Min: 80px × 30px
+- Max: 500px × 80px
+
+**Usage Example:**
+
+```jsx
+// Button with primary variant
+<Button
+  text="Submit"
+  variant="primary"
+  size="medium"
+  onClick={() => console.log('clicked')}
+/>
+```
+
+---
+
+#### Label Component
+
+A text display component supporting multiple typography variants and text truncation.
+
+**Plugin Details:**
+
+| Property | Value |
+| -------- | ----- |
+| Plugin ID | `label-component-plugin` |
+| Component ID | `label` |
+| Category | `ui` |
+| Icon | T |
+| Can Have Children | No |
+
+**Configurable Props:**
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `text` | STRING | "Label Text" | Text content (max 5000 chars) |
+| `variant` | SELECT | "p" | HTML element: h1, h2, h3, h4, h5, h6, p, span, caption |
+| `textAlign` | SELECT | "left" | Alignment: left, center, right, justify |
+| `truncate` | BOOLEAN | false | Enable text truncation with ellipsis |
+| `maxLines` | NUMBER | 0 | Max lines before truncation (0 = unlimited) |
+
+**Configurable Styles:**
+
+| Style | Type | Default | Description |
+| ----- | ---- | ------- | ----------- |
+| `fontSize` | SIZE | "16px" | Text size |
+| `fontWeight` | SELECT | "400" | Weight: 300, 400, 500, 600, 700, 800 |
+| `color` | COLOR | "#333333" | Text color |
+| `lineHeight` | SIZE | "1.5" | Line spacing |
+| `letterSpacing` | SIZE | "0" | Character spacing |
+
+**Size Constraints:**
+
+- Default: 200px × auto
+- Min: 50px × 20px
+- Max: 100% × 500px
+
+**Variant Typography Defaults:**
+
+| Variant | Font Size | Font Weight |
+| ------- | --------- | ----------- |
+| h1 | 2.5rem | 700 |
+| h2 | 2rem | 700 |
+| h3 | 1.75rem | 600 |
+| h4 | 1.5rem | 600 |
+| h5 | 1.25rem | 500 |
+| h6 | 1rem | 500 |
+| p | 1rem | 400 |
+| span | inherit | inherit |
+| caption | 0.875rem | 400 |
+
+---
+
+#### Textbox Component
+
+An input field supporting text, password, email, and other input types with optional labels.
+
+**Plugin Details:**
+
+| Property | Value |
+| -------- | ----- |
+| Plugin ID | `textbox-component-plugin` |
+| Component ID | `textbox` |
+| Category | `ui` |
+| Icon | I |
+| Can Have Children | No |
+
+**Configurable Props:**
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `label` | STRING | "" | Field label text |
+| `showLabel` | BOOLEAN | true | Show/hide label |
+| `placeholder` | STRING | "Enter text..." | Placeholder text (max 200 chars) |
+| `type` | SELECT | "text" | Input type: text, password, email, number, tel, url, search |
+| `multiline` | BOOLEAN | false | Enable textarea mode |
+| `rows` | NUMBER | 3 | Rows for textarea |
+| `disabled` | BOOLEAN | false | Disable input |
+| `readOnly` | BOOLEAN | false | Read-only mode |
+| `required` | BOOLEAN | false | Mark as required (shows red asterisk) |
+| `maxLength` | NUMBER | 0 | Max characters (0 = unlimited, max 10000) |
+| `name` | STRING | "" | Form field name |
+
+**Configurable Styles:**
+
+| Style | Type | Default | Description |
+| ----- | ---- | ------- | ----------- |
+| `borderRadius` | SIZE | "4px" | Corner rounding |
+| `border` | BORDER | "1px solid #ccc" | Border style |
+| `fontSize` | SIZE | "14px" | Text size |
+| `backgroundColor` | COLOR | "#ffffff" | Background color |
+| `color` | COLOR | "#333333" | Text color |
+| `padding` | SIZE | "8px 12px" | Inner padding |
+
+**Size Constraints:**
+
+- Default: 250px × 40px
+- Min: 100px × 32px
+- Max: 100% × 300px
+
+---
+
+#### Navbar Component
+
+A full-featured navigation bar with brand logo, menu items, dropdowns, and mobile responsiveness.
+
+**Plugin Details:**
+
+| Property | Value |
+| -------- | ----- |
+| Plugin ID | `navbar-component-plugin` |
+| Component ID | `navbar` |
+| Category | `ui` |
+| Icon | 🧭 |
+| Can Have Children | No |
+
+**Configurable Props:**
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `brandText` | STRING | "Brand" | Logo/brand text (max 50 chars) |
+| `brandImageUrl` | URL | "" | Logo image URL |
+| `brandLink` | URL | "/" | Brand click destination |
+| `navItems` | JSON | [] | Navigation menu structure |
+| `layout` | SELECT | "default" | Layout: default, centered, split, minimal |
+| `sticky` | BOOLEAN | false | Fix to top on scroll |
+| `showMobileMenu` | BOOLEAN | true | Show hamburger menu on mobile |
+| `mobileBreakpoint` | SELECT | "768px" | Mobile breakpoint: 576px, 768px, 992px, 1024px |
+
+**navItems JSON Structure:**
+
+```json
+[
+  {
+    "label": "Home",
+    "href": "/",
+    "active": true
+  },
+  {
+    "label": "Products",
+    "href": "/products",
+    "children": [
+      { "label": "Category A", "href": "/products/a" },
+      { "label": "Category B", "href": "/products/b" }
+    ]
+  }
+]
+```
+
+**Configurable Styles:**
+
+| Style | Type | Default | Description |
+| ----- | ---- | ------- | ----------- |
+| `backgroundColor` | COLOR | "#ffffff" | Background color |
+| `textColor` | COLOR | "#333333" | Text color |
+| `accentColor` | COLOR | "#007bff" | Active link color |
+| `padding` | SPACING | "0 20px" | Inner padding |
+| `boxShadow` | SHADOW | "0 2px 4px rgba(0,0,0,0.1)" | Drop shadow |
+| `borderBottom` | BORDER | "1px solid #e0e0e0" | Bottom border |
+| `fontSize` | SIZE | "16px" | Text size |
+| `fontFamily` | FONT_FAMILY | "inherit" | Font: Arial, Georgia, Roboto, Open Sans, inherit |
+
+**Size Constraints:**
+
+- Default: 100% × 60px
+- Min height: 40px
+- Max height: 120px
+
+---
+
+### Layout Component Plugins
+
+#### Container Component
+
+A flexible container supporting both Flexbox and CSS Grid layouts for organizing child components.
+
+**Plugin Details:**
+
+| Property | Value |
+| -------- | ----- |
+| Plugin ID | `container-layout-plugin` |
+| Component ID | `container` |
+| Category | `layout` |
+| Icon | 📦 |
+| Can Have Children | Yes |
+| Allowed Child Types | All |
+
+**Configurable Props:**
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `layoutType` | SELECT | "flex-column" | Layout mode (see table below) |
+| `padding` | STRING | "20px" | Inner padding |
+| `maxWidth` | STRING | "1200px" | Maximum width |
+| `centerContent` | BOOLEAN | true | Center container horizontally |
+| `allowOverflow` | BOOLEAN | false | Allow content overflow |
+
+**Layout Types:**
+
+| Value | Description |
+| ----- | ----------- |
+| `flex-column` | Vertical flex layout (default) |
+| `flex-row` | Horizontal flex layout |
+| `flex-wrap` | Wrapping flex layout |
+| `grid-2col` | 2-column grid |
+| `grid-3col` | 3-column grid |
+| `grid-4col` | 4-column grid |
+| `grid-auto` | Responsive auto-fit grid |
+
+**Configurable Styles:**
+
+| Style | Type | Default | Description |
+| ----- | ---- | ------- | ----------- |
+| `gap` | SIZE | "16px" | Space between children |
+| `backgroundColor` | COLOR | "#ffffff" | Background color |
+| `borderRadius` | SIZE | "8px" | Corner rounding |
+
+**Usage in Builder:**
+
+1. Drag Container onto canvas
+2. Select layout type (flex-column, grid-3col, etc.)
+3. Drag child components into the container
+4. Children will automatically arrange based on layout type
+
+---
+
+#### Scrollable Container Component
+
+A container with scrolling capabilities, scroll snapping for carousels, and custom scrollbar styling.
+
+**Plugin Details:**
+
+| Property | Value |
+| -------- | ----- |
+| Plugin ID | `scrollable-container-plugin` |
+| Component ID | `scrollable-container` |
+| Category | `layout` |
+| Icon | (default) |
+| Can Have Children | Yes |
+| Allowed Child Types | All |
+
+**Configurable Props:**
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `scrollDirection` | SELECT | "vertical" | Direction: vertical, horizontal, both |
+| `smoothScroll` | BOOLEAN | true | Enable smooth scrolling |
+| `hideScrollbar` | BOOLEAN | false | Hide scrollbar visually |
+| `scrollSnapType` | SELECT | "none" | Snap behavior: none, mandatory, proximity |
+| `scrollSnapAlign` | SELECT | "start" | Snap alignment: start, center, end |
+| `height` | STRING | "400px" | Container height |
+| `width` | STRING | "100%" | Container width |
+| `maxHeight` | STRING | "none" | Maximum height |
+| `maxWidth` | STRING | "none" | Maximum width |
+| `layoutType` | SELECT | "flex-column" | Child layout (same as Container) |
+| `padding` | STRING | "16px" | Inner padding |
+| `gap` | STRING | "16px" | Space between children |
+
+**Scrollbar Styling Props:**
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `scrollbarWidth` | SELECT | "auto" | Width: auto, thin, none (Firefox) |
+| `scrollbarColor` | COLOR | "#888888" | Scrollbar thumb color |
+| `scrollbarTrackColor` | COLOR | "#f1f1f1" | Scrollbar track color |
+
+**Configurable Styles:**
+
+| Style | Type | Default | Description |
+| ----- | ---- | ------- | ----------- |
+| `backgroundColor` | COLOR | "#ffffff" | Background color |
+| `borderRadius` | SIZE | "8px" | Corner rounding |
+| `border` | BORDER | "1px solid #e0e0e0" | Border style |
+| `boxShadow` | SHADOW | "0 2px 4px rgba(0,0,0,0.05)" | Drop shadow |
+
+**Size Constraints:**
+
+- Default: 100% × 400px
+- Min height: 100px
+- Max height: 2000px
+
+**Carousel Example:**
+
+To create a horizontal carousel:
+
+1. Set `scrollDirection` to "horizontal"
+2. Set `scrollSnapType` to "mandatory"
+3. Set `scrollSnapAlign` to "center"
+4. Set `layoutType` to "flex-row"
+5. Add child components (cards, images, etc.)
+
+---
+
+### Plugin Configuration Summary
+
+All shipped plugins follow a consistent Maven configuration pattern:
+
+```xml
+<groupId>dev.mainul35.plugins</groupId>
+<artifactId>{plugin-name}</artifactId>
+<version>1.0.0</version>
+<packaging>jar</packaging>
+
+<properties>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
+</properties>
+
+<dependencies>
+    <dependency>
+        <groupId>dev.mainul35</groupId>
+        <artifactId>flashcard-cms-plugin-sdk</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <scope>provided</scope>
+    </dependency>
+</dependencies>
+```
+
+---
+
+### Building Shipped Plugins
+
+To rebuild all shipped plugins:
+
+```bash
+# Build all plugins
+cd plugins
+
+# UI Components
+cd button-component-plugin && mvn clean package && cd ..
+cd label-component-plugin && mvn clean package && cd ..
+cd textbox-component-plugin && mvn clean package && cd ..
+cd navbar-component-plugin && mvn clean package && cd ..
+
+# Layout Components
+cd container-layout-plugin && mvn clean package && cd ..
+cd scrollable-container-plugin && mvn clean package && cd ..
+
+# Copy all JARs to core/plugins/
+cp */target/*.jar ../core/plugins/
+```
+
+---
+
+## Chapter 8: Architecture
 
 ### System Overview
 
@@ -1616,7 +2663,7 @@ plugin-cli publish my-component-plugin-1.0.0.jar \
 
 ---
 
-## API Reference
+## Chapter 9: API Reference
 
 ### Component Registry API
 
@@ -1710,7 +2757,7 @@ logging.level.org.springframework.web=INFO
 
 ---
 
-## Troubleshooting
+## Chapter 10: Troubleshooting
 
 ### Plugin Not Loading
 
