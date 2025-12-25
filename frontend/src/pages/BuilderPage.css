@@ -552,6 +552,47 @@
   outline: none;
 }
 
+/* ========== Preview Mode Styles ========== */
+.builder-page.preview-mode {
+  background: white;
+}
+
+.builder-toolbar.preview-toolbar {
+  padding: 8px 16px;
+  background: #343a40;
+  border-bottom: 1px solid #495057;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  flex-shrink: 0;
+}
+
+.builder-toolbar.preview-toolbar .toolbar-center {
+  flex: none;
+}
+
+.builder-toolbar.preview-toolbar .toolbar-button {
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.builder-toolbar.preview-toolbar .toolbar-button:hover {
+  background: #0056b3;
+  border-color: #0056b3;
+}
+
+.builder-main.preview-mode {
+  /* Full height minus the preview toolbar */
+  flex: 1;
+  overflow: auto;
+}
+
+.builder-main.preview-mode .builder-canvas-area {
+  /* Canvas takes full width in preview mode */
+  width: 100%;
+}
+
 /* ========== Print Styles ========== */
 @media print {
   .builder-toolbar,

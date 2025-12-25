@@ -273,131 +273,147 @@ export const BuilderPage: React.FC = () => {
   };
 
   return (
-    <div className="builder-page">
-      {/* Top Toolbar */}
-      <div className="builder-toolbar">
-        <div className="toolbar-left">
-          <button
-            className="toolbar-button back-button"
-            onClick={() => navigate(-1)}
-            title="Back"
-          >
-            ← Back
-          </button>
-
-          <div className="page-title">
-            <input
-              type="text"
-              value={currentPage?.pageName || ''}
-              onChange={(e) => {
-                if (currentPage) {
-                  setCurrentPage({ ...currentPage, pageName: e.target.value });
-                }
-              }}
-              placeholder="Page Name"
-              className="page-name-input"
-            />
-          </div>
-
-          <div className="save-status">
-            <span className={`status-indicator status-${saveStatus}`}>
-              {saveStatus === 'saved' && '✓'}
-              {saveStatus === 'unsaved' && '●'}
-              {saveStatus === 'saving' && '↻'}
-              {saveStatus === 'error' && '⚠'}
-            </span>
-            <span className="status-text">
-              {saveStatus === 'saved' && `Saved ${formatLastSaved()}`}
-              {saveStatus === 'unsaved' && 'Unsaved changes'}
-              {saveStatus === 'saving' && 'Saving...'}
-              {saveStatus === 'error' && 'Save failed'}
-            </span>
-          </div>
-        </div>
-
-        <div className="toolbar-center">
-          <div className="action-group">
+    <div className={`builder-page ${viewMode === 'preview' ? 'preview-mode' : ''}`}>
+      {/* Top Toolbar - Show minimal toolbar in preview mode */}
+      {viewMode === 'preview' ? (
+        <div className="builder-toolbar preview-toolbar">
+          <div className="toolbar-center">
             <button
-              className="toolbar-button"
-              onClick={undo}
-              disabled={!canUndo()}
-              title="Undo (Ctrl+Z)"
-            >
-              ↶ Undo
-            </button>
-            <button
-              className="toolbar-button"
-              onClick={redo}
-              disabled={!canRedo()}
-              title="Redo (Ctrl+Shift+Z)"
-            >
-              ↷ Redo
-            </button>
-          </div>
-
-          <div className="action-group">
-            <button
-              className={`toolbar-button ${viewMode === 'preview' ? 'active' : ''}`}
+              className="toolbar-button primary-button"
               onClick={handlePreview}
-              title="Toggle Preview"
+              title="Exit Preview (Press P or Escape)"
             >
-              {viewMode === 'edit' ? '👁 Preview' : '✏ Edit'}
+              ✏ Exit Preview
             </button>
           </div>
-
-          <div className="action-group">
+        </div>
+      ) : (
+        <div className="builder-toolbar">
+          <div className="toolbar-left">
             <button
-              className={`toolbar-button ${showCSSEditor ? 'active' : ''}`}
-              onClick={() => setShowCSSEditor(!showCSSEditor)}
-              disabled={!selectedComponentId}
-              title="CSS Editor (Ctrl+E)"
+              className="toolbar-button back-button"
+              onClick={() => navigate(-1)}
+              title="Back"
             >
-              {} CSS
+              ← Back
+            </button>
+
+            <div className="page-title">
+              <input
+                type="text"
+                value={currentPage?.pageName || ''}
+                onChange={(e) => {
+                  if (currentPage) {
+                    setCurrentPage({ ...currentPage, pageName: e.target.value });
+                  }
+                }}
+                placeholder="Page Name"
+                className="page-name-input"
+              />
+            </div>
+
+            <div className="save-status">
+              <span className={`status-indicator status-${saveStatus}`}>
+                {saveStatus === 'saved' && '✓'}
+                {saveStatus === 'unsaved' && '●'}
+                {saveStatus === 'saving' && '↻'}
+                {saveStatus === 'error' && '⚠'}
+              </span>
+              <span className="status-text">
+                {saveStatus === 'saved' && `Saved ${formatLastSaved()}`}
+                {saveStatus === 'unsaved' && 'Unsaved changes'}
+                {saveStatus === 'saving' && 'Saving...'}
+                {saveStatus === 'error' && 'Save failed'}
+              </span>
+            </div>
+          </div>
+
+          <div className="toolbar-center">
+            <div className="action-group">
+              <button
+                className="toolbar-button"
+                onClick={undo}
+                disabled={!canUndo()}
+                title="Undo (Ctrl+Z)"
+              >
+                ↶ Undo
+              </button>
+              <button
+                className="toolbar-button"
+                onClick={redo}
+                disabled={!canRedo()}
+                title="Redo (Ctrl+Shift+Z)"
+              >
+                ↷ Redo
+              </button>
+            </div>
+
+            <div className="action-group">
+              <button
+                className={`toolbar-button ${viewMode === 'preview' ? 'active' : ''}`}
+                onClick={handlePreview}
+                title="Toggle Preview"
+              >
+                {viewMode === 'edit' ? '👁 Preview' : '✏ Edit'}
+              </button>
+            </div>
+
+            <div className="action-group">
+              <button
+                className={`toolbar-button ${showCSSEditor ? 'active' : ''}`}
+                onClick={() => setShowCSSEditor(!showCSSEditor)}
+                disabled={!selectedComponentId}
+                title="CSS Editor (Ctrl+E)"
+              >
+                {} CSS
+              </button>
+            </div>
+          </div>
+
+          <div className="toolbar-right">
+            <button
+              className="toolbar-button"
+              onClick={handleExport}
+              title="Export JSON"
+            >
+              ⬇ Export
+            </button>
+
+            <button
+              className="toolbar-button primary-button"
+              onClick={handleSave}
+              disabled={isSaving || saveStatus === 'saved'}
+              title="Save (Ctrl+S)"
+            >
+              {isSaving ? '↻ Saving...' : '💾 Save'}
+            </button>
+
+            <button
+              className="toolbar-button success-button"
+              onClick={handlePublish}
+              title="Publish Page"
+            >
+              🚀 Publish
             </button>
           </div>
         </div>
-
-        <div className="toolbar-right">
-          <button
-            className="toolbar-button"
-            onClick={handleExport}
-            title="Export JSON"
-          >
-            ⬇ Export
-          </button>
-
-          <button
-            className="toolbar-button primary-button"
-            onClick={handleSave}
-            disabled={isSaving || saveStatus === 'saved'}
-            title="Save (Ctrl+S)"
-          >
-            {isSaving ? '↻ Saving...' : '💾 Save'}
-          </button>
-
-          <button
-            className="toolbar-button success-button"
-            onClick={handlePublish}
-            title="Publish Page"
-          >
-            🚀 Publish
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* Main Builder Area */}
-      <div className="builder-main">
-        {/* Left Panel - Component Palette */}
-        <div className={`builder-panel left-panel ${leftPanelCollapsed ? 'collapsed' : ''}`}>
-          <button
-            className="panel-toggle"
-            onClick={() => setLeftPanelCollapsed(!leftPanelCollapsed)}
-            title={leftPanelCollapsed ? 'Show Components' : 'Hide Components'}
-          >
-            {leftPanelCollapsed ? '▶' : '◀'}
-          </button>
-          {!leftPanelCollapsed && <ComponentPalette />}
-        </div>
+      <div className={`builder-main ${viewMode === 'preview' ? 'preview-mode' : ''}`}>
+        {/* Left Panel - Component Palette (hidden in preview mode) */}
+        {viewMode === 'edit' && (
+          <div className={`builder-panel left-panel ${leftPanelCollapsed ? 'collapsed' : ''}`}>
+            <button
+              className="panel-toggle"
+              onClick={() => setLeftPanelCollapsed(!leftPanelCollapsed)}
+              title={leftPanelCollapsed ? 'Show Components' : 'Hide Components'}
+            >
+              {leftPanelCollapsed ? '▶' : '◀'}
+            </button>
+            {!leftPanelCollapsed && <ComponentPalette />}
+          </div>
+        )}
 
         {/* Center - Canvas */}
         <div className="builder-canvas-area">
@@ -444,48 +460,54 @@ export const BuilderPage: React.FC = () => {
           )}
         </div>
 
-        {/* Right Panel - Properties */}
-        <div className={`builder-panel right-panel ${rightPanelCollapsed ? 'collapsed' : ''}`}>
-          <button
-            className="panel-toggle"
-            onClick={() => setRightPanelCollapsed(!rightPanelCollapsed)}
-            title={rightPanelCollapsed ? 'Show Properties' : 'Hide Properties'}
-          >
-            {rightPanelCollapsed ? '◀' : '▶'}
-          </button>
-          {!rightPanelCollapsed && <PropertiesPanel selectedComponentId={selectedComponentId} />}
-        </div>
+        {/* Right Panel - Properties (hidden in preview mode) */}
+        {viewMode === 'edit' && (
+          <div className={`builder-panel right-panel ${rightPanelCollapsed ? 'collapsed' : ''}`}>
+            <button
+              className="panel-toggle"
+              onClick={() => setRightPanelCollapsed(!rightPanelCollapsed)}
+              title={rightPanelCollapsed ? 'Show Properties' : 'Hide Properties'}
+            >
+              {rightPanelCollapsed ? '◀' : '▶'}
+            </button>
+            {!rightPanelCollapsed && <PropertiesPanel selectedComponentId={selectedComponentId} />}
+          </div>
+        )}
       </div>
 
-      {/* Bottom Status Bar */}
-      <div className="builder-status-bar">
-        <div className="status-left">
-          <span className="status-item">
-            Grid: {currentPage?.grid.columns} columns × {currentPage?.grid.gap} gap
-          </span>
-          <span className="status-item">
-            Components: {currentPage?.components.length || 0}
-          </span>
-        </div>
-
-        <div className="status-right">
-          <span className="status-item">
-            {viewMode === 'edit' ? '✏ Edit Mode' : '👁 Preview Mode'}
-          </span>
-          {selectedComponentId && (
+      {/* Bottom Status Bar (hidden in preview mode) */}
+      {viewMode === 'edit' && (
+        <div className="builder-status-bar">
+          <div className="status-left">
             <span className="status-item">
-              Selected: {currentPage?.components.find(c => c.instanceId === selectedComponentId)?.componentId}
+              Grid: {currentPage?.grid.columns} columns × {currentPage?.grid.gap} gap
             </span>
-          )}
-        </div>
-      </div>
+            <span className="status-item">
+              Components: {currentPage?.components.length || 0}
+            </span>
+          </div>
 
-      {/* Keyboard Shortcuts Help */}
-      <div className="keyboard-shortcuts-hint">
-        <small>
-          💡 Shortcuts: Ctrl+S (Save) | Ctrl+Z (Undo) | Ctrl+Shift+Z (Redo) | Ctrl+E (CSS Editor) | Delete (Remove)
-        </small>
-      </div>
+          <div className="status-right">
+            <span className="status-item">
+              ✏ Edit Mode
+            </span>
+            {selectedComponentId && (
+              <span className="status-item">
+                Selected: {currentPage?.components.find(c => c.instanceId === selectedComponentId)?.componentId}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Keyboard Shortcuts Help (hidden in preview mode) */}
+      {viewMode === 'edit' && (
+        <div className="keyboard-shortcuts-hint">
+          <small>
+            Shortcuts: Ctrl+S (Save) | Ctrl+Z (Undo) | Ctrl+Shift+Z (Redo) | Ctrl+E (CSS Editor) | Delete (Remove)
+          </small>
+        </div>
+      )}
     </div>
   );
 };
