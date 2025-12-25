@@ -354,6 +354,12 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect 
         const maxWidth = component.props?.maxWidth;
         const centerContent = component.props?.centerContent;
 
+        // Get gap from props or styles (important for preview mode)
+        const previewGap = component.props?.gap || component.styles?.gap;
+
+        // Get padding - use explicit padding from props, or fall back to gap value for consistent edge spacing
+        const previewPadding = component.props?.padding || previewGap;
+
         // Get minimum height for empty containers (so they're visible in preview)
         const minHeight = hasChildren ? undefined : '50px';
 
@@ -368,6 +374,8 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect 
               maxWidth: maxWidth || undefined,
               marginLeft: centerContent ? 'auto' : undefined,
               marginRight: centerContent ? 'auto' : undefined,
+              gap: previewGap,
+              padding: previewPadding,
             }}
           >
             {hasChildren && component.children!.map(child => {
@@ -407,6 +415,8 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect 
       const containerHeight = component.size?.height || component.props?.height || '400px';
       const containerPadding = component.props?.padding || '16px';
       const containerGap = component.props?.gap || component.styles?.gap || '8px';
+      // Check if this is a grid layout - grid children should fill their cells
+      const isGridLayout = layoutType.startsWith('grid-');
 
       // Get overflow styles for scrollable containers
       const getScrollOverflow = () => {
@@ -454,15 +464,16 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect 
 
           {/* Render children for layout components - apply layoutType styles */}
           <div
-            className={`children-container ${dragOverContainerId === component.instanceId ? 'drag-over' : ''} ${isScrollable ? 'scrollable-children' : ''}`}
+            className={`children-container ${dragOverContainerId === component.instanceId ? 'drag-over' : ''} ${isScrollable ? 'scrollable-children' : ''} ${isGridLayout ? 'grid-layout' : ''}`}
             style={{
               ...layoutStyles,
               ...getScrollOverflow(),
               gap: containerGap,
               padding: isScrollable ? containerPadding : undefined,
-              // For scrollable containers, use flex: 1 to fill available space instead of fixed maxHeight
-              flex: isScrollable ? 1 : undefined,
-              minHeight: isScrollable ? 0 : undefined, // Allow flex shrinking
+              // For scrollable containers with flex layouts, use flex: 1 to fill available space
+              // For grid layouts, don't use flex: 1 as it interferes with grid sizing
+              flex: (isScrollable && !isGridLayout) ? 1 : undefined,
+              minHeight: (isScrollable && !isGridLayout) ? 0 : undefined, // Allow flex shrinking only for flex layouts
               scrollBehavior: component.props?.smoothScroll ? 'smooth' : 'auto',
             }}
             onClick={(e) => {
@@ -488,12 +499,14 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect 
                   key={child.instanceId}
                   component={child}
                   isSelected={selectedComponentId === child.instanceId}
+                  isInGridLayout={isGridLayout}
                   onSelect={handleComponentSelect}
                   onDoubleClick={handleComponentDoubleClick}
                 >
                   <ResizableComponent
                     component={child}
                     isSelected={selectedComponentId === child.instanceId}
+                    isInGridLayout={isGridLayout}
                   >
                     {renderComponent(child)}
                   </ResizableComponent>
