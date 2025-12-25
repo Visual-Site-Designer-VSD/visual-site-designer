@@ -9,6 +9,7 @@ interface ResizableComponentProps {
   component: ComponentInstance;
   children: React.ReactNode;
   isSelected?: boolean;
+  isInGridLayout?: boolean; // If true, don't apply fixed width - let grid control sizing
   minWidth?: number;
   minHeight?: number;
   maxWidth?: number;
@@ -25,6 +26,7 @@ export const ResizableComponent: React.FC<ResizableComponentProps> = ({
   component,
   children,
   isSelected = false,
+  isInGridLayout = false,
   minWidth = 40,
   minHeight = 40,
   maxWidth,
@@ -215,9 +217,14 @@ export const ResizableComponent: React.FC<ResizableComponentProps> = ({
   const getContainerStyles = (): React.CSSProperties => {
     if (isChildComponent) {
       // Child components: apply their stored dimensions for resizing
+      // For grid layouts, don't apply any width - let grid cells control sizing completely
+      // For flex layouts, use stored width but provide a fallback for 'auto' to prevent collapsing
+      const childWidth = isInGridLayout
+        ? undefined
+        : (component.size.width === 'auto' || !component.size.width ? '200px' : component.size.width);
       return {
         position: 'relative',
-        width: component.size.width,
+        width: childWidth,
         height: component.size.height,
       };
     }

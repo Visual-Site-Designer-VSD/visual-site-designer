@@ -225,9 +225,11 @@
 .layout-placeholder {
   border: 2px solid #28a745;
   background: linear-gradient(135deg, #ffffff 0%, #f8fff9 100%);
-  min-height: 0;
+  min-height: 100px; /* Ensure minimum visibility */
   height: 100%;
   overflow: auto;
+  /* For flex-row layouts, ensure layout placeholders don't collapse */
+  min-width: 150px;
 }
 
 .layout-badge {
@@ -270,6 +272,41 @@
   /* Prevent horizontal overflow */
   max-width: 100%;
   box-sizing: border-box;
+}
+
+/* Grid layout children should fill their grid cells, not use fixed widths */
+.children-container > .draggable-component {
+  min-width: 0; /* Allow grid items to shrink below their content width */
+}
+
+/* For grid layouts, override flex behavior and ensure proper grid sizing */
+.children-container.grid-layout {
+  flex: none !important; /* Override flex: 1 which interferes with grid sizing */
+}
+
+/* For grid layouts, children should fill their grid cells completely */
+.children-container.grid-layout > .draggable-component {
+  width: 100% !important; /* Override inline width to fill grid cell */
+  max-width: 100% !important; /* Ensure it doesn't exceed grid cell */
+}
+
+.children-container.grid-layout > .draggable-component.child-component {
+  width: 100% !important; /* Also target child-component class explicitly */
+  max-width: 100% !important;
+}
+
+.children-container.grid-layout > .draggable-component > .component-content {
+  width: 100%;
+}
+
+.children-container.grid-layout > .draggable-component .resizable-component {
+  width: 100% !important; /* Override inline width on resizable wrapper too */
+  max-width: 100% !important;
+}
+
+.children-container.grid-layout > .draggable-component .resizable-component.child-component {
+  width: 100% !important;
+  max-width: 100% !important;
 }
 
 .children-container.drag-over {
@@ -333,6 +370,14 @@
 .scrollable-children {
   border-color: #17a2b8;
   background: rgba(23, 162, 184, 0.05);
+}
+
+/* Fix for scrollable containers with grid layout - ensure grid items don't collapse */
+.scrollable-children.grid-layout {
+  /* Override flex: 1 behavior for grid layouts in scrollable containers */
+  /* Grid needs explicit or auto sizing, not flex sizing */
+  flex: none !important; /* Override flex: 1 from .children-container */
+  align-content: start; /* Align grid rows to start, preventing vertical collapse */
 }
 
 .scrollable-children::-webkit-scrollbar {

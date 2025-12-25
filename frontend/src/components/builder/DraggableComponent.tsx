@@ -7,6 +7,7 @@ interface DraggableComponentProps {
   component: ComponentInstance;
   children: React.ReactNode;
   isSelected?: boolean;
+  isInGridLayout?: boolean; // If true, don't apply fixed width - let grid control sizing
   onSelect?: (componentId: string) => void;
   onDoubleClick?: (componentId: string) => void;
 }
@@ -19,6 +20,7 @@ export const DraggableComponent: React.FC<DraggableComponentProps> = ({
   component,
   children,
   isSelected = false,
+  isInGridLayout = false,
   onSelect,
   onDoubleClick
 }) => {
@@ -234,8 +236,13 @@ export const DraggableComponent: React.FC<DraggableComponentProps> = ({
     if (isChildComponent) {
       // Child components: no grid positioning, but apply dimensions for resizing
       // Don't apply z-index for child components in flex layouts - let flex order handle stacking
+      // For grid layouts, don't apply any width - let grid cells control sizing completely
+      // For flex layouts, use stored width but provide a fallback for 'auto' to prevent collapsing
+      const childWidth = isInGridLayout
+        ? undefined
+        : (size.width === 'auto' || !size.width ? '200px' : size.width);
       return {
-        width: size.width,
+        width: childWidth,
         height: size.height,
         ...styles
       };

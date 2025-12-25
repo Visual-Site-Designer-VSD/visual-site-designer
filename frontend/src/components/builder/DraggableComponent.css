@@ -177,11 +177,11 @@
 /* Child components - allow resizing while fitting in grid/flex layout */
 .draggable-component.child-component {
   min-height: 40px;
-  min-width: 40px;
+  min-width: 100px; /* Increased to ensure visibility in flex-row layouts */
   box-sizing: border-box;
   /* Ensure child components don't have absolute positioning that breaks flex layout */
   position: relative;
-  /* Allow flex-shrink so items can shrink if needed */
+  /* Prevent flex shrinking so items maintain their size in flex-row */
   flex-shrink: 0;
   /* Width and height are controlled by inline styles from component.size */
 }
