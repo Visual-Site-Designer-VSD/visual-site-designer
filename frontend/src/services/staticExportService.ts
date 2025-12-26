@@ -47,10 +47,12 @@ function generateInlineStyle(styles: Record<string, any>): string {
 }
 
 /**
- * Get container layout styles based on layoutType prop
+ * Get container layout styles based on layoutType or layoutMode prop
+ * Templates use layoutMode, builder uses layoutType - check both
  */
 function getContainerLayoutStyles(props: Record<string, any>): Record<string, string> {
-  const layoutType = props.layoutType || 'flex-column';
+  // Check both layoutType and layoutMode (templates use layoutMode)
+  const layoutType = props.layoutType || props.layoutMode || 'flex-column';
   const styles: Record<string, string> = {};
 
   switch (layoutType) {
@@ -273,25 +275,76 @@ function generateTextboxHTML(component: ComponentInstance, id: string, indent: s
 
 /**
  * Generate Container HTML with proper layout styles
+ * Priority: component.styles > props.layoutType/layoutMode > defaults
  */
 function generateContainerHTML(component: ComponentInstance, id: string, indent: string, depth: number): string {
   const { props, styles, children, componentId } = component;
 
-  // Get layout styles from props
+  // Always get layout styles from props (layoutType or layoutMode)
+  // These provide the base layout, then styles can override
   const layoutStyles = getContainerLayoutStyles(props);
 
-  // Container base styles
+  // Container base styles - start with layout styles
   const containerStyles: Record<string, string> = {
     ...layoutStyles,
-    gap: styles.gap || props.gap || '16px',
-    backgroundColor: styles.backgroundColor || props.backgroundColor || 'transparent',
-    borderRadius: styles.borderRadius || '0',
-    minHeight: props.minHeight || 'auto',
   };
+
+  // Apply gap - check styles first, then props
+  if (styles.gap) {
+    containerStyles.gap = styles.gap;
+  } else if (props.gap) {
+    containerStyles.gap = props.gap;
+  }
+
+  // Apply padding - check styles first, then props
+  if (styles.padding) {
+    containerStyles.padding = styles.padding;
+  } else if (props.padding) {
+    containerStyles.padding = props.padding;
+  }
+
+  // Apply backgroundColor
+  if (styles.backgroundColor) {
+    containerStyles.backgroundColor = styles.backgroundColor;
+  } else if (props.backgroundColor) {
+    containerStyles.backgroundColor = props.backgroundColor;
+  }
+
+  // Apply borderRadius
+  if (styles.borderRadius) {
+    containerStyles.borderRadius = styles.borderRadius;
+  }
+
+  // Apply minHeight
+  if (styles.minHeight) {
+    containerStyles.minHeight = styles.minHeight;
+  } else if (props.minHeight) {
+    containerStyles.minHeight = props.minHeight;
+  }
 
   // Add box shadow if present
   if (styles.boxShadow) {
     containerStyles.boxShadow = styles.boxShadow;
+  }
+
+  // Apply maxWidth and centering
+  if (styles.maxWidth || props.maxWidth) {
+    containerStyles.maxWidth = styles.maxWidth || props.maxWidth;
+  }
+  if (props.centerContent || styles.marginLeft === 'auto') {
+    containerStyles.marginLeft = 'auto';
+    containerStyles.marginRight = 'auto';
+  }
+
+  // Apply flex alignment properties
+  if (styles.alignItems || props.alignItems) {
+    containerStyles.alignItems = styles.alignItems || props.alignItems;
+  }
+  if (styles.justifyContent || props.justifyContent) {
+    containerStyles.justifyContent = styles.justifyContent || props.justifyContent;
+  }
+  if (styles.flexWrap) {
+    containerStyles.flexWrap = styles.flexWrap;
   }
 
   // Handle ScrollableContainer
@@ -300,6 +353,8 @@ function generateContainerHTML(component: ComponentInstance, id: string, indent:
     if (props.maxHeight) containerStyles.maxHeight = props.maxHeight;
   }
 
+  // Merge: containerStyles (base) + all styles from component (overrides)
+  // This ensures component.styles takes precedence for any property
   const mergedStyles = mergeStyles(containerStyles, styles);
   const inlineStyle = generateInlineStyle(mergedStyles);
   const styleAttr = inlineStyle ? ` style="${inlineStyle}"` : '';
