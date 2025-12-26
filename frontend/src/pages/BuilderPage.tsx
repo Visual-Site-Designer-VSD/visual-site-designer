@@ -219,14 +219,28 @@ export const BuilderPage: React.FC = () => {
       } else {
         // Save to localStorage for demo/new pages
         const savedPages = JSON.parse(localStorage.getItem('builder_saved_pages') || '{}');
-        // Use currentPageMeta slug if available, otherwise derive from page name
-        const pageKey = currentPageMeta?.pageSlug || currentPage.pageName.replace(/\s+/g, '-').toLowerCase() || 'untitled';
+
+        // IMPORTANT: Always use currentPageMeta.pageSlug as the key to ensure
+        // each page is saved under its correct slug, not derived from pageName
+        // which can change when templates are dropped or page name is edited
+        let pageKey: string;
+        if (currentPageMeta?.pageSlug) {
+          pageKey = currentPageMeta.pageSlug;
+        } else {
+          // Fallback: derive from page name (only for brand new pages)
+          pageKey = currentPage.pageName.replace(/\s+/g, '-').toLowerCase() || 'untitled';
+          console.warn('No currentPageMeta.pageSlug, using derived key:', pageKey);
+        }
+
+        // Save the page with its correct pageName from metadata
         savedPages[pageKey] = {
           ...currentPage,
+          // Use metadata pageName if available (keeps original name regardless of template)
+          pageName: currentPageMeta?.pageName || currentPage.pageName,
           savedAt: new Date().toISOString()
         };
         localStorage.setItem('builder_saved_pages', JSON.stringify(savedPages));
-        console.log('Page saved to localStorage:', pageKey);
+        console.log('Page saved to localStorage:', pageKey, 'pageName:', savedPages[pageKey].pageName);
 
         // Update currentPageMeta if not already set
         if (!currentPageMeta) {
