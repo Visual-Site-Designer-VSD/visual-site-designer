@@ -1,0 +1,74 @@
+.left-sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 280px;
+  background: #f8f9fa;
+  border-right: 1px solid #dee2e6;
+  overflow: hidden;
+}
+
+.sidebar-tabs {
+  display: flex;
+  background: white;
+  border-bottom: 1px solid #dee2e6;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.sidebar-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #6c757d;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.sidebar-tab:hover {
+  background: #f8f9fa;
+  color: #495057;
+}
+
+.sidebar-tab.active {
+  color: #007bff;
+  border-bottom-color: #007bff;
+  background: white;
+}
+
+.sidebar-tab .tab-icon {
+  font-size: 16px;
+}
+
+.sidebar-tab .tab-label {
+  font-weight: 600;
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Override palette styles when inside sidebar */
+.sidebar-content .component-palette,
+.sidebar-content .template-palette {
+  border-right: none;
+  width: 100%;
+}
+
+/* Remove the header from palettes when in sidebar (tabs serve that purpose) */
+.sidebar-content .component-palette .palette-header,
+.sidebar-content .template-palette .palette-header {
+  display: none;
+}
