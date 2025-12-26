@@ -17,6 +17,7 @@ A plugin-based visual site builder platform with drag-and-drop components, live 
 - [Chapter 3.1: Content Repository](#chapter-31-content-repository)
 - [Chapter 3.2: UI Templates](#chapter-32-ui-templates)
 - [Chapter 3.3: Multi-Page Sites](#chapter-33-multi-page-sites)
+- [Chapter 3.4: Static Export](#chapter-34-static-export)
 
 **Plugin Development**
 
@@ -702,6 +703,152 @@ DELETE /api/sites/{siteId}/pages/{pageId}
 PUT /api/sites/{siteId}/pages/{pageId}
 { "routePath": "/" }
 ```
+
+---
+
+## Chapter 3.4: Static Export
+
+The Visual Site Builder allows you to export your site as static HTML/CSS/JS files that can be deployed to any web hosting service. The export preserves all content, styling, and navigation exactly as shown in the preview.
+
+### Accessing the Export Feature
+
+1. Click the **"Export"** button in the builder toolbar
+2. The Export Modal opens with configuration options
+
+### Export Options
+
+#### What to Export
+
+| Option | Description |
+|--------|-------------|
+| **Entire Site** | Exports all pages as a deployable ZIP file |
+| **Current Page Only** | Exports the current page as a single HTML file |
+
+#### Site Name
+
+Enter a name for your exported site. This is used for:
+- The ZIP filename (e.g., `my-site-site.zip`)
+- The README file included in the export
+
+### Export Contents
+
+#### Entire Site (ZIP)
+
+The ZIP export includes:
+
+| File | Description |
+|------|-------------|
+| `index.html` | Homepage (the page with route `/` or slug `home`) |
+| `{page-slug}.html` | HTML file for each additional page |
+| `css/styles.css` | Base CSS styles for all components |
+| `js/main.js` | JavaScript for interactive features |
+| `images/` | All images used in your site (bundled locally) |
+| `README.md` | Deployment instructions |
+
+#### Current Page Only (HTML)
+
+Single-page export includes:
+- Self-contained HTML file with embedded CSS/JS
+- Images embedded as base64 data URLs
+- Ready to view in any browser
+
+### How Export Works
+
+#### Style Preservation
+
+The export engine preserves all component styles exactly as configured:
+
+- **Navbar**: Brand name, navigation items, colors, layout mode
+- **Containers**: Layout type (flex-row, flex-column, grid), gap, padding
+- **Images**: Source URL, alt text, object-fit, border-radius
+- **Buttons**: Text, variant, size, click navigation
+- **Labels**: Text content, variant (h1-h6, p, span)
+
+#### Navigation Links
+
+Internal navigation links are automatically converted for static hosting:
+
+| Original Route | Exported Link |
+|---------------|---------------|
+| `/` | `index.html` |
+| `/home` | `index.html` |
+| `/about` | `about.html` |
+| `/contact` | `contact.html` |
+
+External URLs (http/https) and anchor links (#section) remain unchanged.
+
+#### Image Handling
+
+Images are handled based on export type:
+
+**ZIP Export:**
+- Images are fetched and bundled in the `images/` folder
+- URLs are rewritten to local paths (e.g., `images/photo.jpg`)
+
+**Single Page Export:**
+- Images are embedded as base64 data URLs
+- Results in a larger file but completely self-contained
+
+### Deployment Options
+
+The export is compatible with any static hosting service:
+
+| Service | How to Deploy |
+|---------|---------------|
+| **Netlify Drop** | Drag and drop the ZIP folder to [netlify.com/drop](https://app.netlify.com/drop) |
+| **GitHub Pages** | Push files to a GitHub repository with Pages enabled |
+| **Vercel** | Import from [vercel.com/new](https://vercel.com/new) |
+| **Any Web Server** | Upload files via FTP/SFTP |
+
+### Best Practices
+
+#### Before Exporting
+
+1. **Save all pages** - Ensure all changes are saved before export
+2. **Test in Preview** - Verify all navigation and styling works
+3. **Check images** - Ensure all images are uploaded to Content Repository
+
+#### File Naming
+
+- Homepage is always exported as `index.html`
+- Other pages use their URL slug (e.g., `about-us.html`)
+- Site ZIP uses the site name you provide
+
+#### Unsaved Changes
+
+If you have unsaved changes, the export modal will:
+- Show a warning message
+- Automatically save before exporting
+- Ensure the latest content is included
+
+### Troubleshooting Export
+
+#### Images Not Appearing
+
+**Problem:** Images show as broken in exported files.
+
+**Solution:**
+- Ensure images are uploaded to the Content Repository
+- Use the full URL from the repository (starts with `/uploads/`)
+- For external images, ensure they allow cross-origin requests
+
+#### Navigation Links Not Working
+
+**Problem:** Clicking navbar links shows "file not found".
+
+**Solution:**
+- Ensure all pages are saved before export
+- Check that page slugs match the navigation hrefs
+- Homepage should use `/` or `/home` as href
+
+#### Styles Different from Preview
+
+**Problem:** Exported page looks different from builder preview.
+
+**Solution:**
+- Components use inline styles for consistency
+- Check that component styles are set in the Properties panel
+- Container layout modes are preserved (flex-row, grid, etc.)
 
 ---
 
