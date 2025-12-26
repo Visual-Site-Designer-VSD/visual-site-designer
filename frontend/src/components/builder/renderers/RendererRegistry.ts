@@ -47,7 +47,9 @@ class RendererRegistryClass {
    * RendererRegistry.register('CustomCard', CustomCardRenderer, 'my-plugin');
    */
   register(componentId: string, renderer: RendererComponent, pluginId?: string): void {
-    const key = this.buildKey(componentId, pluginId);
+    // Normalize componentId to ensure consistent lookup
+    const normalizedComponentId = this.normalizeComponentId(componentId);
+    const key = this.buildKey(normalizedComponentId, pluginId);
     this.renderers.set(key, renderer);
     console.log(`[RendererRegistry] Registered renderer: ${key}`);
   }
@@ -56,7 +58,9 @@ class RendererRegistryClass {
    * Unregister a renderer (useful when a plugin is unloaded)
    */
   unregister(componentId: string, pluginId?: string): void {
-    const key = this.buildKey(componentId, pluginId);
+    // Normalize componentId to ensure consistent lookup
+    const normalizedComponentId = this.normalizeComponentId(componentId);
+    const key = this.buildKey(normalizedComponentId, pluginId);
     this.renderers.delete(key);
     this.loadingPromises.delete(key);
     console.log(`[RendererRegistry] Unregistered renderer: ${key}`);
@@ -91,13 +95,18 @@ class RendererRegistryClass {
   /**
    * Normalize componentId for case-insensitive lookup
    * Converts to PascalCase (e.g., "button" -> "Button", "my-button" -> "MyButton")
+   * Preserves existing PascalCase (e.g., "NavbarDefault" stays "NavbarDefault")
    */
   private normalizeComponentId(componentId: string): string {
-    // Handle kebab-case and convert to PascalCase
-    return componentId
-      .split(/[-_]/)
-      .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-      .join('');
+    // If it contains hyphens or underscores, convert to PascalCase
+    if (componentId.includes('-') || componentId.includes('_')) {
+      return componentId
+        .split(/[-_]/)
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+        .join('');
+    }
+    // Otherwise, just ensure first letter is uppercase (preserve existing casing)
+    return componentId.charAt(0).toUpperCase() + componentId.slice(1);
   }
 
   /**
@@ -128,7 +137,9 @@ class RendererRegistryClass {
     bundleUrl: string,
     pluginId: string
   ): Promise<RendererComponent | null> {
-    const key = this.buildKey(componentId, pluginId);
+    // Normalize componentId to ensure consistent lookup
+    const normalizedComponentId = this.normalizeComponentId(componentId);
+    const key = this.buildKey(normalizedComponentId, pluginId);
 
     // Check if already loaded
     if (this.renderers.has(key)) {
@@ -141,7 +152,7 @@ class RendererRegistryClass {
     }
 
     // Start loading
-    const loadPromise = this.loadBundle(componentId, bundleUrl, pluginId);
+    const loadPromise = this.loadBundle(normalizedComponentId, bundleUrl, pluginId);
     this.loadingPromises.set(key, loadPromise);
 
     try {

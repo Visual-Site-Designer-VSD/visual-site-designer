@@ -9,14 +9,18 @@ import { RendererProps } from './RendererRegistry';
  * The component name "Label" is derived from filename "LabelRenderer.tsx"
  */
 const LabelRenderer: React.FC<RendererProps> = ({ component }) => {
-  // Extract props with defaults
+  // Extract props with defaults - support both variant and htmlTag
   const {
     text = 'Label Text',
-    variant = 'p',
+    variant,
+    htmlTag,
     textAlign = 'left',
     truncate = false,
     maxLines = 0,
   } = component.props;
+
+  // Use htmlTag if provided, otherwise fall back to variant, then default to 'p'
+  const elementType = htmlTag || variant || 'p';
 
   // Get styles from component
   const customStyles = component.styles || {};
@@ -43,7 +47,7 @@ const LabelRenderer: React.FC<RendererProps> = ({ component }) => {
     wordWrap: 'break-word',
     overflowWrap: 'break-word',
     // Apply variant defaults first
-    ...variantDefaults[variant],
+    ...variantDefaults[elementType],
     // Then apply custom styles (they override defaults)
     ...(customStyles as React.CSSProperties),
   };
@@ -63,8 +67,8 @@ const LabelRenderer: React.FC<RendererProps> = ({ component }) => {
     labelStyles.overflow = 'hidden';
   }
 
-  // Create the element based on variant
-  const Element = variant as keyof JSX.IntrinsicElements;
+  // Create the element based on elementType
+  const Element = elementType as keyof JSX.IntrinsicElements;
 
   return (
     <Element style={labelStyles} className="label-renderer">

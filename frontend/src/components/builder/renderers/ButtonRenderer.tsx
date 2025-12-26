@@ -58,6 +58,22 @@ const ButtonRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
       color: '#212529',
       border: 'none',
     },
+    outline: {
+      backgroundColor: 'transparent',
+      color: '#007bff',
+      border: '2px solid #007bff',
+    },
+    'outline-light': {
+      backgroundColor: 'transparent',
+      color: '#ffffff',
+      border: '2px solid #ffffff',
+    },
+    link: {
+      backgroundColor: 'transparent',
+      color: '#007bff',
+      border: 'none',
+      textDecoration: 'underline',
+    },
   };
 
   // Size styles
@@ -83,6 +99,9 @@ const ButtonRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
     success: { backgroundColor: '#218838' },
     danger: { backgroundColor: '#c82333' },
     warning: { backgroundColor: '#e0a800' },
+    outline: { backgroundColor: '#007bff', color: 'white' },
+    'outline-light': { backgroundColor: '#ffffff', color: '#007bff' },
+    link: { textDecoration: 'none' },
   };
 
   // Base styles

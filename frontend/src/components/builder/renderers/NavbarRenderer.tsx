@@ -84,6 +84,8 @@ const NavbarRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
     fontSize = '16px',
     dropdownBg = '#ffffff',
     dropdownShadow = '0 4px 12px rgba(0,0,0,0.15)',
+    backdropFilter,
+    WebkitBackdropFilter,
   } = component.styles as Record<string, string>;
 
   // Get justify-content based on layout
@@ -139,6 +141,8 @@ const NavbarRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
     top: sticky ? 0 : 'auto',
     zIndex: sticky ? 1000 : 'auto',
     transition: 'all 0.3s ease',
+    backdropFilter: backdropFilter || undefined,
+    WebkitBackdropFilter: WebkitBackdropFilter || undefined,
   };
 
   // Brand styles
