@@ -156,6 +156,6 @@ public class ComponentRegistryService {
      * Get component categories
      */
     public List<String> getCategories() {
-        return List.of("ui", "layout", "form", "widget");
+        return List.of("ui", "layout", "form", "widget", "navbar");
     }
 }

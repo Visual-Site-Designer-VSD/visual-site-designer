@@ -74,12 +74,21 @@ export interface ComponentEventConfig {
 }
 
 /**
+ * Component category types
+ */
+export type ComponentCategory = 'layout' | 'ui' | 'navigation' | 'form' | 'media' | 'data';
+
+/**
  * Component instance on a page
  */
 export interface ComponentInstance {
   instanceId: string;
   pluginId: string;
   componentId: string;
+  /** Category of the component (layout, ui, navigation, etc.) */
+  componentCategory?: ComponentCategory;
+  /** Parent component ID for nested components */
+  parentId?: string | null;
   position: ComponentPosition;
   size: ComponentSize;
   props: Record<string, any>;
