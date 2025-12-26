@@ -49,6 +49,10 @@ function generateInlineStyle(styles: Record<string, any>): string {
 /**
  * Get container layout styles based on layoutType or layoutMode prop
  * Templates use layoutMode, builder uses layoutType - check both
+ *
+ * IMPORTANT: This function returns base layout styles only.
+ * Override properties (flexWrap, alignItems, justifyContent) should be
+ * applied AFTER these base styles based on component props/styles.
  */
 function getContainerLayoutStyles(props: Record<string, any>): Record<string, string> {
   // Check both layoutType and layoutMode (templates use layoutMode)
@@ -59,7 +63,7 @@ function getContainerLayoutStyles(props: Record<string, any>): Record<string, st
     case 'flex-row':
       styles.display = 'flex';
       styles.flexDirection = 'row';
-      styles.flexWrap = 'nowrap';
+      // Don't set flexWrap here - let component styles/props override
       break;
     case 'flex-wrap':
       styles.display = 'flex';
@@ -209,7 +213,9 @@ function generateButtonHTML(component: ComponentInstance, id: string, indent: st
   const events = component.events || props.events || [];
   const clickEvent = events.find?.((e: any) => e.eventType === 'onClick');
   if (clickEvent?.action?.type === 'navigate' && clickEvent?.action?.config?.url) {
-    onClickAttr = ` onclick="window.location.href='${clickEvent.action.config.url}'"`;
+    // Convert route paths to HTML file links for static export
+    const navUrl = routeToHtmlLink(clickEvent.action.config.url);
+    onClickAttr = ` onclick="window.location.href='${navUrl}'"`;
   }
 
   return `${indent}<button id="${id}" class="component button btn-${variant} btn-${size}"${styleAttr}${disabled}${onClickAttr}>${escapeHtml(text)}</button>`;
@@ -393,64 +399,194 @@ function generateContainerHTML(component: ComponentInstance, id: string, indent:
 }
 
 /**
+ * Convert a route path to an HTML file link for static export
+ * - "/" becomes "index.html"
+ * - "/home" or "home" becomes "index.html" (home page is saved as index.html)
+ * - "/about" becomes "about.html"
+ * - "#section" stays as "#section" (anchor links)
+ * - External URLs (http/https) stay unchanged
+ */
+function routeToHtmlLink(route: string): string {
+  if (!route || route === '#') {
+    return '#';
+  }
+
+  // Keep anchor links as-is
+  if (route.startsWith('#')) {
+    return route;
+  }
+
+  // Keep external URLs as-is
+  if (route.startsWith('http://') || route.startsWith('https://')) {
+    return route;
+  }
+
+  // Convert route paths to HTML files
+  // Home page is saved as index.html, so handle all variations
+  if (route === '/' || route === '/home' || route === 'home') {
+    return 'index.html';
+  }
+
+  // Remove leading slash and add .html extension
+  const pageName = route.startsWith('/') ? route.substring(1) : route;
+  return `${pageName}.html`;
+}
+
+/**
  * Generate Navbar HTML
+ * Preserves the exact same content, styling, and behavior from the preview
  */
 function generateNavbarHTML(component: ComponentInstance, id: string, indent: string): string {
   const { props, styles, componentId } = component;
-  const brandName = props.brandName || props.brand || 'Brand';
-  const navItems = props.navItems || props.items || [];
-  const variant = componentId.replace('Navbar', '').toLowerCase() || props.variant || 'default';
 
-  // Navbar styles based on variant
+  // Extract brand text - check all possible prop names (brandText is used by NavbarRenderer)
+  const brandName = props.brandText || props.brandName || props.brand || 'Brand';
+  const brandLink = props.brandLink || '/';
+  const brandImageUrl = props.brandImageUrl || '';
+  const navItems = props.navItems || props.items || [];
+  const layout = props.layout || 'default';
+  const sticky = props.sticky || false;
+
+  // Extract style props from component.styles (same as NavbarRenderer does)
+  const backgroundColor = styles.backgroundColor || '#ffffff';
+  const textColor = styles.textColor || styles.color || '#333333';
+  const accentColor = styles.accentColor || '#007bff';
+  const padding = styles.padding || '0 20px';
+  const boxShadow = styles.boxShadow || '0 2px 4px rgba(0,0,0,0.1)';
+  const borderBottom = styles.borderBottom || '1px solid #e0e0e0';
+  const fontFamily = styles.fontFamily || 'inherit';
+  const fontSize = styles.fontSize || '16px';
+  const backdropFilter = styles.backdropFilter || '';
+
+  // Build navbar container styles
   const navbarStyles: Record<string, string> = {
     display: 'flex',
     alignItems: 'center',
-    padding: '1rem',
     width: '100%',
+    minHeight: '40px',
+    backgroundColor,
+    color: textColor,
+    padding,
+    boxShadow,
+    borderBottom,
+    fontFamily,
+    fontSize,
+    boxSizing: 'border-box',
+    transition: 'all 0.3s ease',
   };
 
-  // Apply variant-specific styles
-  if (variant === 'dark' || componentId === 'NavbarDark') {
-    navbarStyles.backgroundColor = '#1a1a2e';
-    navbarStyles.color = '#ffffff';
-  } else if (variant === 'glass' || componentId === 'NavbarGlass') {
-    navbarStyles.backgroundColor = 'rgba(255, 255, 255, 0.9)';
-    navbarStyles.backdropFilter = 'blur(10px)';
-  } else {
-    navbarStyles.backgroundColor = '#ffffff';
-    navbarStyles.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+  // Get justify-content based on layout
+  switch (layout) {
+    case 'centered':
+      navbarStyles.justifyContent = 'center';
+      break;
+    case 'split':
+    case 'default':
+    default:
+      navbarStyles.justifyContent = 'space-between';
+      break;
   }
 
-  if (variant === 'sticky' || componentId === 'NavbarSticky') {
+  if (sticky) {
     navbarStyles.position = 'sticky';
     navbarStyles.top = '0';
-    navbarStyles.zIndex = '100';
+    navbarStyles.zIndex = '1000';
   }
 
-  const mergedStyles = mergeStyles(navbarStyles, styles);
-  const inlineStyle = generateInlineStyle(mergedStyles);
+  if (backdropFilter) {
+    navbarStyles.backdropFilter = backdropFilter;
+  }
+
+  const inlineStyle = generateInlineStyle(navbarStyles);
   const styleAttr = inlineStyle ? ` style="${inlineStyle}"` : '';
 
-  const isDark = variant === 'dark' || componentId === 'NavbarDark';
-  const linkColor = isDark ? '#ffffff' : '#666666';
-  const brandColor = isDark ? '#ffffff' : '#333333';
+  // Parse navItems if it's a string (JSON)
+  let parsedNavItems = navItems;
+  if (typeof navItems === 'string') {
+    try {
+      parsedNavItems = JSON.parse(navItems);
+    } catch (e) {
+      console.warn('Failed to parse navItems:', e);
+      parsedNavItems = [];
+    }
+  }
+  if (!Array.isArray(parsedNavItems)) {
+    parsedNavItems = [];
+  }
 
-  const navItemsHtml = navItems.map((item: any) => {
-    const activeStyle = item.active ? 'color: #007bff; font-weight: 600;' : '';
-    const href = item.href || '#';
-    return `${indent}      <li style="margin: 0; list-style: none;"><a href="${href}" style="display: block; padding: 0.5rem 1rem; color: ${item.active ? '#007bff' : linkColor}; text-decoration: none; border-radius: 4px; transition: all 0.2s; ${activeStyle}">${escapeHtml(item.label || item.text || '')}</a></li>`;
+  // Generate nav items HTML with proper styling
+  const navItemsHtml = parsedNavItems.map((item: any) => {
+    const href = routeToHtmlLink(item.href || '#');
+    const isActive = item.active;
+    const linkStyles = [
+      'display: flex',
+      'align-items: center',
+      'padding: 8px 12px',
+      'text-decoration: none',
+      `color: ${isActive ? accentColor : textColor}`,
+      `font-weight: ${isActive ? '600' : '400'}`,
+      `border-bottom: 2px solid ${isActive ? accentColor : 'transparent'}`,
+      'transition: all 0.2s ease',
+      'white-space: nowrap',
+    ].join('; ');
+
+    return `${indent}      <li style="margin: 0; list-style: none;"><a href="${href}" style="${linkStyles}">${escapeHtml(item.label || item.text || '')}</a></li>`;
   }).join('\n');
 
-  return `${indent}<nav id="${id}" class="component navbar navbar-${variant}"${styleAttr}>
-${indent}  <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; max-width: 1200px; margin: 0 auto;">
-${indent}    <a href="/" style="font-size: 1.25rem; font-weight: 700; color: ${brandColor}; text-decoration: none;">${escapeHtml(brandName)}</a>
-${indent}    <button class="navbar-toggle" style="display: none; background: none; border: none; padding: 0.5rem; cursor: pointer;" aria-label="Toggle navigation">
-${indent}      <span style="display: block; width: 24px; height: 2px; background-color: ${brandColor}; position: relative;"></span>
-${indent}    </button>
-${indent}    <ul style="display: flex; list-style: none; margin: 0; padding: 0; gap: 0.5rem;">
+  // Convert brand link to HTML file link
+  const brandHref = routeToHtmlLink(brandLink);
+
+  // Brand styles
+  const brandStyles = [
+    'display: flex',
+    'align-items: center',
+    'gap: 10px',
+    'text-decoration: none',
+    `color: ${textColor}`,
+    'font-weight: 600',
+    'font-size: 1.25em',
+  ].join('; ');
+
+  // Build brand HTML (with optional image)
+  let brandHtml = '';
+  if (brandImageUrl) {
+    brandHtml += `<img src="${brandImageUrl}" alt="${escapeHtml(brandName)}" style="height: 32px; width: auto;" />`;
+  }
+  if (brandName) {
+    brandHtml += `<span>${escapeHtml(brandName)}</span>`;
+  }
+
+  // Hamburger toggle styles
+  const hamburgerStyles = [
+    'display: none',
+    'flex-direction: column',
+    'justify-content: space-around',
+    'width: 24px',
+    'height: 20px',
+    'background: transparent',
+    'border: none',
+    'cursor: pointer',
+    'padding: 0',
+  ].join('; ');
+
+  const hamburgerLineStyles = [
+    'width: 24px',
+    'height: 3px',
+    `background-color: ${textColor}`,
+    'border-radius: 2px',
+    'transition: all 0.3s ease',
+  ].join('; ');
+
+  return `${indent}<nav id="${id}" class="component navbar"${styleAttr}>
+${indent}  <a href="${brandHref}" style="${brandStyles}">${brandHtml}</a>
+${layout === 'split' ? `${indent}  <div style="flex: 1;"></div>\n` : ''}${indent}  <ul style="display: flex; list-style: none; margin: 0; padding: 0; gap: 8px; align-items: center;">
 ${navItemsHtml}
-${indent}    </ul>
-${indent}  </div>
+${indent}  </ul>
+${indent}  <button class="navbar-toggle" style="${hamburgerStyles}" aria-label="Toggle navigation menu">
+${indent}    <span style="${hamburgerLineStyles}"></span>
+${indent}    <span style="${hamburgerLineStyles}"></span>
+${indent}    <span style="${hamburgerLineStyles}"></span>
+${indent}  </button>
 ${indent}</nav>`;
 }
 
@@ -518,8 +654,9 @@ body {
   position: relative;
 }
 
-/* Container defaults */
-.container {
+/* Container defaults - only apply width: 100% to direct children of page-content */
+/* This allows nested containers in flex-row layouts to size based on content */
+.page-content > .container {
   width: 100%;
 }
 
@@ -668,12 +805,24 @@ ${jsInclude}
 }
 
 /**
- * Export a single page as HTML
+ * Convert a blob to base64 data URL
  */
-export function exportSinglePage(
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Export a single page as HTML (async to handle image embedding)
+ */
+export async function exportSinglePage(
   pageDefinition: PageDefinition,
   options: Partial<ExportOptions> = {}
-): string {
+): Promise<string> {
   const defaultOptions: ExportOptions = {
     includeCss: false,
     includeJs: false,
@@ -695,7 +844,148 @@ export function exportSinglePage(
     updatedAt: new Date().toISOString(),
   };
 
-  return generateHTMLPage(pageDefinition, pageMeta, [pageMeta], mergedOptions);
+  let html = generateHTMLPage(pageDefinition, pageMeta, [pageMeta], mergedOptions);
+
+  // Collect all image URLs and embed them as base64 data URLs
+  const imageUrls = collectImageUrls(pageDefinition.components);
+
+  if (imageUrls.size > 0) {
+    const urlMap = new Map<string, string>();
+
+    // Fetch all images and convert to data URLs
+    const promises = Array.from(imageUrls).map(async (url) => {
+      const blob = await fetchImageAsBlob(url);
+      if (blob) {
+        const dataUrl = await blobToDataUrl(blob);
+        urlMap.set(url, dataUrl);
+      }
+    });
+
+    await Promise.all(promises);
+
+    // Replace URLs in HTML
+    html = replaceImageUrls(html, urlMap);
+  }
+
+  return html;
+}
+
+/**
+ * Collect all image URLs from a component tree
+ * Handles both absolute URLs (http://...) and relative paths (/uploads/...)
+ */
+function collectImageUrls(components: ComponentInstance[]): Set<string> {
+  const urls = new Set<string>();
+
+  const processComponent = (component: ComponentInstance) => {
+    // Check for image src in props
+    const src = component.props?.src || component.props?.url;
+    if (src && typeof src === 'string' && src.trim() !== '') {
+      // Include both absolute URLs and relative paths (like /uploads/...)
+      // Exclude placeholder URLs and empty values
+      if (src.startsWith('http') || src.startsWith('/')) {
+        urls.add(src);
+      }
+    }
+
+    // Also check for background images in styles
+    const bgImage = component.styles?.backgroundImage;
+    if (bgImage && typeof bgImage === 'string') {
+      // Match both absolute and relative URLs in background-image
+      const urlMatch = bgImage.match(/url\(['"]?([^'")\s]+)['"]?\)/);
+      if (urlMatch && urlMatch[1]) {
+        const bgUrl = urlMatch[1];
+        if (bgUrl.startsWith('http') || bgUrl.startsWith('/')) {
+          urls.add(bgUrl);
+        }
+      }
+    }
+
+    // Process children recursively
+    if (component.children) {
+      component.children.forEach(processComponent);
+    }
+  };
+
+  components.forEach(processComponent);
+  return urls;
+}
+
+/**
+ * Generate a safe filename from a URL
+ */
+function urlToFilename(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    const pathname = urlObj.pathname;
+    // Get the last part of the path and sanitize it
+    let filename = pathname.split('/').pop() || 'image';
+
+    // If no extension, try to add one based on common patterns
+    if (!filename.includes('.')) {
+      filename += '.png';
+    }
+
+    // Sanitize the filename
+    filename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+
+    return filename;
+  } catch {
+    // Fallback for invalid URLs
+    return `image_${Date.now()}.png`;
+  }
+}
+
+/**
+ * Convert a relative URL to absolute URL using current origin
+ */
+function toAbsoluteUrl(url: string): string {
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  // For relative paths like /uploads/..., prepend the current origin
+  if (url.startsWith('/')) {
+    return `${window.location.origin}${url}`;
+  }
+  // For other relative paths, use current location as base
+  return new URL(url, window.location.href).href;
+}
+
+/**
+ * Fetch an image and return it as a blob
+ * Handles both absolute URLs and relative paths
+ */
+async function fetchImageAsBlob(url: string): Promise<Blob | null> {
+  try {
+    // Convert relative URLs to absolute
+    const absoluteUrl = toAbsoluteUrl(url);
+
+    const response = await fetch(absoluteUrl, {
+      mode: 'cors',
+      credentials: 'include', // Include cookies for same-origin requests
+    });
+    if (!response.ok) {
+      console.warn(`Failed to fetch image: ${absoluteUrl} (${response.status})`);
+      return null;
+    }
+    return await response.blob();
+  } catch (err) {
+    console.warn(`Failed to fetch image: ${url}`, err);
+    return null;
+  }
+}
+
+/**
+ * Replace image URLs in HTML with local paths
+ */
+function replaceImageUrls(html: string, urlMap: Map<string, string>): string {
+  let result = html;
+  urlMap.forEach((localPath, originalUrl) => {
+    // Escape special regex characters in the URL
+    const escapedUrl = originalUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    result = result.replace(new RegExp(escapedUrl, 'g'), localPath);
+  });
+  return result;
 }
 
 /**
@@ -725,11 +1015,40 @@ export async function exportSiteAsZip(
     zip.file('js/main.js', generateBaseJS());
   }
 
-  // Generate HTML for each page
+  // Collect all image URLs from all pages
+  const allImageUrls = new Set<string>();
+  for (const { definition } of siteData.pages) {
+    const pageUrls = collectImageUrls(definition.components);
+    pageUrls.forEach(url => allImageUrls.add(url));
+  }
+
+  // Fetch images and create URL mapping
+  const urlMap = new Map<string, string>();
+  const imagePromises: Promise<void>[] = [];
+
+  allImageUrls.forEach(url => {
+    const filename = urlToFilename(url);
+    const localPath = `images/${filename}`;
+    urlMap.set(url, localPath);
+
+    const promise = fetchImageAsBlob(url).then(blob => {
+      if (blob) {
+        zip.file(localPath, blob);
+      }
+    });
+    imagePromises.push(promise);
+  });
+
+  // Wait for all images to be fetched
+  await Promise.all(imagePromises);
+
+  // Generate HTML for each page (with updated image paths)
   const allPages = siteData.pages.map(p => p.page);
 
   for (const { page, definition } of siteData.pages) {
-    const html = generateHTMLPage(definition, page, allPages, mergedOptions);
+    let html = generateHTMLPage(definition, page, allPages, mergedOptions);
+    // Replace image URLs with local paths
+    html = replaceImageUrls(html, urlMap);
     const fileName = page.routePath === '/'
       ? 'index.html'
       : `${page.pageSlug}.html`;
@@ -743,7 +1062,7 @@ This site was exported from Visual Site Builder.
 
 ## Files
 ${siteData.pages.map(p => `- ${p.page.routePath === '/' ? 'index.html' : p.page.pageSlug + '.html'} - ${p.page.pageName}`).join('\n')}
-
+${urlMap.size > 0 ? `\n## Images\n${urlMap.size} image(s) included in the images/ folder.\n` : ''}
 ## Deployment
 Upload all files to your web server or hosting service.
 
