@@ -14,6 +14,8 @@ A plugin-based visual site builder platform with drag-and-drop components, live 
 **Using the Builder**
 
 - [Chapter 3: Builder Features](#chapter-3-builder-features)
+- [Chapter 3.1: Content Repository](#chapter-31-content-repository)
+- [Chapter 3.2: UI Templates](#chapter-32-ui-templates)
 
 **Plugin Development**
 
@@ -221,6 +223,305 @@ Toggle between Edit and Preview modes using the toolbar button:
 
 - **Edit Mode**: Full editing capabilities with selection, drag-drop, resize handles
 - **Preview Mode**: See how the page looks to end users, events are active
+
+---
+
+## Chapter 3.1: Content Repository
+
+The Content Repository allows you to upload, manage, and use media files (images, videos, PDFs) within your site builder projects.
+
+### Accessing the Content Repository
+
+1. Click the **"📁 Content"** button in the builder toolbar (center section)
+2. Select **"🖼️ Image Repository"** from the dropdown menu
+3. The Image Repository modal will open
+
+### Image Repository Features
+
+#### Uploading Images
+
+**Drag and Drop:**
+- Drag image files directly onto the upload zone
+- Multiple files can be uploaded at once
+
+**Click to Browse:**
+- Click the upload zone to open a file browser
+- Select one or multiple images
+
+**Supported Formats:**
+- JPEG (.jpg, .jpeg)
+- PNG (.png)
+- GIF (.gif)
+- WebP (.webp)
+- SVG (.svg)
+
+**File Size Limit:** 50MB per file
+
+#### Viewing Images
+
+The Image Repository displays all uploaded images in a grid view with:
+- Thumbnail preview
+- Original filename
+- File size
+- Image dimensions (width × height)
+
+#### Using Images
+
+**Copy URL:**
+1. Hover over an image card
+2. Click the 📋 (copy) button
+3. The image URL is copied to clipboard
+4. Paste the URL into an Image component's `src` property
+
+**View Details:**
+1. Click on an image to select it
+2. The "Selected Image" section shows:
+   - Larger preview
+   - Full filename
+   - Size, dimensions, and MIME type
+   - Copyable URL field
+
+#### Deleting Images
+
+1. Hover over an image card
+2. Click the 🗑️ (delete) button
+3. Confirm the deletion
+
+### Using Images in Components
+
+After uploading images to the repository:
+
+1. Add an **Image** component to your page (from the Components palette)
+2. Select the Image component
+3. In the Properties Panel, find the **"Image URL"** field
+4. Paste the copied URL from the Image Repository
+
+### Content Repository API
+
+The Content Repository also provides a REST API for programmatic access:
+
+```http
+# Upload a file
+POST /api/content/upload
+Content-Type: multipart/form-data
+Body: file (multipart), folder (optional)
+
+# Get all images
+GET /api/content/images
+GET /api/content/images?folder=subfolder
+
+# Get all content (with optional filters)
+GET /api/content?type=image&folder=uploads
+
+# Get specific content item
+GET /api/content/{id}
+
+# Delete content
+DELETE /api/content/{id}
+
+# Get repository statistics
+GET /api/content/stats
+
+# Get all folders
+GET /api/content/folders
+
+# Create folder
+POST /api/content/folders?path=new-folder
+```
+
+### Configuration
+
+Content repository settings in `application.properties`:
+
+```properties
+# Upload directory (relative to application root)
+app.content.upload-dir=uploads
+
+# Base URL for serving uploaded files
+app.content.base-url=/uploads
+```
+
+---
+
+## Chapter 3.2: UI Templates
+
+UI Templates provide pre-built page layouts that you can use as starting points for your pages. Instead of building from scratch, select a template and customize it.
+
+### Accessing Templates
+
+1. In the builder, click the **"Templates"** tab in the left sidebar
+2. Browse available templates by category
+3. Click a template to preview it
+4. Click **"Use Template"** to apply it to your canvas
+
+### Available Templates
+
+#### Business Homepage
+
+A professional business landing page with:
+- Navigation bar with logo and menu items
+- Hero section with heading, subheading, and CTA button
+- Features section with 3-column grid
+- Call-to-action section
+- Footer with copyright
+
+**Best for:** Corporate websites, service businesses, agencies
+
+#### Startup Landing Page
+
+A modern startup-focused landing page with:
+- Minimal navbar
+- Bold hero section with gradient background
+- Feature highlights
+- Testimonial/social proof section
+- Email signup form
+- Minimal footer
+
+**Best for:** SaaS products, tech startups, app launches
+
+#### Personal About Me
+
+A personal profile/portfolio page with:
+- Centered profile image (circular)
+- Name and title heading
+- Bio/about text
+- Skills or expertise section
+- Contact information
+- Social links
+
+**Best for:** Personal portfolios, freelancer profiles, resumes
+
+#### Creative Portfolio
+
+A showcase portfolio with:
+- Artistic navbar
+- Hero with tagline
+- Project gallery grid with images
+- **Team section** with profiles (CEO, CTO, Lead Architect)
+- Contact section
+
+**Best for:** Design agencies, creative professionals, studios
+
+#### Contact Page
+
+A dedicated contact page with:
+- Page header
+- Contact form (name, email, message fields)
+- Contact information sidebar
+- Map placeholder
+- Business hours
+
+**Best for:** Contact pages, support pages
+
+### Template Components
+
+Templates use built-in components with pre-configured properties:
+
+| Component | Description | Key Properties |
+|-----------|-------------|----------------|
+| **Navbar** | Navigation bar | brandText, navItems, layout, sticky |
+| **Container** | Layout container | layoutType, padding, maxWidth, gap |
+| **Label** | Text/headings | text, variant (h1-h6, p), textAlign |
+| **Button** | Call-to-action | text, variant, size, fullWidth |
+| **Textbox** | Form inputs | label, placeholder, type, required |
+| **Image** | Media display | src, alt, aspectRatio, objectFit |
+
+### Customizing Templates
+
+After applying a template:
+
+1. **Select components** by clicking on them
+2. **Edit properties** in the Properties Panel (right sidebar)
+3. **Modify styles** using the Styles tab
+4. **Add/remove components** from the Components palette
+5. **Rearrange** by dragging components
+6. **Resize** using drag handles
+
+### Image Component
+
+The Image component displays images with various options:
+
+**Configurable Properties:**
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `src` | URL | "" | Image source URL |
+| `alt` | String | "Image" | Alt text for accessibility |
+| `objectFit` | Select | "cover" | How image fits: cover, contain, fill, none |
+| `objectPosition` | Select | "center" | Image position within container |
+| `aspectRatio` | Select | "auto" | Aspect ratio: auto, 1:1, 4:3, 16:9, circle |
+| `borderRadius` | Size | "0px" | Corner rounding |
+| `placeholder` | Select | "icon" | Placeholder type when no src: icon, color |
+| `placeholderColor` | Color | "#e9ecef" | Background color for placeholder |
+| `caption` | String | "" | Image caption text |
+| `showCaption` | Boolean | false | Show caption below image |
+| `lazyLoad` | Boolean | true | Enable lazy loading |
+
+**Aspect Ratio Options:**
+- `auto` - Natural image dimensions
+- `1:1` - Square
+- `4:3` - Standard photo
+- `16:9` - Widescreen
+- `3:2` - Classic photo
+- `2:3` - Portrait
+- `circle` - Circular crop (with 1:1 ratio)
+
+**Usage Example:**
+
+```jsx
+// Profile image with circular crop
+<Image
+  src="/uploads/profile.jpg"
+  alt="John Doe - CEO"
+  aspectRatio="circle"
+  objectFit="cover"
+  placeholderColor="#dee2e6"
+/>
+
+// Hero banner with 16:9 aspect ratio
+<Image
+  src="/uploads/hero-banner.jpg"
+  alt="Welcome to our site"
+  aspectRatio="16:9"
+  objectFit="cover"
+  borderRadius="8px"
+/>
+```
+
+### Creating Custom Templates
+
+While the platform ships with built-in templates, you can create your own:
+
+1. Build your page layout in the builder
+2. Configure all components with desired properties
+3. Export the page definition as JSON (`Export` button)
+4. Save the JSON as a template file
+
+Template JSON structure:
+
+```json
+{
+  "id": "my-custom-template",
+  "name": "My Custom Template",
+  "description": "A custom template for...",
+  "category": "custom",
+  "thumbnail": "/templates/my-template-thumb.png",
+  "components": [
+    {
+      "pluginId": "core-ui",
+      "componentId": "Label",
+      "props": {
+        "text": "Welcome",
+        "variant": "h1"
+      },
+      "styles": {
+        "textAlign": "center"
+      }
+    }
+    // ... more components
+  ]
+}
+```
 
 ---
 
