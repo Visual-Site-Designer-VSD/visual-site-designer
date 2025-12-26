@@ -6,12 +6,16 @@ import {
   downloadHTML,
   downloadBlob,
 } from '../../services/staticExportService';
+import { Page } from '../../types/site';
 import './ExportModal.css';
 
 interface ExportModalProps {
   isOpen: boolean;
   onClose: () => void;
   siteId?: number | null;
+  currentPageMeta?: Page | null;
+  onSaveBeforeExport?: () => Promise<void>;
+  hasUnsavedChanges?: boolean;
 }
 
 type ExportType = 'current-page' | 'all-pages';
@@ -24,6 +28,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   isOpen,
   onClose,
   siteId,
+  currentPageMeta,
+  onSaveBeforeExport,
+  hasUnsavedChanges = false,
 }) => {
   const { currentPage } = useBuilderStore();
   const [exportType, setExportType] = useState<ExportType>('all-pages');
@@ -41,6 +48,15 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     setSuccess(false);
 
     try {
+      // IMPORTANT: Save the current page before exporting to ensure
+      // localStorage has the latest content for all pages
+      if (hasUnsavedChanges && onSaveBeforeExport) {
+        console.log('[ExportModal] Saving current page before export...');
+        await onSaveBeforeExport();
+        // Small delay to ensure localStorage is updated
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
       if (exportType === 'current-page') {
         // Export single page
         if (!currentPage) {
@@ -52,7 +68,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           includeJs: false,
         });
 
-        const filename = `${currentPage.pageName.replace(/\s+/g, '-').toLowerCase()}.html`;
+        // Use currentPageMeta.pageSlug if available for consistent naming
+        const pageName = currentPageMeta?.pageSlug || currentPage.pageName.replace(/\s+/g, '-').toLowerCase();
+        const filename = `${pageName}.html`;
         downloadHTML(html, filename);
       } else {
         // Export all pages as ZIP
@@ -188,6 +206,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               </a>
             </div>
           </div>
+
+          {/* Unsaved Changes Warning */}
+          {hasUnsavedChanges && (
+            <div className="export-warning">
+              <span className="warning-icon">⚠️</span>
+              You have unsaved changes. They will be saved automatically before export.
+            </div>
+          )}
 
           {/* Error Message */}
           {error && (

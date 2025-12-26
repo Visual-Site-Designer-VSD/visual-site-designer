@@ -240,6 +240,19 @@
   font-size: 14px;
 }
 
+.export-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background-color: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 6px;
+  color: #f57c00;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
 .export-error {
   display: flex;
   align-items: center;

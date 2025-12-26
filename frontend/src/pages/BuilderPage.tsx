@@ -750,6 +750,9 @@ export const BuilderPage: React.FC = () => {
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
         siteId={siteId ? parseInt(siteId) : null}
+        currentPageMeta={currentPageMeta}
+        onSaveBeforeExport={handleSave}
+        hasUnsavedChanges={saveStatus === 'unsaved'}
       />
     </div>
   );
