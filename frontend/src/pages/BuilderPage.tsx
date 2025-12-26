@@ -8,6 +8,7 @@ import { CSSEditor } from '../components/editor/CSSEditor';
 import { CanvasRuler } from '../components/builder/CanvasRuler';
 import { ImageRepositoryModal } from '../components/builder/ImageRepositoryModal';
 import { MultiPagePreview } from '../components/builder/MultiPagePreview';
+import { ExportModal } from '../components/builder/ExportModal';
 import { pageService } from '../services/pageService';
 import { PageDefinition } from '../types/builder';
 import { Page } from '../types/site';
@@ -34,6 +35,7 @@ export const BuilderPage: React.FC = () => {
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [showContentMenu, setShowContentMenu] = useState(false);
   const [showImageRepository, setShowImageRepository] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [currentPageMeta, setCurrentPageMeta] = useState<Page | null>(null);
   const [sitePages, setSitePages] = useState<Page[]>([]);
   const [isMultiPagePreview, setIsMultiPagePreview] = useState(false);
@@ -576,8 +578,8 @@ export const BuilderPage: React.FC = () => {
           <div className="toolbar-right">
             <button
               className="toolbar-button"
-              onClick={handleExport}
-              title="Export JSON"
+              onClick={() => setShowExportModal(true)}
+              title="Export Site as HTML"
             >
               ⬇ Export
             </button>
@@ -727,6 +729,13 @@ export const BuilderPage: React.FC = () => {
       <ImageRepositoryModal
         isOpen={showImageRepository}
         onClose={() => setShowImageRepository(false)}
+      />
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        siteId={siteId ? parseInt(siteId) : null}
       />
     </div>
   );
