@@ -343,8 +343,26 @@ function generateContainerHTML(component: ComponentInstance, id: string, indent:
   if (styles.justifyContent || props.justifyContent) {
     containerStyles.justifyContent = styles.justifyContent || props.justifyContent;
   }
-  if (styles.flexWrap) {
-    containerStyles.flexWrap = styles.flexWrap;
+  if (styles.flexWrap || props.flexWrap) {
+    containerStyles.flexWrap = styles.flexWrap || props.flexWrap;
+  }
+
+  // Apply width - important for container sizing
+  if (styles.width) {
+    containerStyles.width = styles.width;
+  }
+
+  // Apply flex properties for child sizing in flex containers
+  if (styles.flex) {
+    containerStyles.flex = styles.flex;
+  }
+  if (styles.minWidth) {
+    containerStyles.minWidth = styles.minWidth;
+  }
+
+  // Apply text alignment
+  if (styles.textAlign) {
+    containerStyles.textAlign = styles.textAlign;
   }
 
   // Handle ScrollableContainer
