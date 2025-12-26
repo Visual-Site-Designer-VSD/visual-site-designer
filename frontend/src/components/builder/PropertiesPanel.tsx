@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useBuilderStore } from '../../stores/builderStore';
 import { useComponentStore } from '../../stores/componentStore';
 import { ComponentManifest, PropDefinition, PropType, ComponentEventConfig, ActionType } from '../../types/builder';
+import { getBuiltInManifest, hasBuiltInManifest } from '../../data/builtInManifests';
 import './PropertiesPanel.css';
 
 /**
@@ -440,25 +441,35 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ selectedCompon
   // Load component manifest when selection changes
   useEffect(() => {
     if (pluginId && componentId) {
-      const m = getManifest(pluginId, componentId);
-
-      if (m) {
-        // Manifest found in cache
-        setManifest(m);
-      } else {
-        // Manifest not in cache, fetch from API
-        import('../../services/componentService').then(({ componentService }) => {
-          componentService.getComponentManifest(pluginId, componentId)
-            .then(manifest => {
-              if (manifest) {
-                // Cache the manifest for future use
-                cacheManifest(`${pluginId}:${componentId}`, manifest);
-                setManifest(manifest);
-              }
-            })
-            .catch(err => console.error('Failed to fetch manifest:', err));
-        });
+      // First check component store cache
+      const cachedManifest = getManifest(pluginId, componentId);
+      if (cachedManifest) {
+        setManifest(cachedManifest);
+        return;
       }
+
+      // Check for built-in manifests (core-ui, core-navbar components)
+      if (hasBuiltInManifest(pluginId, componentId)) {
+        const builtIn = getBuiltInManifest(pluginId, componentId);
+        if (builtIn) {
+          // Cache the built-in manifest for future use
+          cacheManifest(`${pluginId}:${componentId}`, builtIn);
+          setManifest(builtIn);
+          return;
+        }
+      }
+
+      // Fallback: fetch from API for plugin-provided components
+      import('../../services/componentService').then(({ componentService }) => {
+        componentService.getComponentManifest(pluginId, componentId)
+          .then(fetchedManifest => {
+            if (fetchedManifest) {
+              cacheManifest(`${pluginId}:${componentId}`, fetchedManifest);
+              setManifest(fetchedManifest);
+            }
+          })
+          .catch(err => console.error('Failed to fetch manifest:', err));
+      });
     } else {
       setManifest(null);
     }
