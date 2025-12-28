@@ -446,38 +446,80 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ selectedCompon
   const pluginId = selectedComponent?.pluginId;
   const componentId = selectedComponent?.componentId;
 
+  // Helper function to try multiple manifest lookups with fallbacks
+  const tryGetManifest = (pId: string | undefined, cId: string | undefined): ComponentManifest | null => {
+    if (!cId) return null;
+
+    // Normalize componentId - capitalize first letter if lowercase
+    const normalizedComponentId = cId.charAt(0).toUpperCase() + cId.slice(1);
+
+    // List of pluginId fallbacks to try
+    const pluginIdFallbacks: (string | undefined)[] = [
+      pId,
+      // Common plugin ID patterns for core components
+      `${normalizedComponentId.toLowerCase()}-component-plugin`,
+      `${normalizedComponentId.toLowerCase()}-layout-plugin`,
+      'core-ui',
+      'core-navbar',
+      'container-layout-plugin',
+      'label-component-plugin',
+      'button-component-plugin',
+      'textbox-component-plugin',
+      'image-component-plugin',
+      'navbar-component-plugin',
+    ];
+
+    // List of componentId variations to try
+    const componentIdVariations = [cId, normalizedComponentId];
+
+    for (const tryPluginId of pluginIdFallbacks) {
+      if (!tryPluginId) continue;
+      for (const tryComponentId of componentIdVariations) {
+        if (hasBuiltInManifest(tryPluginId, tryComponentId)) {
+          return getBuiltInManifest(tryPluginId, tryComponentId);
+        }
+      }
+    }
+    return null;
+  };
+
   // Load component manifest when selection changes
   useEffect(() => {
-    if (pluginId && componentId) {
+    if (componentId) {
       // First check component store cache
-      const cachedManifest = getManifest(pluginId, componentId);
-      if (cachedManifest) {
-        setManifest(cachedManifest);
-        return;
-      }
-
-      // Check for built-in manifests (core-ui, core-navbar components)
-      if (hasBuiltInManifest(pluginId, componentId)) {
-        const builtIn = getBuiltInManifest(pluginId, componentId);
-        if (builtIn) {
-          // Cache the built-in manifest for future use
-          cacheManifest(`${pluginId}:${componentId}`, builtIn);
-          setManifest(builtIn);
+      if (pluginId) {
+        const cachedManifest = getManifest(pluginId, componentId);
+        if (cachedManifest) {
+          setManifest(cachedManifest);
           return;
         }
       }
 
+      // Try built-in manifests with fallbacks
+      const builtIn = tryGetManifest(pluginId, componentId);
+      if (builtIn) {
+        // Cache the built-in manifest for future use
+        const cacheKey = `${pluginId || builtIn.pluginId}:${componentId}`;
+        cacheManifest(cacheKey, builtIn);
+        setManifest(builtIn);
+        return;
+      }
+
       // Fallback: fetch from API for plugin-provided components
-      import('../../services/componentService').then(({ componentService }) => {
-        componentService.getComponentManifest(pluginId, componentId)
-          .then(fetchedManifest => {
-            if (fetchedManifest) {
-              cacheManifest(`${pluginId}:${componentId}`, fetchedManifest);
-              setManifest(fetchedManifest);
-            }
-          })
-          .catch(err => console.error('Failed to fetch manifest:', err));
-      });
+      if (pluginId) {
+        import('../../services/componentService').then(({ componentService }) => {
+          componentService.getComponentManifest(pluginId, componentId)
+            .then(fetchedManifest => {
+              if (fetchedManifest) {
+                cacheManifest(`${pluginId}:${componentId}`, fetchedManifest);
+                setManifest(fetchedManifest);
+              }
+            })
+            .catch(err => console.error('Failed to fetch manifest:', err));
+        });
+      } else {
+        setManifest(null);
+      }
     } else {
       setManifest(null);
     }
