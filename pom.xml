@@ -21,6 +21,7 @@
 
     <modules>
         <module>flashcard-cms-plugin-sdk</module>
+        <module>site-runtime</module>
         <module>core</module>
     </modules>
 
