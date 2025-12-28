@@ -69,11 +69,18 @@
 .component-content {
   position: relative;
   width: 100%;
+  /* Note: No max-width constraint - allow resize to work freely */
   overflow: visible;
   display: flex;
   flex-direction: column;
   /* flex: 1 ensures this grows to fill parent, and parent grows to fit content */
   flex: 1 1 auto;
+  box-sizing: border-box;
+}
+
+/* Allow resize handles to show outside component bounds */
+.child-component .component-content {
+  overflow: visible;
 }
 
 .drag-handle {
@@ -193,14 +200,21 @@
   /* Flex-basis auto ensures the element uses its width/height from inline styles */
   flex-basis: auto;
   /* Width and height are controlled by inline styles from component.size */
+  /* Allow resize handles to show (they extend outside with negative offsets) */
+  overflow: visible;
 }
 
 .draggable-component.child-component .component-content {
   width: 100%;
+  /* Don't force height: 100% - let inline styles from component.size control height */
+  /* For 'auto' height components (like navbars), this allows content-based sizing */
   min-height: 40px;
   /* Keep flex display for proper content flow */
   display: flex;
   flex-direction: column;
+  /* Allow resize handles (inside ResizableComponent) to be visible */
+  /* Actual content clipping happens in .resizable-content */
+  overflow: visible;
 }
 
 /* Keep selection overlay contained within the component */
