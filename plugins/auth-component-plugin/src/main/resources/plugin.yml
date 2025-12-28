@@ -1,0 +1,6 @@
+plugin-id: auth-component-plugin
+plugin-name: Auth Component Plugin
+version: 1.0.0
+main-class: dev.mainul35.plugins.auth.AuthComponentPlugin
+description: Authentication UI components including LoginForm, RegisterForm, SocialLoginButtons, ForgotPasswordForm, and LogoutButton
+author: Mainul35
