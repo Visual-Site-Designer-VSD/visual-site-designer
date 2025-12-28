@@ -18,6 +18,8 @@
   pointer-events: auto !important;
   background: white;
   padding: 0;
+  /* Override grid layout - preview mode should be a simple block container */
+  display: block !important;
 }
 
 .builder-canvas.drag-over {
@@ -163,7 +165,8 @@
   border: 1px solid #dee2e6;
   border-radius: 8px;
   padding: 16px;
-  overflow: visible;
+  /* Use hidden overflow to prevent children from extending outside container bounds */
+  overflow: hidden;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
@@ -227,7 +230,7 @@
   background: linear-gradient(135deg, #ffffff 0%, #f8fff9 100%);
   min-height: 100px; /* Ensure minimum visibility */
   height: 100%;
-  overflow: auto;
+  overflow: visible; /* Allow resize handles to show outside bounds */
   /* For flex-row layouts, ensure layout placeholders don't collapse */
   min-width: 150px;
 }
@@ -258,19 +261,20 @@
 .children-container {
   margin-top: 12px;
   padding: 12px;
-  background: rgba(40, 167, 69, 0.05);
-  border: 1px dashed #28a745;
+  /* Use transparent background so parent container's backgroundColor shows through */
+  /* The dashed border provides enough visual indication of the drop zone */
+  background: transparent;
+  border: 1px dashed rgba(40, 167, 69, 0.5);
   border-radius: 6px;
   min-height: 40px;
   /* Layout styles (display, flex-direction, grid-template-columns) are applied inline based on layoutType prop */
   flex: 1;
   position: relative;
+  /* Allow resize handles to show - they have negative offsets */
   overflow: visible;
-  /* Ensure grid/flex items align properly */
-  align-items: start;
-  align-content: start;
-  /* Prevent horizontal overflow */
-  max-width: 100%;
+  /* NOTE: align-items and justify-content are set via inline styles from component.props */
+  /* Do NOT set them here as it would override user-configured values */
+  width: 100%;
   box-sizing: border-box;
 }
 
@@ -349,6 +353,35 @@
 /* Non-selected child components keep default styling */
 .child-component .component-placeholder {
   background: white;
+  /* Fill parent width, but let height be controlled by component or content */
+  width: 100%;
+  /* Don't force height: 100% - non-layout components should size to content */
+  max-width: 100%;
+  /* Leaf components (non-layout) clip their content here */
+  /* Layout placeholders override this with overflow: visible */
+  overflow: hidden;
+}
+
+/* Nested layout containers should fill their parent by default */
+.child-component .layout-placeholder {
+  width: 100%;
+  /* Layout containers can fill parent height when parent has explicit height */
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  /* Allow resize handles to show */
+  overflow: visible;
+}
+
+/* Children-container fills available space but stays within bounds */
+.child-component .children-container {
+  width: 100%;
+  max-width: 100%;
+  /* Use calc to account for parent padding and ensure it fits */
+  max-height: calc(100% - 40px); /* Account for header */
+  /* Allow resize handles of child components to be visible */
+  /* Each child's .resizable-content handles its own content clipping */
+  overflow: visible;
 }
 
 .no-children-placeholder {
@@ -385,7 +418,8 @@
 
 .scrollable-children {
   border-color: #17a2b8;
-  background: rgba(23, 162, 184, 0.05);
+  /* Use transparent background so parent container's backgroundColor shows through */
+  background: transparent;
 }
 
 /* Fix for scrollable containers with grid layout - ensure grid items don't collapse */
@@ -484,11 +518,11 @@
   flex-direction: column;
 }
 
-/* Nested layout-preview should fill their wrapper */
+/* Nested layout-preview should fill width but size to content height */
 .layout-child-wrapper > .layout-preview {
   width: 100%;
-  height: 100%;
-  flex: 1;
+  /* Don't set height: 100% or flex: 1 - this would cause nested containers
+     to stretch to fill parent height even when they should size to content */
 }
 
 /* Responsive adjustments */
