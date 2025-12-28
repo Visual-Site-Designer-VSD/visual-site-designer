@@ -221,20 +221,25 @@ export const ResizableComponent: React.FC<ResizableComponentProps> = ({
       // For flex layouts, use stored width but provide a fallback for 'auto' to prevent collapsing
       const childWidth = isInGridLayout
         ? undefined
-        : (component.size.width === 'auto' || !component.size.width ? '200px' : component.size.width);
+        : (component.size.width === 'auto' || !component.size.width ? '100%' : component.size.width);
       return {
         position: 'relative',
         width: childWidth,
+        // Note: Don't apply maxWidth inline - it prevents resize from working
+        // CSS handles the visual overflow constraints
         height: component.size.height,
+        boxSizing: 'border-box',
       };
     }
 
     // Root-level components: apply explicit dimensions
     return {
       width: component.size.width,
+      // Note: Don't apply maxWidth inline - it prevents resize from working
       height: shouldAutoHeight ? 'auto' : component.size.height,
       minHeight: shouldAutoHeight ? '40px' : undefined,
       position: 'relative',
+      boxSizing: 'border-box',
     };
   };
 

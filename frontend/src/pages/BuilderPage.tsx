@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBuilderStore } from '../stores/builderStore';
 import { LeftSidebar } from '../components/builder/LeftSidebar';
@@ -334,6 +334,23 @@ export const BuilderPage: React.FC = () => {
   };
 
   const handleExitMultiPagePreview = () => {
+    // Import the preview store to get the original editing page
+    import('../stores/multiPagePreviewStore').then(({ useMultiPagePreviewStore }) => {
+      const { getOriginalEditingPage, reset } = useMultiPagePreviewStore.getState();
+      const { page: originalPage, meta: originalMeta } = getOriginalEditingPage();
+
+      // Restore the original page that was being edited before preview
+      if (originalPage) {
+        setCurrentPage(originalPage);
+      }
+      if (originalMeta) {
+        setCurrentPageMeta(originalMeta);
+      }
+
+      // Reset the preview store
+      reset();
+    });
+
     setViewMode('edit');
     setIsMultiPagePreview(false);
   };

@@ -240,11 +240,14 @@ export const DraggableComponent: React.FC<DraggableComponentProps> = ({
       // For flex layouts, use stored width but provide a fallback for 'auto' to prevent collapsing
       const childWidth = isInGridLayout
         ? undefined
-        : (size.width === 'auto' || !size.width ? '200px' : size.width);
+        : (size.width === 'auto' || !size.width ? '100%' : size.width);
       return {
+        ...styles,
         width: childWidth,
+        // Note: Don't apply maxWidth inline - it prevents resize from working
+        // The CSS handles overflow constraints
         height: size.height,
-        ...styles
+        boxSizing: 'border-box' as const,
       };
     }
 
@@ -253,9 +256,11 @@ export const DraggableComponent: React.FC<DraggableComponentProps> = ({
       gridColumn: `${position.column} / span ${position.columnSpan}`,
       gridRow: `${position.row} / span ${position.rowSpan}`,
       width: size.width,
+      // Note: Don't apply maxWidth inline - it prevents resize from working
       height: shouldAutoHeight ? 'auto' : size.height,
       minHeight: shouldAutoHeight ? '40px' : undefined,
       zIndex: zIndex || 1,
+      boxSizing: 'border-box' as const,
       ...styles
     };
   };
