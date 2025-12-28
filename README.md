@@ -18,6 +18,9 @@ A plugin-based visual site builder platform with drag-and-drop components, live 
 - [Chapter 3.2: UI Templates](#chapter-32-ui-templates)
 - [Chapter 3.3: Multi-Page Sites](#chapter-33-multi-page-sites)
 - [Chapter 3.4: Static Export](#chapter-34-static-export)
+- [Chapter 3.5: Thymeleaf/Spring Boot Export](#chapter-35-thymeleafspring-boot-export)
+- [Chapter 3.6: Data Binding and Dynamic Components](#chapter-36-data-binding-and-dynamic-components)
+- [Chapter 3.7: Authentication Components](#chapter-37-authentication-components)
 
 **Plugin Development**
 
@@ -849,6 +852,325 @@ If you have unsaved changes, the export modal will:
 - Components use inline styles for consistency
 - Check that component styles are set in the Properties panel
 - Container layout modes are preserved (flex-row, grid, etc.)
+
+---
+
+## Chapter 3.5: Thymeleaf/Spring Boot Export
+
+The Visual Site Builder supports exporting your site as a Spring Boot application with Thymeleaf templates. This produces a fully functional server-side rendered application that customers can deploy and configure.
+
+### Export Options
+
+In the Export Modal, select **"Spring Boot / Thymeleaf"** as the export format:
+
+| Format | Description |
+|--------|-------------|
+| **Static HTML** | Client-side only, deploy to any static host |
+| **Spring Boot / Thymeleaf** | Server-side rendered, includes data binding support |
+
+### Exported Project Structure
+
+```
+exported-site/
+├── pom.xml                           # Maven project with site-runtime dependency
+├── src/
+│   └── main/
+│       ├── java/
+│       │   └── com/customer/site/
+│       │       ├── SiteApplication.java      # Spring Boot main class
+│       │       └── controller/
+│       │           └── PageController.java   # Generated page routes
+│       ├── resources/
+│       │   ├── application.properties        # Customer configures this
+│       │   ├── pages/                        # Page definitions (JSON)
+│       │   │   ├── home.json
+│       │   │   ├── about.json
+│       │   │   └── products.json
+│       │   ├── templates/                    # Thymeleaf templates
+│       │   │   ├── index.html
+│       │   │   ├── about.html
+│       │   │   └── fragments/
+│       │   │       └── navbar.html
+│       │   └── static/
+│       │       ├── css/
+│       │       ├── js/
+│       │       └── images/
+└── README.md                         # Deployment instructions
+```
+
+### Running the Exported Site
+
+```bash
+# Unzip the exported project
+unzip my-site-springboot.zip
+cd my-site
+
+# Build and run
+mvn spring-boot:run
+
+# Access at http://localhost:8080
+```
+
+### Customer Configuration
+
+Customers configure the exported site via `application.properties`:
+
+```properties
+# Server
+server.port=8080
+
+# API Gateway (for data fetching)
+site.runtime.api.gateway-url=https://api.yourcompany.com
+site.runtime.api.timeout-ms=30000
+
+# Database (optional)
+site.runtime.database.type=none  # none, jpa, mongodb
+
+# Caching
+site.runtime.cache.type=memory   # memory, redis
+
+# Authentication (see Chapter 3.7)
+site.runtime.auth.type=none      # none, social, sso
+```
+
+### Thymeleaf Template Features
+
+Exported templates use Thymeleaf syntax for dynamic content:
+
+```html
+<!-- Dynamic text from data source -->
+<h1 th:text="${page.title}">Page Title</h1>
+
+<!-- Iteration over collections -->
+<div th:each="product : ${dataSources['products'].items}">
+    <h3 th:text="${product.name}">Product Name</h3>
+    <p th:text="${product.description}">Description</p>
+</div>
+
+<!-- Conditional rendering -->
+<div th:if="${user != null}">
+    Welcome, <span th:text="${user.name}">User</span>!
+</div>
+```
+
+---
+
+## Chapter 3.6: Data Binding and Dynamic Components
+
+Data binding allows components to fetch and display data from backend APIs, enabling dynamic content without hardcoding values.
+
+### Data Source Configuration
+
+Components can be configured with data sources in the Properties Panel:
+
+#### Data Tab
+
+Select a component and click the **"Data"** tab to configure:
+
+| Field | Description |
+|-------|-------------|
+| **Data Source Type** | `api`, `static`, or `context` |
+| **API Endpoint** | URL to fetch data from (e.g., `/api/products`) |
+| **Method** | HTTP method: GET or POST |
+| **Cache Key** | Optional key for caching responses |
+| **Field Mapping** | Map API response fields to component props |
+
+### Template Variables
+
+Use `{{variable}}` syntax to bind data to component props:
+
+```
+{{user.name}}           - Access nested property
+{{items[0].title}}      - Access array element
+{{product.price}}       - Display product price
+```
+
+### Repeater Component
+
+The **Repeater** component iterates over arrays and renders children for each item:
+
+**Props:**
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `dataSource` | DataSourceConfig | Where to fetch data |
+| `itemAlias` | string | Variable name for current item (default: "item") |
+| `indexAlias` | string | Variable name for index (default: "index") |
+| `emptyMessage` | string | Message when no items |
+| `layoutType` | string | flex-column, flex-row, grid-2col, etc. |
+
+**Usage:**
+
+1. Drag a **Repeater** onto the canvas
+2. Configure the data source (e.g., `/api/products`)
+3. Add child components inside the Repeater
+4. Use `{{item.fieldName}}` in child component props
+
+### DataList Component
+
+The **DataList** component provides pre-styled list rendering:
+
+**Props:**
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `dataSource` | DataSourceConfig | Where to fetch data |
+| `listStyle` | string | "cards", "table", "list", "grid" |
+| `columns` | ColumnConfig[] | For table style |
+| `cardTemplate` | string | "default", "image-top", "horizontal" |
+| `pagination` | boolean | Enable pagination |
+| `pageSize` | number | Items per page |
+
+### Field Mapping
+
+Map API response fields to the expected structure:
+
+```json
+{
+  "fieldMapping": {
+    "title": { "path": "data.name" },
+    "description": { "path": "data.desc", "fallback": "No description" },
+    "price": { "path": "data.cost", "transform": "currency" }
+  }
+}
+```
+
+**Transforms:**
+- `uppercase` - Convert to uppercase
+- `lowercase` - Convert to lowercase
+- `currency` - Format as currency
+- `date` - Format as date
+- `number` - Parse as number
+
+### Page Data API
+
+The backend provides endpoints for fetching page data:
+
+```http
+# Get all data for a page
+GET /api/pages/{pageId}/data
+
+# Get specific data source
+GET /api/pages/{pageId}/data/{dataSourceKey}
+
+# Batch fetch multiple data sources
+GET /api/pages/{pageId}/data/batch?keys=products,categories
+```
+
+---
+
+## Chapter 3.7: Authentication Components
+
+The auth-component-plugin provides pre-built authentication UI components for login, registration, and social login.
+
+### Available Components
+
+| Component | Description |
+|-----------|-------------|
+| **LoginForm** | Username/password login with social options |
+| **RegisterForm** | User registration form |
+| **ForgotPasswordForm** | Password reset request |
+| **LogoutButton** | Logout action button |
+| **SocialLoginButtons** | Standalone social login buttons |
+
+### LoginForm Component
+
+A complete login form with configurable options:
+
+**Props:**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `title` | string | "Sign In" | Form title |
+| `subtitle` | string | "" | Subtitle text |
+| `loginEndpoint` | string | "/api/auth/login" | Login API endpoint |
+| `redirectUrl` | string | "/" | Redirect after login |
+| `showSocialLogin` | boolean | false | Show social login buttons |
+| `googleAuthUrl` | string | "/oauth2/authorization/google" | Google OAuth URL |
+| `githubAuthUrl` | string | "/oauth2/authorization/github" | GitHub OAuth URL |
+| `showRememberMe` | boolean | true | Show remember me checkbox |
+| `showForgotPassword` | boolean | true | Show forgot password link |
+| `showRegisterLink` | boolean | true | Show register link |
+
+### Social Login Configuration
+
+When `showSocialLogin` is enabled, the form displays Google and GitHub buttons.
+
+**For exported sites, configure OAuth in `application.properties`:**
+
+```properties
+# Enable social login
+site.runtime.auth.type=social
+
+# Google OAuth2 (https://console.cloud.google.com/apis/credentials)
+site.runtime.auth.social.google.enabled=true
+site.runtime.auth.social.google.client-id=YOUR_GOOGLE_CLIENT_ID
+site.runtime.auth.social.google.client-secret=YOUR_GOOGLE_CLIENT_SECRET
+
+# GitHub OAuth (https://github.com/settings/developers)
+site.runtime.auth.social.github.enabled=true
+site.runtime.auth.social.github.client-id=YOUR_GITHUB_CLIENT_ID
+site.runtime.auth.social.github.client-secret=YOUR_GITHUB_CLIENT_SECRET
+
+# Facebook (optional)
+site.runtime.auth.social.facebook.enabled=true
+site.runtime.auth.social.facebook.client-id=YOUR_FACEBOOK_APP_ID
+site.runtime.auth.social.facebook.client-secret=YOUR_FACEBOOK_APP_SECRET
+```
+
+### SSO / Enterprise Identity Providers
+
+For enterprise SSO (Okta, Keycloak, Azure AD):
+
+```properties
+site.runtime.auth.type=sso
+
+# Okta
+site.runtime.auth.sso.provider=okta
+site.runtime.auth.sso.okta-domain=your-domain.okta.com
+site.runtime.auth.sso.client-id=your-okta-client-id
+site.runtime.auth.sso.client-secret=your-okta-client-secret
+
+# Keycloak
+site.runtime.auth.sso.provider=keycloak
+site.runtime.auth.sso.auth-server-url=https://keycloak.yourcompany.com/auth
+site.runtime.auth.sso.realm=your-realm
+site.runtime.auth.sso.client-id=your-keycloak-client-id
+site.runtime.auth.sso.client-secret=your-keycloak-client-secret
+
+# Azure AD
+site.runtime.auth.sso.provider=azure
+site.runtime.auth.sso.tenant-id=your-azure-tenant-id
+site.runtime.auth.sso.client-id=your-azure-client-id
+site.runtime.auth.sso.client-secret=your-azure-client-secret
+```
+
+### RegisterForm Component
+
+User registration form with validation:
+
+**Props:**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `title` | string | "Create Account" | Form title |
+| `registerEndpoint` | string | "/api/auth/register" | Registration endpoint |
+| `redirectUrl` | string | "/login" | Redirect after registration |
+| `showPasswordStrength` | boolean | true | Show password strength indicator |
+| `requireEmailVerification` | boolean | false | Require email verification |
+
+### LogoutButton Component
+
+Simple logout button:
+
+**Props:**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `text` | string | "Logout" | Button text |
+| `logoutEndpoint` | string | "/api/auth/logout" | Logout endpoint |
+| `redirectUrl` | string | "/" | Redirect after logout |
+| `variant` | string | "secondary" | Button style |
 
 ---
 
@@ -2771,7 +3093,7 @@ This chapter documents all plugins that ship with the Visual Site Builder platfo
 
 ### Plugin Overview
 
-The platform includes 6 plugins organized into two categories:
+The platform includes 10 plugins organized into four categories:
 
 | Plugin | Type | Category | Description |
 | ------ | ---- | -------- | ----------- |
@@ -2779,8 +3101,12 @@ The platform includes 6 plugins organized into two categories:
 | Label | UI Component | ui | Text display with typography options |
 | Textbox | UI Component | ui | Input field with validation |
 | Navbar | UI Component | ui | Navigation bar with dropdowns |
+| Image | UI Component | ui | Image display with aspect ratios |
 | Container | Layout | layout | Flexible container with grid/flex layouts |
 | ScrollableContainer | Layout | layout | Scrollable area with snap support |
+| Repeater | Data | data | Iterate over arrays to render children |
+| DataList | Data | data | Pre-styled list/table/grid rendering |
+| Auth | Authentication | auth | Login, register, social login components |
 
 ### Plugin Directory Structure
 
@@ -2790,8 +3116,12 @@ plugins/
 ├── label-component-plugin/        # Text/label component
 ├── textbox-component-plugin/      # Input field component
 ├── navbar-component-plugin/       # Navigation bar component
+├── image-component-plugin/        # Image display component
 ├── container-layout-plugin/       # Flex/grid container
-└── scrollable-container-plugin/   # Scrollable container
+├── scrollable-container-plugin/   # Scrollable container
+├── repeater-component-plugin/     # Data repeater for arrays
+├── datalist-component-plugin/     # Styled data lists
+└── auth-component-plugin/         # Authentication components
 ```
 
 ---
@@ -3145,6 +3475,183 @@ To create a horizontal carousel:
 
 ---
 
+### Data Component Plugins
+
+#### Repeater Component
+
+A component that iterates over data arrays and renders children for each item.
+
+**Plugin Details:**
+
+| Property | Value |
+| -------- | ----- |
+| Plugin ID | `repeater-component-plugin` |
+| Component ID | `repeater` |
+| Category | `data` |
+| Icon | 🔄 |
+| Can Have Children | Yes |
+
+**Configurable Props:**
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `dataSource` | OBJECT | null | Data source configuration (API endpoint, method, etc.) |
+| `itemAlias` | STRING | "item" | Variable name for current item in template |
+| `indexAlias` | STRING | "index" | Variable name for current index |
+| `emptyMessage` | STRING | "No items" | Message when array is empty |
+| `layoutType` | SELECT | "flex-column" | Layout: flex-column, flex-row, grid-2col, grid-3col |
+
+**Usage:**
+
+1. Drag Repeater onto canvas
+2. Configure data source (e.g., `/api/products`)
+3. Add child components inside
+4. Use `{{item.fieldName}}` in child props
+
+---
+
+#### DataList Component
+
+A pre-styled component for rendering data collections as tables, cards, lists, or grids.
+
+**Plugin Details:**
+
+| Property | Value |
+| -------- | ----- |
+| Plugin ID | `datalist-component-plugin` |
+| Component ID | `datalist` |
+| Category | `data` |
+| Icon | 📋 |
+| Can Have Children | No |
+
+**Configurable Props:**
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `dataSource` | OBJECT | null | Data source configuration |
+| `listStyle` | SELECT | "table" | Display style: table, cards, list, grid |
+| `columns` | JSON | [] | Column configuration for table style |
+| `cardTemplate` | SELECT | "default" | Card template: default, image-top, horizontal |
+| `pagination` | BOOLEAN | false | Enable pagination |
+| `pageSize` | NUMBER | 10 | Items per page |
+| `showSearch` | BOOLEAN | false | Show search input |
+| `sortable` | BOOLEAN | false | Enable column sorting |
+
+**Column Configuration:**
+
+```json
+[
+  { "key": "name", "label": "Name", "sortable": true },
+  { "key": "email", "label": "Email" },
+  { "key": "status", "label": "Status", "type": "badge" }
+]
+```
+
+---
+
+### Authentication Component Plugins
+
+#### Auth Component Plugin
+
+A comprehensive plugin providing authentication UI components.
+
+**Plugin Details:**
+
+| Property | Value |
+| -------- | ----- |
+| Plugin ID | `auth-component-plugin` |
+| Version | 1.0.0 |
+| Category | `auth` |
+| Components | LoginForm, RegisterForm, ForgotPasswordForm, LogoutButton, SocialLoginButtons |
+
+---
+
+#### LoginForm Component
+
+A complete login form with social login support.
+
+**Props:**
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `title` | STRING | "Sign In" | Form title |
+| `subtitle` | STRING | "" | Subtitle text |
+| `loginEndpoint` | STRING | "/api/auth/login" | Login API endpoint |
+| `redirectUrl` | STRING | "/" | Redirect after login |
+| `showSocialLogin` | BOOLEAN | false | Show Google/GitHub buttons |
+| `googleAuthUrl` | STRING | "/oauth2/authorization/google" | Google OAuth URL |
+| `githubAuthUrl` | STRING | "/oauth2/authorization/github" | GitHub OAuth URL |
+| `showRememberMe` | BOOLEAN | true | Show remember me checkbox |
+| `showForgotPassword` | BOOLEAN | true | Show forgot password link |
+| `showRegisterLink` | BOOLEAN | true | Show register link |
+
+---
+
+#### RegisterForm Component
+
+User registration form with validation.
+
+**Props:**
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `title` | STRING | "Create Account" | Form title |
+| `registerEndpoint` | STRING | "/api/auth/register" | Registration endpoint |
+| `redirectUrl` | STRING | "/login" | Redirect after registration |
+| `showPasswordStrength` | BOOLEAN | true | Show password strength indicator |
+| `requireEmailVerification` | BOOLEAN | false | Require email verification |
+| `showTermsCheckbox` | BOOLEAN | false | Show terms acceptance checkbox |
+
+---
+
+#### ForgotPasswordForm Component
+
+Password reset request form.
+
+**Props:**
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `title` | STRING | "Reset Password" | Form title |
+| `resetEndpoint` | STRING | "/api/auth/forgot-password" | Reset API endpoint |
+| `redirectUrl` | STRING | "/login" | Redirect after request |
+| `successMessage` | STRING | "Check your email..." | Success message |
+
+---
+
+#### LogoutButton Component
+
+Simple logout button.
+
+**Props:**
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `text` | STRING | "Logout" | Button text |
+| `logoutEndpoint` | STRING | "/api/auth/logout" | Logout endpoint |
+| `redirectUrl` | STRING | "/" | Redirect after logout |
+| `variant` | SELECT | "secondary" | Button style |
+| `confirmLogout` | BOOLEAN | false | Show confirmation dialog |
+
+---
+
+#### SocialLoginButtons Component
+
+Standalone social login buttons.
+
+**Props:**
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `providers` | JSON | ["google", "github"] | Enabled providers |
+| `layout` | SELECT | "vertical" | Layout: vertical, horizontal |
+| `googleAuthUrl` | STRING | "/oauth2/authorization/google" | Google OAuth URL |
+| `githubAuthUrl` | STRING | "/oauth2/authorization/github" | GitHub OAuth URL |
+| `facebookAuthUrl` | STRING | "/oauth2/authorization/facebook" | Facebook OAuth URL |
+| `buttonStyle` | SELECT | "full" | Style: full, icon-only |
+
+---
+
 ### Plugin Configuration Summary
 
 All shipped plugins follow a consistent Maven configuration pattern:
@@ -3185,13 +3692,49 @@ cd button-component-plugin && mvn clean package && cd ..
 cd label-component-plugin && mvn clean package && cd ..
 cd textbox-component-plugin && mvn clean package && cd ..
 cd navbar-component-plugin && mvn clean package && cd ..
+cd image-component-plugin && mvn clean package && cd ..
 
 # Layout Components
 cd container-layout-plugin && mvn clean package && cd ..
 cd scrollable-container-plugin && mvn clean package && cd ..
 
+# Data Components
+cd repeater-component-plugin && mvn clean package && cd ..
+cd datalist-component-plugin && mvn clean package && cd ..
+
+# Authentication Components
+cd auth-component-plugin && mvn clean package && cd ..
+
 # Copy all JARs to core/plugins/
 cp */target/*.jar ../core/plugins/
+```
+
+**Windows PowerShell:**
+
+```powershell
+# Build all plugins
+cd plugins
+
+# UI Components
+cd button-component-plugin; mvn clean package; cd ..
+cd label-component-plugin; mvn clean package; cd ..
+cd textbox-component-plugin; mvn clean package; cd ..
+cd navbar-component-plugin; mvn clean package; cd ..
+cd image-component-plugin; mvn clean package; cd ..
+
+# Layout Components
+cd container-layout-plugin; mvn clean package; cd ..
+cd scrollable-container-plugin; mvn clean package; cd ..
+
+# Data Components
+cd repeater-component-plugin; mvn clean package; cd ..
+cd datalist-component-plugin; mvn clean package; cd ..
+
+# Authentication Components
+cd auth-component-plugin; mvn clean package; cd ..
+
+# Copy all JARs to core/plugins/
+Get-ChildItem -Recurse -Filter "*.jar" -Path "*/target" | Copy-Item -Destination "../core/plugins/"
 ```
 
 ---
