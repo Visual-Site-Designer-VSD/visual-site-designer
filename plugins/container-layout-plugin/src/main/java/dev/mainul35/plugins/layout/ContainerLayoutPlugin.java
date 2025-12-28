@@ -1,6 +1,5 @@
 package dev.mainul35.plugins.layout;
 
-import dev.mainul35.cms.sdk.Plugin;
 import dev.mainul35.cms.sdk.PluginContext;
 import dev.mainul35.cms.sdk.UIComponentPlugin;
 import dev.mainul35.cms.sdk.annotation.UIComponent;
@@ -15,7 +14,7 @@ import java.util.*;
  */
 @Slf4j
 @UIComponent(
-    componentId = "container",
+    componentId = "Container",
     displayName = "Container",
     category = "layout",
     icon = "📦",
@@ -25,12 +24,28 @@ import java.util.*;
 )
 public class ContainerLayoutPlugin implements UIComponentPlugin {
 
-    private PluginContext context;
+    // Constants for property names
+    private static final String PROP_PADDING = "padding";
+    private static final String PROP_MAX_WIDTH = "maxWidth";
+    private static final String PROP_GAP = "gap";
+    private static final String PROP_ALIGN_ITEMS = "alignItems";
+    private static final String PROP_JUSTIFY_CONTENT = "justifyContent";
+
+    // Constants for default values
+    private static final String DEFAULT_LAYOUT = "flex-column";
+    private static final String DEFAULT_GAP = "16px";
+    private static final String DEFAULT_PADDING = "20px";
+    private static final String DEFAULT_MAX_WIDTH = "1200px";
+    private static final String DEFAULT_ALIGN_ITEMS = "stretch";
+    private static final String DEFAULT_JUSTIFY_CONTENT = "flex-start";
+
+    // Validation pattern for size values
+    private static final String SIZE_PATTERN = "\\d+(px|rem|em|%)";
+
     private ComponentManifest manifest;
 
     @Override
     public void onLoad(PluginContext context) throws Exception {
-        this.context = context;
         log.info("Loading Container Layout Plugin");
         this.manifest = buildComponentManifest();
         log.info("Container Layout Plugin loaded successfully");
@@ -71,18 +86,26 @@ public class ContainerLayoutPlugin implements UIComponentPlugin {
         List<String> errors = new ArrayList<>();
 
         // Validate padding
-        if (props.containsKey("padding")) {
-            String padding = props.get("padding").toString();
-            if (!padding.matches("\\d+(px|rem|em|%)")) {
+        if (props.containsKey(PROP_PADDING)) {
+            String padding = props.get(PROP_PADDING).toString();
+            if (!padding.matches(SIZE_PATTERN)) {
                 errors.add("Invalid padding format. Use format like '20px' or '1rem'");
             }
         }
 
         // Validate max-width
-        if (props.containsKey("maxWidth")) {
-            String maxWidth = props.get("maxWidth").toString();
-            if (!maxWidth.equals("none") && !maxWidth.matches("\\d+(px|rem|em|%)")) {
+        if (props.containsKey(PROP_MAX_WIDTH)) {
+            String maxWidth = props.get(PROP_MAX_WIDTH).toString();
+            if (!maxWidth.equals("none") && !maxWidth.matches(SIZE_PATTERN)) {
                 errors.add("Invalid maxWidth format. Use 'none' or format like '1200px'");
+            }
+        }
+
+        // Validate gap
+        if (props.containsKey(PROP_GAP)) {
+            String gap = props.get(PROP_GAP).toString();
+            if (!gap.matches(SIZE_PATTERN)) {
+                errors.add("Invalid gap format. Use format like '16px' or '1rem'");
             }
         }
 
@@ -94,11 +117,11 @@ public class ContainerLayoutPlugin implements UIComponentPlugin {
 
     private ComponentManifest buildComponentManifest() {
         return ComponentManifest.builder()
-                .componentId("container")
+                .componentId("Container")
                 .displayName("Container")
                 .category("layout")
                 .icon("📦")
-                .description("Flexible container layout that holds child components")
+                .description("Flexible container layout that holds child components with various layout options")
                 .pluginId("container-layout-plugin")
                 .pluginVersion("1.0.0")
                 .reactComponentPath("/components/Container.jsx")
@@ -107,17 +130,21 @@ public class ContainerLayoutPlugin implements UIComponentPlugin {
                 .configurableProps(buildConfigurableProps())
                 .configurableStyles(buildConfigurableStyles())
                 .sizeConstraints(buildSizeConstraints())
-                .canHaveChildren(true)  // ← KEY: This container can hold children
-                .allowedChildTypes(null) // null = allows all types
+                .canHaveChildren(true)
+                .allowedChildTypes(null)
                 .build();
     }
 
     private Map<String, Object> buildDefaultProps() {
         Map<String, Object> props = new HashMap<>();
-        props.put("layoutType", "flex-column");
-        props.put("padding", "20px");
-        props.put("maxWidth", "1200px");
+        props.put("layoutType", DEFAULT_LAYOUT);
+        props.put("layoutMode", DEFAULT_LAYOUT);
+        props.put(PROP_GAP, DEFAULT_GAP);
+        props.put(PROP_PADDING, DEFAULT_PADDING);
+        props.put(PROP_MAX_WIDTH, DEFAULT_MAX_WIDTH);
         props.put("centerContent", true);
+        props.put(PROP_ALIGN_ITEMS, DEFAULT_ALIGN_ITEMS);
+        props.put(PROP_JUSTIFY_CONTENT, DEFAULT_JUSTIFY_CONTENT);
         props.put("allowOverflow", false);
         return props;
     }
@@ -126,7 +153,7 @@ public class ContainerLayoutPlugin implements UIComponentPlugin {
         Map<String, String> styles = new HashMap<>();
         styles.put("display", "flex");
         styles.put("flexDirection", "column");
-        styles.put("gap", "16px");
+        styles.put(PROP_GAP, DEFAULT_GAP);
         styles.put("backgroundColor", "#ffffff");
         styles.put("borderRadius", "8px");
         styles.put("boxShadow", "0 1px 3px rgba(0,0,0,0.1)");
@@ -137,12 +164,12 @@ public class ContainerLayoutPlugin implements UIComponentPlugin {
         List<PropDefinition> props = new ArrayList<>();
 
         props.add(PropDefinition.builder()
-                .name("layoutType")
+                .name("layoutMode")
                 .type(PropDefinition.PropType.SELECT)
-                .label("Layout Type")
-                .defaultValue("flex-column")
+                .label("Layout Mode")
+                .defaultValue(DEFAULT_LAYOUT)
                 .options(List.of(
-                    "flex-column",
+                    DEFAULT_LAYOUT,
                     "flex-row",
                     "flex-wrap",
                     "grid-2col",
@@ -151,25 +178,34 @@ public class ContainerLayoutPlugin implements UIComponentPlugin {
                     "grid-auto"
                 ))
                 .required(true)
-                .helpText("Choose the layout type for arranging child components")
+                .helpText("How child components are arranged")
                 .build());
 
         props.add(PropDefinition.builder()
-                .name("padding")
+                .name(PROP_GAP)
+                .type(PropDefinition.PropType.STRING)
+                .label("Gap")
+                .defaultValue(DEFAULT_GAP)
+                .required(false)
+                .helpText("Space between child components (e.g., 16px, 1rem)")
+                .build());
+
+        props.add(PropDefinition.builder()
+                .name(PROP_PADDING)
                 .type(PropDefinition.PropType.STRING)
                 .label("Padding")
-                .defaultValue("20px")
+                .defaultValue(DEFAULT_PADDING)
                 .required(false)
-                .helpText("Container padding (e.g., 20px, 1rem)")
+                .helpText("Inner padding of the container")
                 .build());
 
         props.add(PropDefinition.builder()
-                .name("maxWidth")
+                .name(PROP_MAX_WIDTH)
                 .type(PropDefinition.PropType.STRING)
                 .label("Max Width")
-                .defaultValue("1200px")
+                .defaultValue(DEFAULT_MAX_WIDTH)
                 .required(false)
-                .helpText("Maximum width of container (e.g., 1200px, or 'none')")
+                .helpText("Maximum width of the container (use \"none\" for no limit)")
                 .build());
 
         props.add(PropDefinition.builder()
@@ -177,7 +213,25 @@ public class ContainerLayoutPlugin implements UIComponentPlugin {
                 .type(PropDefinition.PropType.BOOLEAN)
                 .label("Center Content")
                 .defaultValue(true)
-                .helpText("Center the container horizontally")
+                .helpText("Center the container horizontally on the page")
+                .build());
+
+        props.add(PropDefinition.builder()
+                .name(PROP_ALIGN_ITEMS)
+                .type(PropDefinition.PropType.SELECT)
+                .label("Align Items")
+                .defaultValue(DEFAULT_ALIGN_ITEMS)
+                .options(List.of(DEFAULT_JUSTIFY_CONTENT, "center", "flex-end", DEFAULT_ALIGN_ITEMS, "baseline"))
+                .helpText("Cross-axis alignment of children")
+                .build());
+
+        props.add(PropDefinition.builder()
+                .name(PROP_JUSTIFY_CONTENT)
+                .type(PropDefinition.PropType.SELECT)
+                .label("Justify Content")
+                .defaultValue(DEFAULT_JUSTIFY_CONTENT)
+                .options(List.of(DEFAULT_JUSTIFY_CONTENT, "center", "flex-end", "space-between", "space-around", "space-evenly"))
+                .helpText("Main-axis alignment of children")
                 .build());
 
         props.add(PropDefinition.builder()
@@ -195,10 +249,10 @@ public class ContainerLayoutPlugin implements UIComponentPlugin {
         List<StyleDefinition> styles = new ArrayList<>();
 
         styles.add(StyleDefinition.builder()
-                .property("gap")
+                .property(PROP_GAP)
                 .type(StyleDefinition.StyleType.SIZE)
                 .label("Gap Between Items")
-                .defaultValue("16px")
+                .defaultValue(DEFAULT_GAP)
                 .allowedUnits(List.of("px", "rem", "em"))
                 .category("spacing")
                 .build());

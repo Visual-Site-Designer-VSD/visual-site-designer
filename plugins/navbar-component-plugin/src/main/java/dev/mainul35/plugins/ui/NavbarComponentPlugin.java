@@ -6,28 +6,27 @@ import dev.mainul35.cms.sdk.annotation.UIComponent;
 import dev.mainul35.cms.sdk.component.*;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Navbar Component Plugin
- * Provides a customizable navigation bar component for the visual site builder.
+ * Provides multiple navigation bar variants for the visual site builder.
  *
- * Features:
- * - Logo/brand display (text or image)
- * - Navigation links (configurable via JSON)
- * - Multiple layout variants (horizontal, centered, split)
- * - Sticky/fixed positioning option
- * - Mobile-responsive hamburger menu support
- * - Customizable colors, fonts, and spacing
+ * Variants included:
+ * - NavbarDefault: Standard horizontal navbar
+ * - NavbarCentered: Centered layout navbar
+ * - NavbarMinimal: Clean minimal design
+ * - NavbarDark: Dark theme navbar
+ * - NavbarGlass: Glassmorphism style navbar
+ * - NavbarSticky: Always visible sticky header
+ * - SidebarNav: Vertical sidebar navigation
+ * - TopHeaderBar: Utility bar for above main nav
  */
 @Slf4j
 @UIComponent(
-    componentId = "navbar",
-    displayName = "Navigation Bar",
-    category = "ui",
+    componentId = "NavbarDefault",
+    displayName = "Default Navbar",
+    category = "navbar",
     icon = "🧭",
     resizable = true,
     defaultWidth = "100%",
@@ -39,18 +38,22 @@ import java.util.Map;
 )
 public class NavbarComponentPlugin implements UIComponentPlugin {
 
+    private static final String PLUGIN_ID = "navbar-component-plugin";
+    private static final String PLUGIN_VERSION = "1.0.0";
+    private static final String CATEGORY = "navbar";
+
     private PluginContext context;
-    private ComponentManifest manifest;
+    private List<ComponentManifest> manifests;
 
     @Override
     public void onLoad(PluginContext context) throws Exception {
         this.context = context;
         log.info("Loading Navbar Component Plugin");
 
-        // Build component manifest
-        this.manifest = buildComponentManifest();
+        // Build all navbar variant manifests
+        this.manifests = buildAllManifests();
 
-        log.info("Navbar Component Plugin loaded successfully");
+        log.info("Navbar Component Plugin loaded successfully with {} variants", manifests.size());
     }
 
     @Override
@@ -70,12 +73,20 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
 
     @Override
     public ComponentManifest getComponentManifest() {
-        return manifest;
+        // Return the primary manifest (NavbarDefault)
+        return manifests.isEmpty() ? null : manifests.get(0);
+    }
+
+    /**
+     * Returns all navbar variant manifests for registration
+     */
+    public List<ComponentManifest> getAllComponentManifests() {
+        return manifests;
     }
 
     @Override
     public String getReactComponentPath() {
-        return "/components/Navbar.jsx";
+        return "/renderers/NavbarDefaultRenderer";
     }
 
     @Override
@@ -103,115 +114,418 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
             }
         }
 
-        // Validate nav items JSON if present
-        if (props.containsKey("navItems")) {
-            Object navItems = props.get("navItems");
-            if (navItems != null && !(navItems instanceof List)) {
-                // Try to validate it's valid JSON array structure
-                try {
-                    if (navItems instanceof String) {
-                        // Will be parsed by frontend
-                    }
-                } catch (Exception e) {
-                    errors.add("navItems must be a valid JSON array");
-                }
-            }
-        }
-
         return ValidationResult.builder()
                 .isValid(errors.isEmpty())
                 .errors(errors)
                 .build();
     }
 
+    // ========== Manifest Builders ==========
+
+    private List<ComponentManifest> buildAllManifests() {
+        List<ComponentManifest> list = new ArrayList<>();
+        list.add(buildNavbarDefaultManifest());
+        list.add(buildNavbarCenteredManifest());
+        list.add(buildNavbarMinimalManifest());
+        list.add(buildNavbarDarkManifest());
+        list.add(buildNavbarGlassManifest());
+        list.add(buildNavbarStickyManifest());
+        list.add(buildSidebarNavManifest());
+        list.add(buildTopHeaderBarManifest());
+        return list;
+    }
+
     /**
-     * Build the complete component manifest
+     * NavbarDefault - Standard horizontal navbar with brand left, links right
      */
-    private ComponentManifest buildComponentManifest() {
+    private ComponentManifest buildNavbarDefaultManifest() {
+        Map<String, Object> defaultProps = new HashMap<>();
+        defaultProps.put("brandText", "My Site");
+        defaultProps.put("brandImageUrl", "");
+        defaultProps.put("brandLink", "/");
+        defaultProps.put("navItems", getDefaultNavItems());
+        defaultProps.put("layout", "default");
+        defaultProps.put("sticky", false);
+        defaultProps.put("showMobileMenu", true);
+        defaultProps.put("mobileBreakpoint", "768px");
+
+        Map<String, String> defaultStyles = new HashMap<>();
+        defaultStyles.put("backgroundColor", "#ffffff");
+        defaultStyles.put("textColor", "#333333");
+        defaultStyles.put("accentColor", "#007bff");
+        defaultStyles.put("padding", "0 20px");
+        defaultStyles.put("boxShadow", "0 2px 4px rgba(0,0,0,0.1)");
+        defaultStyles.put("borderBottom", "1px solid #e0e0e0");
+        defaultStyles.put("fontFamily", "inherit");
+        defaultStyles.put("fontSize", "16px");
+
         return ComponentManifest.builder()
-                .componentId("navbar")
-                .displayName("Navigation Bar")
-                .category("ui")
+                .componentId("NavbarDefault")
+                .displayName("Default Navbar")
+                .category(CATEGORY)
                 .icon("🧭")
-                .description("Customizable navigation bar with logo, links, and responsive menu. Drop inside a Container/Layout component.")
-                .pluginId("navbar-component-plugin")
-                .pluginVersion("1.0.0")
-                .reactComponentPath("/components/Navbar.jsx")
-                .defaultProps(buildDefaultProps())
-                .defaultStyles(buildDefaultStyles())
-                .configurableProps(buildConfigurableProps())
-                .configurableStyles(buildConfigurableStyles())
-                .sizeConstraints(buildSizeConstraints())
+                .description("Standard horizontal navbar with brand left and navigation links right")
+                .pluginId(PLUGIN_ID)
+                .pluginVersion(PLUGIN_VERSION)
+                .reactComponentPath("/renderers/NavbarDefaultRenderer")
+                .defaultProps(defaultProps)
+                .defaultStyles(defaultStyles)
+                .configurableProps(buildNavbarConfigurableProps())
+                .configurableStyles(buildNavbarConfigurableStyles())
+                .sizeConstraints(buildNavbarSizeConstraints())
                 .canHaveChildren(false)
                 .build();
     }
 
     /**
-     * Default props for the navbar
+     * NavbarCentered - Centered layout navbar
      */
-    private Map<String, Object> buildDefaultProps() {
-        Map<String, Object> props = new HashMap<>();
+    private ComponentManifest buildNavbarCenteredManifest() {
+        Map<String, Object> defaultProps = new HashMap<>();
+        defaultProps.put("brandText", "My Site");
+        defaultProps.put("brandImageUrl", "");
+        defaultProps.put("brandLink", "/");
+        defaultProps.put("navItems", getDefaultNavItems());
+        defaultProps.put("layout", "centered");
+        defaultProps.put("sticky", false);
+        defaultProps.put("showMobileMenu", true);
+        defaultProps.put("mobileBreakpoint", "768px");
 
-        // Brand/Logo settings
-        props.put("brandText", "My Site");
-        props.put("brandImageUrl", "");
-        props.put("brandLink", "/");
+        Map<String, String> defaultStyles = new HashMap<>();
+        defaultStyles.put("backgroundColor", "#ffffff");
+        defaultStyles.put("textColor", "#333333");
+        defaultStyles.put("accentColor", "#007bff");
+        defaultStyles.put("padding", "0 20px");
+        defaultStyles.put("boxShadow", "0 1px 3px rgba(0,0,0,0.08)");
+        defaultStyles.put("borderBottom", "1px solid #f0f0f0");
+        defaultStyles.put("fontFamily", "inherit");
+        defaultStyles.put("fontSize", "16px");
 
-        // Navigation items (JSON array with support for nested children)
-        // Structure: [{label, href, active, children: [{label, href, children: [...]}]}]
-        props.put("navItems", List.of(
-            Map.of("label", "Home", "href", "/", "active", true),
-            Map.of("label", "About", "href", "/about", "active", false),
-            Map.of("label", "Services", "href", "#", "active", false, "children", List.of(
+        return ComponentManifest.builder()
+                .componentId("NavbarCentered")
+                .displayName("Centered Navbar")
+                .category(CATEGORY)
+                .icon("◎")
+                .description("Navbar with centered brand and navigation links")
+                .pluginId(PLUGIN_ID)
+                .pluginVersion(PLUGIN_VERSION)
+                .reactComponentPath("/renderers/NavbarCenteredRenderer")
+                .defaultProps(defaultProps)
+                .defaultStyles(defaultStyles)
+                .configurableProps(buildNavbarConfigurableProps())
+                .configurableStyles(buildNavbarConfigurableStyles())
+                .sizeConstraints(buildNavbarSizeConstraints())
+                .canHaveChildren(false)
+                .build();
+    }
+
+    /**
+     * NavbarMinimal - Clean minimal design
+     */
+    private ComponentManifest buildNavbarMinimalManifest() {
+        Map<String, Object> defaultProps = new HashMap<>();
+        defaultProps.put("brandText", "Brand");
+        defaultProps.put("brandImageUrl", "");
+        defaultProps.put("brandLink", "/");
+        defaultProps.put("navItems", getMinimalNavItems());
+        defaultProps.put("layout", "minimal");
+        defaultProps.put("sticky", false);
+        defaultProps.put("showMobileMenu", true);
+        defaultProps.put("mobileBreakpoint", "768px");
+
+        Map<String, String> defaultStyles = new HashMap<>();
+        defaultStyles.put("backgroundColor", "transparent");
+        defaultStyles.put("textColor", "#333333");
+        defaultStyles.put("accentColor", "#000000");
+        defaultStyles.put("padding", "0 16px");
+        defaultStyles.put("boxShadow", "none");
+        defaultStyles.put("borderBottom", "none");
+        defaultStyles.put("fontFamily", "inherit");
+        defaultStyles.put("fontSize", "16px");
+
+        return ComponentManifest.builder()
+                .componentId("NavbarMinimal")
+                .displayName("Minimal Navbar")
+                .category(CATEGORY)
+                .icon("▬")
+                .description("Clean minimal navbar with no shadows or borders")
+                .pluginId(PLUGIN_ID)
+                .pluginVersion(PLUGIN_VERSION)
+                .reactComponentPath("/renderers/NavbarMinimalRenderer")
+                .defaultProps(defaultProps)
+                .defaultStyles(defaultStyles)
+                .configurableProps(buildNavbarConfigurableProps())
+                .configurableStyles(buildNavbarConfigurableStyles())
+                .sizeConstraints(buildNavbarSizeConstraints())
+                .canHaveChildren(false)
+                .build();
+    }
+
+    /**
+     * NavbarDark - Dark theme navbar
+     */
+    private ComponentManifest buildNavbarDarkManifest() {
+        Map<String, Object> defaultProps = new HashMap<>();
+        defaultProps.put("brandText", "My Site");
+        defaultProps.put("brandImageUrl", "");
+        defaultProps.put("brandLink", "/");
+        defaultProps.put("navItems", getDefaultNavItems());
+        defaultProps.put("layout", "default");
+        defaultProps.put("sticky", false);
+        defaultProps.put("showMobileMenu", true);
+        defaultProps.put("mobileBreakpoint", "768px");
+
+        Map<String, String> defaultStyles = new HashMap<>();
+        defaultStyles.put("backgroundColor", "#1a1a2e");
+        defaultStyles.put("textColor", "#ffffff");
+        defaultStyles.put("accentColor", "#4dabf7");
+        defaultStyles.put("padding", "0 24px");
+        defaultStyles.put("boxShadow", "0 2px 8px rgba(0,0,0,0.3)");
+        defaultStyles.put("borderBottom", "none");
+        defaultStyles.put("dropdownBg", "#16213e");
+        defaultStyles.put("dropdownShadow", "0 4px 16px rgba(0,0,0,0.4)");
+        defaultStyles.put("fontFamily", "inherit");
+        defaultStyles.put("fontSize", "16px");
+
+        return ComponentManifest.builder()
+                .componentId("NavbarDark")
+                .displayName("Dark Navbar")
+                .category(CATEGORY)
+                .icon("🌙")
+                .description("Dark theme navbar with light text")
+                .pluginId(PLUGIN_ID)
+                .pluginVersion(PLUGIN_VERSION)
+                .reactComponentPath("/renderers/NavbarDarkRenderer")
+                .defaultProps(defaultProps)
+                .defaultStyles(defaultStyles)
+                .configurableProps(buildNavbarConfigurableProps())
+                .configurableStyles(buildNavbarConfigurableStyles())
+                .sizeConstraints(buildNavbarSizeConstraints())
+                .canHaveChildren(false)
+                .build();
+    }
+
+    /**
+     * NavbarGlass - Glassmorphism style navbar
+     */
+    private ComponentManifest buildNavbarGlassManifest() {
+        Map<String, Object> defaultProps = new HashMap<>();
+        defaultProps.put("brandText", "My Site");
+        defaultProps.put("brandImageUrl", "");
+        defaultProps.put("brandLink", "/");
+        defaultProps.put("navItems", getDefaultNavItems());
+        defaultProps.put("layout", "default");
+        defaultProps.put("sticky", true);
+        defaultProps.put("showMobileMenu", true);
+        defaultProps.put("mobileBreakpoint", "768px");
+
+        Map<String, String> defaultStyles = new HashMap<>();
+        defaultStyles.put("backgroundColor", "rgba(255, 255, 255, 0.8)");
+        defaultStyles.put("textColor", "#333333");
+        defaultStyles.put("accentColor", "#6366f1");
+        defaultStyles.put("padding", "0 24px");
+        defaultStyles.put("boxShadow", "0 4px 30px rgba(0, 0, 0, 0.1)");
+        defaultStyles.put("borderBottom", "1px solid rgba(255, 255, 255, 0.3)");
+        defaultStyles.put("backdropFilter", "blur(10px)");
+        defaultStyles.put("WebkitBackdropFilter", "blur(10px)");
+        defaultStyles.put("fontFamily", "inherit");
+        defaultStyles.put("fontSize", "16px");
+
+        return ComponentManifest.builder()
+                .componentId("NavbarGlass")
+                .displayName("Glass Navbar")
+                .category(CATEGORY)
+                .icon("💎")
+                .description("Glassmorphism style navbar with blur effect")
+                .pluginId(PLUGIN_ID)
+                .pluginVersion(PLUGIN_VERSION)
+                .reactComponentPath("/renderers/NavbarGlassRenderer")
+                .defaultProps(defaultProps)
+                .defaultStyles(defaultStyles)
+                .configurableProps(buildNavbarConfigurableProps())
+                .configurableStyles(buildNavbarConfigurableStyles())
+                .sizeConstraints(buildNavbarSizeConstraints())
+                .canHaveChildren(false)
+                .build();
+    }
+
+    /**
+     * NavbarSticky - Always visible sticky header
+     */
+    private ComponentManifest buildNavbarStickyManifest() {
+        Map<String, Object> defaultProps = new HashMap<>();
+        defaultProps.put("brandText", "My Site");
+        defaultProps.put("brandImageUrl", "");
+        defaultProps.put("brandLink", "/");
+        defaultProps.put("navItems", getDefaultNavItems());
+        defaultProps.put("layout", "default");
+        defaultProps.put("sticky", true);
+        defaultProps.put("showMobileMenu", true);
+        defaultProps.put("mobileBreakpoint", "768px");
+
+        Map<String, String> defaultStyles = new HashMap<>();
+        defaultStyles.put("backgroundColor", "#ffffff");
+        defaultStyles.put("textColor", "#333333");
+        defaultStyles.put("accentColor", "#007bff");
+        defaultStyles.put("padding", "0 20px");
+        defaultStyles.put("boxShadow", "0 2px 10px rgba(0,0,0,0.15)");
+        defaultStyles.put("borderBottom", "none");
+        defaultStyles.put("fontFamily", "inherit");
+        defaultStyles.put("fontSize", "16px");
+
+        return ComponentManifest.builder()
+                .componentId("NavbarSticky")
+                .displayName("Sticky Navbar")
+                .category(CATEGORY)
+                .icon("📌")
+                .description("Always visible navbar that sticks to the top when scrolling")
+                .pluginId(PLUGIN_ID)
+                .pluginVersion(PLUGIN_VERSION)
+                .reactComponentPath("/renderers/NavbarStickyRenderer")
+                .defaultProps(defaultProps)
+                .defaultStyles(defaultStyles)
+                .configurableProps(buildNavbarConfigurableProps())
+                .configurableStyles(buildNavbarConfigurableStyles())
+                .sizeConstraints(buildNavbarSizeConstraints())
+                .canHaveChildren(false)
+                .build();
+    }
+
+    /**
+     * SidebarNav - Vertical sidebar navigation
+     */
+    private ComponentManifest buildSidebarNavManifest() {
+        Map<String, Object> defaultProps = new HashMap<>();
+        defaultProps.put("brandText", "Menu");
+        defaultProps.put("brandImageUrl", "");
+        defaultProps.put("brandLink", "/");
+        defaultProps.put("navItems", getSidebarNavItems());
+        defaultProps.put("collapsed", false);
+        defaultProps.put("collapsible", true);
+        defaultProps.put("position", "left");
+        defaultProps.put("showIcons", true);
+
+        Map<String, String> defaultStyles = new HashMap<>();
+        defaultStyles.put("backgroundColor", "#2c3e50");
+        defaultStyles.put("textColor", "#ecf0f1");
+        defaultStyles.put("accentColor", "#3498db");
+        defaultStyles.put("width", "250px");
+        defaultStyles.put("collapsedWidth", "60px");
+        defaultStyles.put("padding", "20px 0");
+        defaultStyles.put("boxShadow", "2px 0 10px rgba(0,0,0,0.1)");
+        defaultStyles.put("fontFamily", "inherit");
+        defaultStyles.put("fontSize", "14px");
+
+        return ComponentManifest.builder()
+                .componentId("SidebarNav")
+                .displayName("Sidebar Navigation")
+                .category(CATEGORY)
+                .icon("📋")
+                .description("Vertical sidebar navigation with collapsible option")
+                .pluginId(PLUGIN_ID)
+                .pluginVersion(PLUGIN_VERSION)
+                .reactComponentPath("/renderers/SidebarNavRenderer")
+                .defaultProps(defaultProps)
+                .defaultStyles(defaultStyles)
+                .configurableProps(buildSidebarConfigurableProps())
+                .configurableStyles(buildSidebarConfigurableStyles())
+                .sizeConstraints(buildSidebarSizeConstraints())
+                .canHaveChildren(false)
+                .build();
+    }
+
+    /**
+     * TopHeaderBar - Utility bar for above main navigation
+     */
+    private ComponentManifest buildTopHeaderBarManifest() {
+        Map<String, Object> defaultProps = new HashMap<>();
+        defaultProps.put("leftContent", "📧 contact@example.com");
+        defaultProps.put("rightContent", "📞 +1 234 567 890");
+        defaultProps.put("centerContent", "");
+        defaultProps.put("showSocialLinks", true);
+        defaultProps.put("socialLinks", getDefaultSocialLinks());
+
+        Map<String, String> defaultStyles = new HashMap<>();
+        defaultStyles.put("backgroundColor", "#f8f9fa");
+        defaultStyles.put("textColor", "#666666");
+        defaultStyles.put("accentColor", "#007bff");
+        defaultStyles.put("padding", "8px 20px");
+        defaultStyles.put("borderBottom", "1px solid #e9ecef");
+        defaultStyles.put("fontFamily", "inherit");
+        defaultStyles.put("fontSize", "13px");
+
+        return ComponentManifest.builder()
+                .componentId("TopHeaderBar")
+                .displayName("Top Header Bar")
+                .category(CATEGORY)
+                .icon("📢")
+                .description("Utility bar for contact info, social links above main navigation")
+                .pluginId(PLUGIN_ID)
+                .pluginVersion(PLUGIN_VERSION)
+                .reactComponentPath("/renderers/TopHeaderBarRenderer")
+                .defaultProps(defaultProps)
+                .defaultStyles(defaultStyles)
+                .configurableProps(buildTopHeaderConfigurableProps())
+                .configurableStyles(buildTopHeaderConfigurableStyles())
+                .sizeConstraints(buildTopHeaderSizeConstraints())
+                .canHaveChildren(false)
+                .build();
+    }
+
+    // ========== Helper Methods for Default Values ==========
+
+    private List<Map<String, Object>> getDefaultNavItems() {
+        List<Map<String, Object>> items = new ArrayList<>();
+        items.add(Map.of("label", "Home", "href", "/", "active", true));
+        items.add(Map.of("label", "About", "href", "/about", "active", false));
+        items.add(Map.of("label", "Services", "href", "#", "active", false, "children", List.of(
                 Map.of("label", "Web Development", "href", "/services/web"),
                 Map.of("label", "Mobile Apps", "href", "/services/mobile"),
                 Map.of("label", "Consulting", "href", "/services/consulting")
-            )),
-            Map.of("label", "Contact", "href", "/contact", "active", false)
-        ));
-
-        // Layout and behavior
-        props.put("layout", "default");
-        props.put("sticky", false);
-        props.put("showMobileMenu", true);
-        props.put("mobileBreakpoint", "768px");
-
-        return props;
+        )));
+        items.add(Map.of("label", "Contact", "href", "/contact", "active", false));
+        return items;
     }
 
-    /**
-     * Default styles for the navbar
-     */
-    private Map<String, String> buildDefaultStyles() {
-        Map<String, String> styles = new HashMap<>();
-        styles.put("backgroundColor", "#ffffff");
-        styles.put("textColor", "#333333");
-        styles.put("accentColor", "#007bff");
-        styles.put("padding", "0 20px");
-        styles.put("boxShadow", "0 2px 4px rgba(0,0,0,0.1)");
-        styles.put("borderBottom", "1px solid #e0e0e0");
-        styles.put("fontFamily", "inherit");
-        styles.put("fontSize", "16px");
-        return styles;
+    private List<Map<String, Object>> getMinimalNavItems() {
+        List<Map<String, Object>> items = new ArrayList<>();
+        items.add(Map.of("label", "Home", "href", "/", "active", true));
+        items.add(Map.of("label", "Work", "href", "/work", "active", false));
+        items.add(Map.of("label", "Contact", "href", "/contact", "active", false));
+        return items;
     }
 
-    /**
-     * Configurable properties for the navbar
-     */
-    private List<PropDefinition> buildConfigurableProps() {
+    private List<Map<String, Object>> getSidebarNavItems() {
+        List<Map<String, Object>> items = new ArrayList<>();
+        items.add(Map.of("label", "Dashboard", "href", "/dashboard", "icon", "🏠", "active", true));
+        items.add(Map.of("label", "Analytics", "href", "/analytics", "icon", "📊", "active", false));
+        items.add(Map.of("label", "Projects", "href", "/projects", "icon", "📁", "active", false));
+        items.add(Map.of("label", "Settings", "href", "/settings", "icon", "⚙️", "active", false));
+        return items;
+    }
+
+    private List<Map<String, Object>> getDefaultSocialLinks() {
+        List<Map<String, Object>> links = new ArrayList<>();
+        links.add(Map.of("platform", "facebook", "url", "#", "icon", "📘"));
+        links.add(Map.of("platform", "twitter", "url", "#", "icon", "🐦"));
+        links.add(Map.of("platform", "linkedin", "url", "#", "icon", "💼"));
+        return links;
+    }
+
+    // ========== Configurable Props Builders ==========
+
+    private List<PropDefinition> buildNavbarConfigurableProps() {
         List<PropDefinition> props = new ArrayList<>();
 
-        // Brand Text
         props.add(PropDefinition.builder()
                 .name("brandText")
                 .type(PropDefinition.PropType.STRING)
                 .label("Brand Text")
                 .defaultValue("My Site")
                 .required(false)
-                .helpText("Text displayed as the brand/logo (leave empty to use image only)")
+                .helpText("Text displayed as the brand/logo")
                 .build());
 
-        // Brand Image URL
         props.add(PropDefinition.builder()
                 .name("brandImageUrl")
                 .type(PropDefinition.PropType.URL)
@@ -221,7 +535,6 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
                 .helpText("URL for the brand logo image")
                 .build());
 
-        // Brand Link
         props.add(PropDefinition.builder()
                 .name("brandLink")
                 .type(PropDefinition.PropType.URL)
@@ -231,17 +544,15 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
                 .helpText("URL the brand/logo links to")
                 .build());
 
-        // Navigation Items (JSON) - supports multi-level dropdowns
         props.add(PropDefinition.builder()
                 .name("navItems")
                 .type(PropDefinition.PropType.JSON)
                 .label("Navigation Items")
-                .defaultValue("[{\"label\":\"Home\",\"href\":\"/\"},{\"label\":\"Services\",\"href\":\"#\",\"children\":[{\"label\":\"Web Dev\",\"href\":\"/web\"}]}]")
+                .defaultValue("[]")
                 .required(false)
-                .helpText("JSON array with nested children for dropdowns: [{\"label\":\"Menu\",\"href\":\"#\",\"children\":[{\"label\":\"Sub\",\"href\":\"/sub\"}]}]")
+                .helpText("JSON array of navigation items with nested children support")
                 .build());
 
-        // Layout variant
         props.add(PropDefinition.builder()
                 .name("layout")
                 .type(PropDefinition.PropType.SELECT)
@@ -251,7 +562,6 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
                 .helpText("Navbar layout variant")
                 .build());
 
-        // Sticky
         props.add(PropDefinition.builder()
                 .name("sticky")
                 .type(PropDefinition.PropType.BOOLEAN)
@@ -260,7 +570,6 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
                 .helpText("Fix navbar to top of viewport when scrolling")
                 .build());
 
-        // Show Mobile Menu
         props.add(PropDefinition.builder()
                 .name("showMobileMenu")
                 .type(PropDefinition.PropType.BOOLEAN)
@@ -269,7 +578,6 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
                 .helpText("Show hamburger menu on mobile devices")
                 .build());
 
-        // Mobile Breakpoint
         props.add(PropDefinition.builder()
                 .name("mobileBreakpoint")
                 .type(PropDefinition.PropType.SELECT)
@@ -282,13 +590,118 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
         return props;
     }
 
-    /**
-     * Configurable styles for the navbar
-     */
-    private List<StyleDefinition> buildConfigurableStyles() {
+    private List<PropDefinition> buildSidebarConfigurableProps() {
+        List<PropDefinition> props = new ArrayList<>();
+
+        props.add(PropDefinition.builder()
+                .name("brandText")
+                .type(PropDefinition.PropType.STRING)
+                .label("Title Text")
+                .defaultValue("Menu")
+                .required(false)
+                .helpText("Text displayed at the top of sidebar")
+                .build());
+
+        props.add(PropDefinition.builder()
+                .name("navItems")
+                .type(PropDefinition.PropType.JSON)
+                .label("Navigation Items")
+                .defaultValue("[]")
+                .required(false)
+                .helpText("JSON array of navigation items with icons")
+                .build());
+
+        props.add(PropDefinition.builder()
+                .name("collapsed")
+                .type(PropDefinition.PropType.BOOLEAN)
+                .label("Start Collapsed")
+                .defaultValue(false)
+                .helpText("Start sidebar in collapsed state")
+                .build());
+
+        props.add(PropDefinition.builder()
+                .name("collapsible")
+                .type(PropDefinition.PropType.BOOLEAN)
+                .label("Collapsible")
+                .defaultValue(true)
+                .helpText("Allow sidebar to be collapsed")
+                .build());
+
+        props.add(PropDefinition.builder()
+                .name("position")
+                .type(PropDefinition.PropType.SELECT)
+                .label("Position")
+                .defaultValue("left")
+                .options(List.of("left", "right"))
+                .helpText("Sidebar position")
+                .build());
+
+        props.add(PropDefinition.builder()
+                .name("showIcons")
+                .type(PropDefinition.PropType.BOOLEAN)
+                .label("Show Icons")
+                .defaultValue(true)
+                .helpText("Display icons next to menu items")
+                .build());
+
+        return props;
+    }
+
+    private List<PropDefinition> buildTopHeaderConfigurableProps() {
+        List<PropDefinition> props = new ArrayList<>();
+
+        props.add(PropDefinition.builder()
+                .name("leftContent")
+                .type(PropDefinition.PropType.STRING)
+                .label("Left Content")
+                .defaultValue("📧 contact@example.com")
+                .required(false)
+                .helpText("Content for the left side (e.g., email)")
+                .build());
+
+        props.add(PropDefinition.builder()
+                .name("rightContent")
+                .type(PropDefinition.PropType.STRING)
+                .label("Right Content")
+                .defaultValue("📞 +1 234 567 890")
+                .required(false)
+                .helpText("Content for the right side (e.g., phone)")
+                .build());
+
+        props.add(PropDefinition.builder()
+                .name("centerContent")
+                .type(PropDefinition.PropType.STRING)
+                .label("Center Content")
+                .defaultValue("")
+                .required(false)
+                .helpText("Content for the center (e.g., announcement)")
+                .build());
+
+        props.add(PropDefinition.builder()
+                .name("showSocialLinks")
+                .type(PropDefinition.PropType.BOOLEAN)
+                .label("Show Social Links")
+                .defaultValue(true)
+                .helpText("Display social media icons")
+                .build());
+
+        props.add(PropDefinition.builder()
+                .name("socialLinks")
+                .type(PropDefinition.PropType.JSON)
+                .label("Social Links")
+                .defaultValue("[]")
+                .required(false)
+                .helpText("JSON array of social media links")
+                .build());
+
+        return props;
+    }
+
+    // ========== Configurable Styles Builders ==========
+
+    private List<StyleDefinition> buildNavbarConfigurableStyles() {
         List<StyleDefinition> styles = new ArrayList<>();
 
-        // Background Color
         styles.add(StyleDefinition.builder()
                 .property("backgroundColor")
                 .type(StyleDefinition.StyleType.COLOR)
@@ -297,7 +710,6 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
                 .category("colors")
                 .build());
 
-        // Text Color
         styles.add(StyleDefinition.builder()
                 .property("textColor")
                 .type(StyleDefinition.StyleType.COLOR)
@@ -306,7 +718,6 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
                 .category("colors")
                 .build());
 
-        // Accent/Active Color
         styles.add(StyleDefinition.builder()
                 .property("accentColor")
                 .type(StyleDefinition.StyleType.COLOR)
@@ -316,7 +727,6 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
                 .helpText("Color for active links and hover states")
                 .build());
 
-        // Padding
         styles.add(StyleDefinition.builder()
                 .property("padding")
                 .type(StyleDefinition.StyleType.SPACING)
@@ -326,7 +736,6 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
                 .category("spacing")
                 .build());
 
-        // Box Shadow
         styles.add(StyleDefinition.builder()
                 .property("boxShadow")
                 .type(StyleDefinition.StyleType.SHADOW)
@@ -335,7 +744,6 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
                 .category("effects")
                 .build());
 
-        // Border Bottom
         styles.add(StyleDefinition.builder()
                 .property("borderBottom")
                 .type(StyleDefinition.StyleType.BORDER)
@@ -344,7 +752,6 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
                 .category("border")
                 .build());
 
-        // Font Size
         styles.add(StyleDefinition.builder()
                 .property("fontSize")
                 .type(StyleDefinition.StyleType.SIZE)
@@ -354,23 +761,108 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
                 .category("text")
                 .build());
 
-        // Font Family
+        return styles;
+    }
+
+    private List<StyleDefinition> buildSidebarConfigurableStyles() {
+        List<StyleDefinition> styles = new ArrayList<>();
+
         styles.add(StyleDefinition.builder()
-                .property("fontFamily")
-                .type(StyleDefinition.StyleType.FONT_FAMILY)
-                .label("Font Family")
-                .defaultValue("inherit")
-                .options(List.of("inherit", "Arial, sans-serif", "Georgia, serif", "'Roboto', sans-serif", "'Open Sans', sans-serif"))
+                .property("backgroundColor")
+                .type(StyleDefinition.StyleType.COLOR)
+                .label("Background Color")
+                .defaultValue("#2c3e50")
+                .category("colors")
+                .build());
+
+        styles.add(StyleDefinition.builder()
+                .property("textColor")
+                .type(StyleDefinition.StyleType.COLOR)
+                .label("Text Color")
+                .defaultValue("#ecf0f1")
+                .category("colors")
+                .build());
+
+        styles.add(StyleDefinition.builder()
+                .property("accentColor")
+                .type(StyleDefinition.StyleType.COLOR)
+                .label("Accent Color")
+                .defaultValue("#3498db")
+                .category("colors")
+                .build());
+
+        styles.add(StyleDefinition.builder()
+                .property("width")
+                .type(StyleDefinition.StyleType.SIZE)
+                .label("Width")
+                .defaultValue("250px")
+                .allowedUnits(List.of("px", "rem", "%"))
+                .category("layout")
+                .build());
+
+        styles.add(StyleDefinition.builder()
+                .property("collapsedWidth")
+                .type(StyleDefinition.StyleType.SIZE)
+                .label("Collapsed Width")
+                .defaultValue("60px")
+                .allowedUnits(List.of("px", "rem"))
+                .category("layout")
+                .build());
+
+        return styles;
+    }
+
+    private List<StyleDefinition> buildTopHeaderConfigurableStyles() {
+        List<StyleDefinition> styles = new ArrayList<>();
+
+        styles.add(StyleDefinition.builder()
+                .property("backgroundColor")
+                .type(StyleDefinition.StyleType.COLOR)
+                .label("Background Color")
+                .defaultValue("#f8f9fa")
+                .category("colors")
+                .build());
+
+        styles.add(StyleDefinition.builder()
+                .property("textColor")
+                .type(StyleDefinition.StyleType.COLOR)
+                .label("Text Color")
+                .defaultValue("#666666")
+                .category("colors")
+                .build());
+
+        styles.add(StyleDefinition.builder()
+                .property("accentColor")
+                .type(StyleDefinition.StyleType.COLOR)
+                .label("Link Color")
+                .defaultValue("#007bff")
+                .category("colors")
+                .build());
+
+        styles.add(StyleDefinition.builder()
+                .property("padding")
+                .type(StyleDefinition.StyleType.SPACING)
+                .label("Padding")
+                .defaultValue("8px 20px")
+                .allowedUnits(List.of("px", "rem", "em"))
+                .category("spacing")
+                .build());
+
+        styles.add(StyleDefinition.builder()
+                .property("fontSize")
+                .type(StyleDefinition.StyleType.SIZE)
+                .label("Font Size")
+                .defaultValue("13px")
+                .allowedUnits(List.of("px", "rem", "em"))
                 .category("text")
                 .build());
 
         return styles;
     }
 
-    /**
-     * Size constraints for the navbar
-     */
-    private SizeConstraints buildSizeConstraints() {
+    // ========== Size Constraints Builders ==========
+
+    private SizeConstraints buildNavbarSizeConstraints() {
         return SizeConstraints.builder()
                 .resizable(true)
                 .defaultWidth("100%")
@@ -379,7 +871,37 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
                 .maxWidth("100%")
                 .minHeight("40px")
                 .maxHeight("120px")
-                .widthLocked(true)  // Width should always be 100% to fill parent container
+                .widthLocked(true)
+                .heightLocked(false)
+                .maintainAspectRatio(false)
+                .build();
+    }
+
+    private SizeConstraints buildSidebarSizeConstraints() {
+        return SizeConstraints.builder()
+                .resizable(true)
+                .defaultWidth("250px")
+                .defaultHeight("100%")
+                .minWidth("60px")
+                .maxWidth("400px")
+                .minHeight("100%")
+                .maxHeight("100%")
+                .widthLocked(false)
+                .heightLocked(true)
+                .maintainAspectRatio(false)
+                .build();
+    }
+
+    private SizeConstraints buildTopHeaderSizeConstraints() {
+        return SizeConstraints.builder()
+                .resizable(true)
+                .defaultWidth("100%")
+                .defaultHeight("36px")
+                .minWidth("100%")
+                .maxWidth("100%")
+                .minHeight("24px")
+                .maxHeight("60px")
+                .widthLocked(true)
                 .heightLocked(false)
                 .maintainAspectRatio(false)
                 .build();
@@ -387,21 +909,21 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
 
     @Override
     public String getPluginId() {
-        return "navbar-component-plugin";
+        return PLUGIN_ID;
     }
 
     @Override
     public String getName() {
-        return "Navigation Bar Component";
+        return "Navbar Component";
     }
 
     @Override
     public String getVersion() {
-        return "1.0.0";
+        return PLUGIN_VERSION;
     }
 
     @Override
     public String getDescription() {
-        return "A customizable navigation bar component for the visual site builder";
+        return "Navigation bar components with multiple variants for the visual site builder";
     }
 }
