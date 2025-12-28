@@ -127,7 +127,8 @@ const NavbarRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
     alignItems: 'center',
     justifyContent: getJustifyContent(),
     width: '100%',
-    height: '100%',
+    // Don't set height: 100% - navbar should size to its content
+    // height: '100%' would make the navbar stretch to fill the parent container
     minHeight: '40px',
     backgroundColor,
     color: textColor,
