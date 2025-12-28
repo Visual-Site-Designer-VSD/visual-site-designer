@@ -9,19 +9,22 @@ import './BuilderCanvas.css';
 
 interface BuilderCanvasProps {
   onComponentSelect?: (componentId: string | null) => void;
+  // Optional page override for preview mode - allows rendering a different page
+  // without modifying the builder store's currentPage
+  pageOverride?: import('../../types/builder').PageDefinition | null;
 }
 
 /**
  * BuilderCanvas - Main canvas where components are placed and arranged
  * Implements grid-based layout with drag-drop support
  */
-export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect }) => {
+export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect, pageOverride }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragOverContainerId, setDragOverContainerId] = useState<string | null>(null);
 
   const {
-    currentPage,
+    currentPage: storeCurrentPage,
     selectedComponentId,
     hoveredComponentId,
     gridConfig,
@@ -32,6 +35,9 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect 
     reparentComponent,
     setHoveredComponent
   } = useBuilderStore();
+
+  // Use pageOverride if provided (for preview mode), otherwise use store's currentPage
+  const currentPage = pageOverride !== undefined ? pageOverride : storeCurrentPage;
 
   const { getManifest } = useComponentStore();
 
@@ -437,9 +443,9 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect 
         const justifyContent = component.props?.justifyContent;
         const flexWrap = component.styles?.flexWrap as React.CSSProperties['flexWrap'];
 
-        // Extract styles excluding width - width should be controlled by CSS/flex, not stored value
+        // Extract styles excluding width and maxWidth - these should be controlled by props, not stored value
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { width: _ignoredWidth, ...stylesWithoutWidth } = component.styles || {};
+        const { width: _ignoredWidth, maxWidth: _ignoredMaxWidth, ...stylesWithoutWidth } = component.styles || {};
 
         return (
           <div
@@ -453,7 +459,7 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect 
               flexWrap: flexWrap || layoutStyles.flexWrap,
               height: previewHeight,
               minHeight: minHeight,
-              maxWidth: maxWidth || undefined,
+              maxWidth: maxWidth && maxWidth !== 'none' ? maxWidth : undefined,
               marginLeft: centerContent ? 'auto' : undefined,
               marginRight: centerContent ? 'auto' : undefined,
               gap: previewGap,
@@ -509,6 +515,11 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect 
       // Check if this is a flex-row layout - children should use their stored widths
       const isFlexRowLayout = layoutType === 'flex-row' || layoutType === 'flex-wrap';
 
+      // Get flex alignment props from component props (same as preview mode)
+      const editAlignItems = component.props?.alignItems;
+      const editJustifyContent = component.props?.justifyContent;
+      const editFlexWrap = component.styles?.flexWrap as React.CSSProperties['flexWrap'];
+
       // Get overflow styles for scrollable containers
       const getScrollOverflow = () => {
         if (!isScrollable) return { overflow: 'visible' };
@@ -559,6 +570,10 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect 
             style={{
               ...layoutStyles,
               ...getScrollOverflow(),
+              // Apply alignItems and justifyContent from component props (same as preview mode)
+              alignItems: editAlignItems || layoutStyles.alignItems,
+              justifyContent: editJustifyContent || layoutStyles.justifyContent,
+              flexWrap: editFlexWrap || layoutStyles.flexWrap,
               gap: containerGap,
               padding: isScrollable ? containerPadding : undefined,
               // For scrollable containers with flex layouts, use flex: 1 to fill available space
@@ -685,7 +700,11 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect 
 
       const category = componentEntry.category?.toLowerCase() || '';
 
+      // Check if this is a layout component being dropped into a container
+      const isLayoutComponent = category === 'layout';
+
       // Create new component instance with the specific parent
+      // Layout components inside containers should default to 100% width to fill parent
       const newComponent: ComponentInstance = {
         instanceId: `${componentEntry.componentId}-${Date.now()}`,
         pluginId: componentEntry.pluginId,
@@ -699,8 +718,9 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect 
           columnSpan: 1
         },
         size: {
-          width: parsedManifest.sizeConstraints?.defaultWidth || '200px',
-          height: parsedManifest.sizeConstraints?.defaultHeight || '100px'
+          // Child layout containers should fill parent width by default
+          width: isLayoutComponent ? '100%' : (parsedManifest.sizeConstraints?.defaultWidth || '200px'),
+          height: parsedManifest.sizeConstraints?.defaultHeight || 'auto'
         },
         props: parsedManifest.defaultProps || {},
         styles: parsedManifest.defaultStyles || {},
