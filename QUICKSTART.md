@@ -167,16 +167,51 @@ Spring Boot DevTools is enabled for automatic restart when code changes. The app
 ## Project Structure
 
 ```
-core/
-├── flashcard-cms-plugin-sdk/    # Plugin SDK library
-├── core/                # Main Spring Boot application
-├── plugins/
-│   ├── course-plugin/            # Course management
-│   ├── lesson-plugin/            # Lesson management
-│   └── flashcard-plugin/         # Flashcard management
-├── frontend/                     # React frontend
-└── pom.xml                       # Parent POM
+dynamic-site-builder/
+├── flashcard-cms-plugin-sdk/     # Plugin SDK library (interfaces, DTOs)
+├── core/                         # Main Spring Boot application
+│   └── src/main/java/.../
+│       ├── sitebuilder/          # Site builder services
+│       │   ├── service/          # ComponentRegistryService, etc.
+│       │   └── controller/       # REST API controllers
+│       └── ...
+├── plugins/                      # UI component plugins
+│   ├── button-component-plugin/  # Button component
+│   ├── navbar-component-plugin/  # Navbar component (built-in)
+│   ├── label-component-plugin/   # Label/Text component
+│   └── ...
+├── frontend/                     # React frontend (Visual Site Builder)
+│   └── src/
+│       ├── components/
+│       │   └── builder/
+│       │       ├── renderers/    # Component renderers
+│       │       │   ├── RendererRegistry.ts     # Renderer registration system
+│       │       │   ├── NavbarRenderer.tsx      # Navbar component renderer
+│       │       │   ├── ButtonRenderer.tsx      # Button component renderer
+│       │       │   └── ...
+│       │       └── ...
+│       ├── data/
+│       │   └── builtInManifests.ts  # Frontend manifest overrides
+│       ├── services/             # API services, plugin loader
+│       └── types/                # TypeScript types
+└── pom.xml                       # Parent POM (multi-module)
 ```
+
+### Key Architecture Concepts
+
+1. **RendererRegistry**: Central singleton that manages React component renderers
+   - Location: `frontend/src/components/builder/renderers/RendererRegistry.ts`
+   - Registers renderers with `pluginId:componentId` keys
+   - Falls back to generic renderer if plugin-specific not found
+
+2. **Built-in Manifests**: Frontend overrides for component properties
+   - Location: `frontend/src/data/builtInManifests.ts`
+   - Defines additional props not in backend manifests
+   - Supports image picker for URL/Image props
+
+3. **PluginId Matching**: Frontend renderer pluginId must match backend registration
+   - Backend: `componentRegistry.setPluginId("navbar-component-plugin")`
+   - Frontend: `RendererRegistry.register('Navbar', NavbarRenderer, 'navbar-component-plugin')`
 
 ## Next Steps
 

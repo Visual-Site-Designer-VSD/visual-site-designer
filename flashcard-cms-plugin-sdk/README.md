@@ -383,22 +383,123 @@ Recommended plugin project structure:
 ```
 my-plugin/
 ├── pom.xml
+├── frontend/                           # Optional: Plugin frontend code
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── src/
+│       ├── components/
+│       │   └── MyComponent.tsx         # React component
+│       └── index.ts                    # Entry point
 └── src/
     └── main/
-        └── java/
-            └── com/
-                └── example/
-                    └── myplugin/
-                        ├── MyPlugin.java           # Main plugin class
-                        ├── entity/                 # JPA entities
-                        │   └── MyItem.java
-                        ├── repository/             # Spring Data repositories
-                        │   └── MyItemRepository.java
-                        ├── service/                # Business logic
-                        │   └── MyItemService.java
-                        └── controller/             # REST controllers
-                            └── MyItemController.java
+        ├── java/
+        │   └── com/
+        │       └── example/
+        │           └── myplugin/
+        │               ├── MyPlugin.java           # Main plugin class
+        │               ├── entity/                 # JPA entities
+        │               │   └── MyItem.java
+        │               ├── repository/             # Spring Data repositories
+        │               │   └── MyItemRepository.java
+        │               ├── service/                # Business logic
+        │               │   └── MyItemService.java
+        │               └── controller/             # REST controllers
+        │                   └── MyItemController.java
+        └── resources/
+            ├── plugin.yml                          # Plugin metadata
+            └── frontend/                           # Bundled frontend (from build)
+                └── my-component.iife.js
 ```
+
+## Frontend Renderer Integration
+
+UI component plugins can provide custom React renderers for the Visual Site Builder.
+
+### RendererRegistry System
+
+The frontend uses a `RendererRegistry` singleton to manage component renderers:
+
+```typescript
+// Location: frontend/src/components/builder/renderers/RendererRegistry.ts
+
+// Core renderer (no pluginId - generic fallback)
+RendererRegistry.register('Button', ButtonRenderer);
+
+// Plugin renderer (with pluginId - takes precedence)
+RendererRegistry.register('MyComponent', MyComponentRenderer, 'my-component-plugin');
+```
+
+### Lookup Order
+
+When rendering a component, the system looks up renderers in this order:
+
+1. **Plugin-specific**: `pluginId:componentId` (e.g., `my-plugin:MyComponent`)
+2. **Generic fallback**: `componentId` only (e.g., `MyComponent`)
+3. **Dynamic load**: If component has `reactBundlePath`, load from URL
+
+### Creating a Frontend Renderer
+
+1. Create your renderer in `frontend/src/components/builder/renderers/`:
+
+```tsx
+// MyComponentRenderer.tsx
+import React from 'react';
+import type { RendererProps } from './RendererRegistry';
+
+const MyComponentRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
+  const { text, color } = component.props || {};
+
+  return (
+    <div style={{ color, ...component.styles }}>
+      {text || 'My Component'}
+    </div>
+  );
+};
+
+export default MyComponentRenderer;
+```
+
+2. Register with the correct pluginId in `index.tsx`:
+
+```typescript
+// The pluginId MUST match backend ComponentRegistry registration
+RendererRegistry.register('MyComponent', MyComponentRenderer, 'my-component-plugin');
+```
+
+### PluginId Matching
+
+**Critical**: The `pluginId` used in frontend registration must exactly match the backend:
+
+**Backend (Java)**:
+```java
+componentRegistry.setPluginId("my-component-plugin");
+```
+
+**Frontend (TypeScript)**:
+```typescript
+RendererRegistry.register('MyComponent', MyComponentRenderer, 'my-component-plugin');
+```
+
+If these don't match, the renderer won't be found and a placeholder will be shown.
+
+### Built-in Manifests
+
+The frontend can override or extend backend component manifests:
+
+```typescript
+// frontend/src/data/builtInManifests.ts
+export const myComponentManifest = {
+  componentId: 'MyComponent',
+  pluginId: 'my-component-plugin',
+  displayName: 'My Component',
+  configurableProps: [
+    { name: 'text', type: PropType.STRING, label: 'Text' },
+    { name: 'imageUrl', type: PropType.URL, label: 'Image URL' }, // Shows image picker
+  ],
+};
+```
+
+Props with `PropType.URL` or `PropType.IMAGE` automatically get an image picker button.
 
 ## Building the SDK
 

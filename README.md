@@ -27,6 +27,7 @@ A plugin-based visual site builder platform with drag-and-drop components, live 
 - [Chapter 4: Plugin Development Basics](#chapter-4-plugin-development-basics)
 - [Chapter 5: Developing Dynamic Components](#chapter-5-developing-dynamic-components)
 - [Chapter 6: Plugin Management](#chapter-6-plugin-management)
+- [Chapter 6.1: Plugin Frontend Architecture](#chapter-61-plugin-frontend-architecture)
 
 **Shipped Plugins**
 
@@ -3736,6 +3737,216 @@ cd auth-component-plugin; mvn clean package; cd ..
 # Copy all JARs to core/plugins/
 Get-ChildItem -Recurse -Filter "*.jar" -Path "*/target" | Copy-Item -Destination "../core/plugins/"
 ```
+
+---
+
+## Chapter 6.1: Plugin Frontend Architecture
+
+### Overview
+
+Plugins in the Visual Site Builder have both **backend** (Java) and **frontend** (React) components. The frontend architecture enables plugins to provide custom React renderers that are used to display components in the builder canvas.
+
+### Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        Plugin JAR Structure                                  │
+│  ┌──────────────────────┐    ┌──────────────────────────────────────────┐   │
+│  │   Java Backend       │    │   Frontend (Optional)                     │   │
+│  │   - Plugin class     │    │   - React renderers                       │   │
+│  │   - Manifest         │    │   - Stylesheets                           │   │
+│  │   - Lifecycle        │    │   - Types                                 │   │
+│  └──────────────────────┘    └──────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        Frontend Renderer System                              │
+│  ┌──────────────────────┐    ┌──────────────────────────────────────────┐   │
+│  │   RendererRegistry   │◄───│   Core Renderers (auto-discovered)        │   │
+│  │   (singleton)        │    │   - LabelRenderer                         │   │
+│  │                      │    │   - ButtonRenderer                        │   │
+│  │   get(componentId,   │    │   - ImageRenderer                         │   │
+│  │       pluginId)      │    │   - ContainerRenderer                     │   │
+│  └──────────────────────┘    │   - Navbar*Renderers (with pluginId)      │   │
+│            │                 └──────────────────────────────────────────┘   │
+│            ▼                                                                 │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │   ComponentRenderer                                                   │   │
+│  │   - Looks up renderer by componentId + pluginId                       │   │
+│  │   - Falls back to core renderer if plugin-specific not found          │   │
+│  │   - Dynamically loads plugin bundles when needed                      │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### RendererRegistry
+
+The `RendererRegistry` is a singleton that manages component renderers. It allows:
+
+1. **Core renderers** to be auto-discovered from `*Renderer.tsx` files
+2. **Plugin renderers** to register themselves at runtime
+3. **Dynamic loading** of plugin renderers from remote bundles
+
+**Location**: `frontend/src/components/builder/renderers/RendererRegistry.ts`
+
+#### Registry Key Format
+
+Renderers are stored with keys in the format:
+- `pluginId:componentId` - for plugin-specific renderers
+- `componentId` - for core/generic renderers
+
+#### Lookup Order
+
+When looking up a renderer:
+1. **Plugin-specific**: Try `pluginId:componentId` first
+2. **Generic fallback**: Try `componentId` only
+3. **Dynamic load**: If component has a `reactBundlePath`, load from URL
+
+#### Example Registration
+
+```typescript
+// Core renderer (no pluginId)
+RendererRegistry.register('Button', ButtonRenderer);
+
+// Plugin renderer (with pluginId)
+RendererRegistry.register('Navbar', NavbarRenderer, 'navbar-component-plugin');
+```
+
+### Built-in Manifests
+
+The frontend maintains built-in manifests that override or supplement backend component manifests. This is useful for:
+
+- Adding additional configurable props not in the backend manifest
+- Providing frontend-specific defaults
+- Defining UI-specific prop types (like `PropType.URL` with image picker support)
+
+**Location**: `frontend/src/data/builtInManifests.ts`
+
+#### Example Built-in Manifest
+
+```typescript
+export const navbarDefaultManifest = {
+  componentId: 'NavbarDefault',
+  pluginId: 'navbar-component-plugin',
+  displayName: 'Navbar (Default)',
+  category: 'navbar',
+  icon: '🧭',
+  configurableProps: [
+    { name: 'brandText', type: PropType.STRING, label: 'Brand Text', defaultValue: 'My Site' },
+    { name: 'brandImageUrl', type: PropType.URL, label: 'Brand Logo URL', defaultValue: '' },
+    { name: 'brandLink', type: PropType.URL, label: 'Brand Link', defaultValue: '/' },
+    { name: 'navItems', type: PropType.JSON, label: 'Navigation Items', defaultValue: [] },
+    { name: 'sticky', type: PropType.BOOLEAN, label: 'Sticky Header', defaultValue: false },
+    { name: 'showMobileMenu', type: PropType.BOOLEAN, label: 'Show Mobile Menu', defaultValue: true },
+  ],
+};
+```
+
+### Creating Plugin Renderers
+
+To create a renderer for a plugin component:
+
+1. **Create the renderer file** in `frontend/src/components/builder/renderers/`:
+
+```tsx
+// MyComponentRenderer.tsx
+import React from 'react';
+import type { RendererProps } from './RendererRegistry';
+
+const MyComponentRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
+  const { text, color } = component.props || {};
+
+  return (
+    <div style={{ color, ...component.styles }}>
+      {text || 'My Component'}
+    </div>
+  );
+};
+
+export default MyComponentRenderer;
+```
+
+2. **Register with pluginId** in `index.tsx`:
+
+```typescript
+// If your component belongs to a plugin, register with pluginId
+const PLUGIN_RENDERERS = ['MyComponent'];
+const PLUGIN_ID = 'my-component-plugin';
+
+for (const path in coreRendererModules) {
+  const match = /\.\/(.+)Renderer\.tsx$/.exec(path);
+  if (match) {
+    const componentName = match[1];
+    if (PLUGIN_RENDERERS.includes(componentName)) {
+      RendererRegistry.register(componentName, module.default, PLUGIN_ID);
+    } else {
+      RendererRegistry.register(componentName, module.default);
+    }
+  }
+}
+```
+
+### Image Picker Integration for URL Props
+
+Properties with type `PropType.URL` or `PropType.IMAGE` now display an image picker button alongside the URL input field. Users can:
+
+1. **Type a URL manually** in the input field
+2. **Click the 🖼️ button** to open the Image Repository modal
+3. **Select an image** from the repository to auto-populate the URL
+
+This integration is available for any component prop defined with these types:
+
+```typescript
+configurableProps: [
+  { name: 'brandImageUrl', type: PropType.URL, label: 'Brand Logo URL' },
+  { name: 'profileImage', type: PropType.IMAGE, label: 'Profile Image' },
+]
+```
+
+**Image Repository Access**: The Image Repository is accessible via:
+- **Content dropdown** in the builder toolbar → "🖼️ Image Repository"
+- **Image picker button** (🖼️) next to URL/Image prop inputs
+
+### Plugin Frontend Directory Structure
+
+For plugins with frontend code:
+
+```
+plugins/my-component-plugin/
+├── pom.xml
+├── frontend/                          # Plugin frontend source
+│   ├── package.json
+│   ├── vite.config.ts
+│   ├── src/
+│   │   ├── components/
+│   │   │   └── MyComponent.tsx
+│   │   └── index.ts                   # Entry point
+│   └── dist/                          # Built bundle (generated)
+├── src/main/
+│   ├── java/.../MyComponentPlugin.java
+│   └── resources/
+│       ├── plugin.yml
+│       └── frontend/                  # Bundled frontend (from dist/)
+│           └── my-component.iife.js
+```
+
+### PluginId Matching
+
+**Critical**: The `pluginId` used when registering frontend renderers **must match** the `pluginId` registered by the backend `ComponentRegistryService`.
+
+Backend registration (Java):
+```java
+// In ComponentRegistryService or BuiltInNavbarComponentInitializer
+componentRegistry.setPluginId("navbar-component-plugin");
+```
+
+Frontend registration (TypeScript):
+```typescript
+RendererRegistry.register('Navbar', NavbarRenderer, 'navbar-component-plugin');
+```
+
+If these don't match, the ComponentRenderer will fail to find the plugin-specific renderer and fall back to a generic one (or show a placeholder).
 
 ---
 
