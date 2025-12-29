@@ -143,6 +143,9 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
         defaultProps.put("brandText", "My Site");
         defaultProps.put("brandImageUrl", "");
         defaultProps.put("brandLink", "/");
+        defaultProps.put("logoType", "text");
+        defaultProps.put("logoHeight", "32px");
+        defaultProps.put("logoWidth", "auto");
         defaultProps.put("navItems", getDefaultNavItems());
         defaultProps.put("layout", "default");
         defaultProps.put("sticky", false);
@@ -185,6 +188,9 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
         defaultProps.put("brandText", "My Site");
         defaultProps.put("brandImageUrl", "");
         defaultProps.put("brandLink", "/");
+        defaultProps.put("logoType", "text");
+        defaultProps.put("logoHeight", "32px");
+        defaultProps.put("logoWidth", "auto");
         defaultProps.put("navItems", getDefaultNavItems());
         defaultProps.put("layout", "centered");
         defaultProps.put("sticky", false);
@@ -227,6 +233,9 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
         defaultProps.put("brandText", "Brand");
         defaultProps.put("brandImageUrl", "");
         defaultProps.put("brandLink", "/");
+        defaultProps.put("logoType", "text");
+        defaultProps.put("logoHeight", "32px");
+        defaultProps.put("logoWidth", "auto");
         defaultProps.put("navItems", getMinimalNavItems());
         defaultProps.put("layout", "minimal");
         defaultProps.put("sticky", false);
@@ -269,6 +278,9 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
         defaultProps.put("brandText", "My Site");
         defaultProps.put("brandImageUrl", "");
         defaultProps.put("brandLink", "/");
+        defaultProps.put("logoType", "text");
+        defaultProps.put("logoHeight", "32px");
+        defaultProps.put("logoWidth", "auto");
         defaultProps.put("navItems", getDefaultNavItems());
         defaultProps.put("layout", "default");
         defaultProps.put("sticky", false);
@@ -313,6 +325,9 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
         defaultProps.put("brandText", "My Site");
         defaultProps.put("brandImageUrl", "");
         defaultProps.put("brandLink", "/");
+        defaultProps.put("logoType", "text");
+        defaultProps.put("logoHeight", "32px");
+        defaultProps.put("logoWidth", "auto");
         defaultProps.put("navItems", getDefaultNavItems());
         defaultProps.put("layout", "default");
         defaultProps.put("sticky", true);
@@ -357,6 +372,9 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
         defaultProps.put("brandText", "My Site");
         defaultProps.put("brandImageUrl", "");
         defaultProps.put("brandLink", "/");
+        defaultProps.put("logoType", "text");
+        defaultProps.put("logoHeight", "32px");
+        defaultProps.put("logoWidth", "auto");
         defaultProps.put("navItems", getDefaultNavItems());
         defaultProps.put("layout", "default");
         defaultProps.put("sticky", true);
@@ -527,12 +545,39 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
                 .build());
 
         props.add(PropDefinition.builder()
+                .name("logoType")
+                .type(PropDefinition.PropType.SELECT)
+                .label("Logo Type")
+                .defaultValue("text")
+                .options(List.of("text", "image", "both"))
+                .helpText("Display text only, image only, or both")
+                .build());
+
+        props.add(PropDefinition.builder()
                 .name("brandImageUrl")
                 .type(PropDefinition.PropType.URL)
-                .label("Brand Logo URL")
+                .label("Logo Image URL")
                 .defaultValue("")
                 .required(false)
-                .helpText("URL for the brand logo image")
+                .helpText("URL for the brand logo image (required when Logo Type is 'image' or 'both')")
+                .build());
+
+        props.add(PropDefinition.builder()
+                .name("logoHeight")
+                .type(PropDefinition.PropType.STRING)
+                .label("Logo Height")
+                .defaultValue("32px")
+                .required(false)
+                .helpText("Height of the logo image (e.g., 32px, 2rem)")
+                .build());
+
+        props.add(PropDefinition.builder()
+                .name("logoWidth")
+                .type(PropDefinition.PropType.STRING)
+                .label("Logo Width")
+                .defaultValue("auto")
+                .required(false)
+                .helpText("Width of the logo image (e.g., auto, 100px)")
                 .build());
 
         props.add(PropDefinition.builder()

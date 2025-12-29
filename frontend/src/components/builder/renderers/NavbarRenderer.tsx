@@ -32,6 +32,9 @@ const NavbarRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
     brandText = 'My Site',
     brandImageUrl = '',
     brandLink = '/',
+    logoType = 'text', // 'text', 'image', or 'both'
+    logoHeight = '32px',
+    logoWidth = 'auto',
     navItems = [],
     layout = 'default',
     sticky = false,
@@ -338,18 +341,29 @@ const NavbarRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
     );
   };
 
+  // Determine what to show based on logoType
+  const showLogo = (logoType === 'image' || logoType === 'both') && brandImageUrl;
+  const showText = (logoType === 'text' || logoType === 'both') || (!brandImageUrl && logoType === 'image');
+
+  // Logo image styles
+  const logoImageStyles: React.CSSProperties = {
+    height: logoHeight as string || '32px',
+    width: logoWidth as string || 'auto',
+    objectFit: 'contain',
+  };
+
   return (
     <nav style={containerStyles}>
       {/* Brand/Logo */}
       <a href={brandLink as string} style={brandStyles} onClick={handleBrandClick}>
-        {brandImageUrl && (
+        {showLogo && (
           <img
             src={brandImageUrl as string}
             alt={brandText as string || 'Logo'}
-            style={{ height: '32px', width: 'auto' }}
+            style={logoImageStyles}
           />
         )}
-        {brandText && <span>{brandText as string}</span>}
+        {showText && brandText && <span>{brandText as string}</span>}
       </a>
 
       {/* Spacer for split layout */}
