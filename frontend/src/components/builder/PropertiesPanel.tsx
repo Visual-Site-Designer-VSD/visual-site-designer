@@ -4,6 +4,7 @@ import { useComponentStore } from '../../stores/componentStore';
 import { ComponentManifest, PropDefinition, PropType, ComponentEventConfig, ActionType } from '../../types/builder';
 import { getBuiltInManifest, hasBuiltInManifest } from '../../data/builtInManifests';
 import { PageLinkSelector } from './PageLinkSelector';
+import { ImageRepositoryModal } from './ImageRepositoryModal';
 import './PropertiesPanel.css';
 
 /**
@@ -424,6 +425,8 @@ const NavigationEditor: React.FC<NavigationEditorProps> = ({ value, onChange }) 
 export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ selectedComponentId }) => {
   const [activeTab, setActiveTab] = useState<'props' | 'styles' | 'layout' | 'events'>('props');
   const [manifest, setManifest] = useState<ComponentManifest | null>(null);
+  const [imagePickerOpen, setImagePickerOpen] = useState(false);
+  const [imagePickerPropName, setImagePickerPropName] = useState<string | null>(null);
 
   const {
     currentPage,
@@ -806,12 +809,25 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ selectedCompon
       case PropType.URL:
       case PropType.IMAGE:
         return (
-          <input
-            type="url"
-            value={value || ''}
-            onChange={(e) => handlePropChange(propDef.name, e.target.value)}
-            placeholder={propDef.helpText || 'https://example.com'}
-          />
+          <div className="url-input-group">
+            <input
+              type="url"
+              value={value || ''}
+              onChange={(e) => handlePropChange(propDef.name, e.target.value)}
+              placeholder={propDef.helpText || 'https://example.com'}
+            />
+            <button
+              type="button"
+              className="image-picker-btn"
+              onClick={() => {
+                setImagePickerPropName(propDef.name);
+                setImagePickerOpen(true);
+              }}
+              title="Select from Image Repository"
+            >
+              🖼️
+            </button>
+          </div>
         );
 
       case PropType.JSON:
@@ -1217,6 +1233,23 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ selectedCompon
           </div>
         )}
       </div>
+
+      {/* Image Repository Modal for selecting images */}
+      <ImageRepositoryModal
+        isOpen={imagePickerOpen}
+        onClose={() => {
+          setImagePickerOpen(false);
+          setImagePickerPropName(null);
+        }}
+        onSelectImage={(imageUrl) => {
+          if (imagePickerPropName) {
+            handlePropChange(imagePickerPropName, imageUrl);
+          }
+          setImagePickerOpen(false);
+          setImagePickerPropName(null);
+        }}
+        selectionMode={true}
+      />
     </div>
   );
 };
