@@ -10,17 +10,22 @@ import type { RendererProps } from '../types';
  */
 const ContainerRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
   // Extract props with defaults
+  // Note: layoutMode is the primary prop set by the UI, layoutType is legacy/fallback
   const {
-    layoutType = 'flex-column',
+    layoutMode,
+    layoutType,
     padding = '20px',
     maxWidth = '1200px',
     centerContent = true,
     allowOverflow = false,
   } = component.props;
 
-  // Get layout styles based on layoutType
+  // Use layoutMode if set, otherwise fall back to layoutType, then default
+  const effectiveLayout = layoutMode || layoutType || 'flex-column';
+
+  // Get layout styles based on layout mode
   const getLayoutStyles = (): React.CSSProperties => {
-    switch (layoutType) {
+    switch (effectiveLayout) {
       case 'flex-row':
         return {
           display: 'flex',

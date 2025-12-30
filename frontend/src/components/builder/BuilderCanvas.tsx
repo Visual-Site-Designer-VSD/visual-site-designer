@@ -447,8 +447,8 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect,
 
     // For layout components, render container with children
     if (isLayout) {
-      // Get layout type from component props - support both layoutType and layoutMode
-      const layoutType = component.props?.layoutType || component.props?.layoutMode || 'flex-column';
+      // Get layout type from component props - layoutMode is primary (set by UI), layoutType is fallback
+      const layoutType = component.props?.layoutMode || component.props?.layoutType || 'flex-column';
       const layoutStyles = getLayoutStyles(layoutType);
 
       // In preview mode, render clean layout without builder chrome
