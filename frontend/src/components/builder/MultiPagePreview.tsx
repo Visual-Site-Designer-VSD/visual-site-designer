@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useMultiPagePreviewStore } from '../../stores/multiPagePreviewStore';
 import { useBuilderStore } from '../../stores/builderStore';
+import { useSiteManagerStore } from '../../stores/siteManagerStore';
 import { PreviewNavigationInterceptor } from './PreviewNavigationInterceptor';
 import { BuilderCanvas } from './BuilderCanvas';
 import { Page } from '../../types/site';
@@ -26,6 +27,10 @@ export const MultiPagePreview: React.FC<MultiPagePreviewProps> = ({
 }) => {
   const [isLoadingPage, setIsLoadingPage] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Get effective siteId from URL param or store
+  const { currentSiteId } = useSiteManagerStore();
+  const effectiveSiteId = siteId ?? currentSiteId;
 
   const {
     isActive,
@@ -61,8 +66,9 @@ export const MultiPagePreview: React.FC<MultiPagePreviewProps> = ({
     if (initialPages.length > 0) {
       setPages(initialPages);
 
-      // Cache all page definitions from localStorage for demo mode
-      if (!siteId) {
+      // Cache all page definitions from localStorage ONLY for demo mode (no site selected)
+      // When we have a site selected, page definitions should be loaded from API on demand
+      if (!effectiveSiteId) {
         const savedPages = JSON.parse(localStorage.getItem('builder_saved_pages') || '{}');
         initialPages.forEach(page => {
           const pageData = savedPages[page.pageSlug];
@@ -81,10 +87,20 @@ export const MultiPagePreview: React.FC<MultiPagePreviewProps> = ({
         const startPath = startPage.routePath || `/${startPage.pageSlug}`;
 
         // Cache the current page definition under its correct path
+        // This ensures the currently editing page is immediately available
+        // IMPORTANT: Only cache if the currentPage matches the currentEditingPage
+        // This prevents caching wrong content at wrong paths
         if (currentPage && currentEditingPage) {
-          loadPageDefinition(startPath, currentPage);
-          // Set initial preview page
-          setPreviewPage(currentPage);
+          // Verify the page names match to avoid caching wrong content
+          const pageNamesMatch = currentPage.pageName?.toLowerCase() === currentEditingPage.pageName?.toLowerCase();
+          if (pageNamesMatch) {
+            console.log(`[Preview] Caching current editing page "${currentPage.pageName}" at path "${startPath}"`);
+            loadPageDefinition(startPath, currentPage);
+            // Set initial preview page
+            setPreviewPage(currentPage);
+          } else {
+            console.warn(`[Preview] Page name mismatch! currentPage="${currentPage.pageName}" vs currentEditingPage="${currentEditingPage.pageName}". Not caching.`);
+          }
         }
 
         navigateToPage(startPath);
@@ -153,29 +169,43 @@ export const MultiPagePreview: React.FC<MultiPagePreviewProps> = ({
     if (!isActive) return;
 
     const loadPage = async () => {
-      // Check if page is already loaded
+      console.log(`[Preview] loadPage called for path: "${currentPreviewPath}"`);
+
+      // Check if page is already loaded in cache
       const cachedPage = getPageDefinition(currentPreviewPath);
       if (cachedPage) {
+        console.log(`[Preview] Found cached page for "${currentPreviewPath}": "${cachedPage.pageName}"`);
+        setError(null); // Clear any previous error when loading cached page
         setPreviewPage(cachedPage);
         return;
       }
+      console.log(`[Preview] No cache found for "${currentPreviewPath}", loading from API...`);
 
       // Find the page metadata
+      console.log(`[Preview] Looking for page with path "${currentPreviewPath}" in pages:`,
+        pages.map(p => ({ id: p.id, name: p.pageName, routePath: p.routePath, slug: p.pageSlug })));
+
       const page = pages.find(p => {
         const pagePath = p.routePath || `/${p.pageSlug}`;
         return pagePath === currentPreviewPath || `/${p.pageSlug}` === currentPreviewPath;
       });
 
-      if (!page) {
-        // Check localStorage for demo mode
-        const savedPages = JSON.parse(localStorage.getItem('builder_saved_pages') || '{}');
-        const slug = currentPreviewPath === '/' ? 'home' : currentPreviewPath.slice(1);
-        const localPage = savedPages[slug];
+      if (page) {
+        console.log(`[Preview] Found page: id=${page.id}, name="${page.pageName}", routePath="${page.routePath}"`);
+      }
 
-        if (localPage) {
-          loadPageDefinition(currentPreviewPath, localPage);
-          setPreviewPage(localPage);
-          return;
+      if (!page) {
+        // Only check localStorage if no site is selected (demo mode)
+        if (!effectiveSiteId) {
+          const savedPages = JSON.parse(localStorage.getItem('builder_saved_pages') || '{}');
+          const slug = currentPreviewPath === '/' ? 'home' : currentPreviewPath.slice(1);
+          const localPage = savedPages[slug];
+
+          if (localPage) {
+            loadPageDefinition(currentPreviewPath, localPage);
+            setPreviewPage(localPage);
+            return;
+          }
         }
 
         setError(`Page not found: ${currentPreviewPath}`);
@@ -186,11 +216,60 @@ export const MultiPagePreview: React.FC<MultiPagePreviewProps> = ({
       setError(null);
 
       try {
-        if (siteId) {
-          // Load from backend
-          const definition = await pageService.getPageDefinition(siteId, page.id);
-          loadPageDefinition(currentPreviewPath, definition);
-          setPreviewPage(definition);
+        if (effectiveSiteId) {
+          // Load from backend API
+          try {
+            const definition = await pageService.getPageDefinition(effectiveSiteId, page.id);
+            console.log(`[Preview] Loaded page definition for "${page.pageName}" (id: ${page.id}) from API:`, {
+              pageName: definition?.pageName,
+              componentsCount: definition?.components?.length,
+              version: definition?.version
+            });
+            loadPageDefinition(currentPreviewPath, definition);
+            setPreviewPage(definition);
+          } catch (apiErr: any) {
+            // Handle 404 - page exists but has no saved content yet
+            const status = apiErr?.response?.status;
+            console.log(`[Preview] API error for page "${page.pageName}" (id: ${page.id}): status=${status}`, apiErr?.response?.data);
+
+            if (status === 404) {
+              // Page exists but has no saved content in database
+              // Try localStorage as fallback (for pages designed but not yet saved to DB)
+              const savedPages = JSON.parse(localStorage.getItem('builder_saved_pages') || '{}');
+              const localPageData = savedPages[page.pageSlug];
+
+              console.log(`[Preview] localStorage fallback lookup:`, {
+                lookingForSlug: page.pageSlug,
+                availableKeys: Object.keys(savedPages),
+                foundData: localPageData ? { pageName: localPageData.pageName, componentsCount: localPageData.components?.length } : null
+              });
+
+              if (localPageData && localPageData.components && localPageData.components.length > 0) {
+                console.log(`[Preview] Found localStorage fallback for "${page.pageName}"`);
+                loadPageDefinition(currentPreviewPath, localPageData);
+                setPreviewPage(localPageData);
+              } else {
+                // Create an empty page definition for preview
+                const emptyDefinition: PageDefinition = {
+                  version: '1.0',
+                  pageId: page.id,
+                  pageName: page.pageName,
+                  grid: {
+                    columns: 12,
+                    rows: 'auto',
+                    gap: '10px',
+                    minRowHeight: '50px',
+                  },
+                  components: [],
+                };
+                console.log(`[Preview] No saved content found for "${page.pageName}" - showing empty page`);
+                loadPageDefinition(currentPreviewPath, emptyDefinition);
+                setPreviewPage(emptyDefinition);
+              }
+            } else {
+              throw apiErr;
+            }
+          }
         } else {
           // Demo mode - load from localStorage
           const savedPages = JSON.parse(localStorage.getItem('builder_saved_pages') || '{}');
@@ -211,7 +290,7 @@ export const MultiPagePreview: React.FC<MultiPagePreviewProps> = ({
     };
 
     loadPage();
-  }, [currentPreviewPath, isActive, pages, siteId]);
+  }, [currentPreviewPath, isActive, pages, effectiveSiteId]);
 
   // Get current page name for display
   const getCurrentPageName = (): string => {
@@ -305,7 +384,10 @@ export const MultiPagePreview: React.FC<MultiPagePreviewProps> = ({
           </div>
         ) : (
           <PreviewNavigationInterceptor enabled={isActive}>
-            <BuilderCanvas pageOverride={previewPage} />
+            <BuilderCanvas
+              key={`preview-${currentPreviewPath}-${previewPage?.pageName || 'empty'}`}
+              pageOverride={previewPage}
+            />
           </PreviewNavigationInterceptor>
         )}
       </div>
