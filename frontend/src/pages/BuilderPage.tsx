@@ -1,14 +1,18 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBuilderStore } from '../stores/builderStore';
+import { useUIPreferencesStore } from '../stores/uiPreferencesStore';
+import { useSiteManagerStore } from '../stores/siteManagerStore';
 import { LeftSidebar } from '../components/builder/LeftSidebar';
 import { BuilderCanvas } from '../components/builder/BuilderCanvas';
 import { PropertiesPanel } from '../components/builder/PropertiesPanel';
+import { BuilderMenubar } from '../components/builder/BuilderMenubar';
 import { CSSEditor } from '../components/editor/CSSEditor';
 import { CanvasRuler } from '../components/builder/CanvasRuler';
 import { ImageRepositoryModal } from '../components/builder/ImageRepositoryModal';
 import { MultiPagePreview } from '../components/builder/MultiPagePreview';
 import { ExportModal } from '../components/builder/ExportModal';
+import { ClipboardProvider } from '../components/clipboard';
 import { pageService } from '../services/pageService';
 import { PageDefinition } from '../types/builder';
 import { Page } from '../types/site';
@@ -31,15 +35,18 @@ export const BuilderPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'unsaved' | 'saving' | 'error'>('saved');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
-  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
-  const [showContentMenu, setShowContentMenu] = useState(false);
   const [showImageRepository, setShowImageRepository] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [currentPageMeta, setCurrentPageMeta] = useState<Page | null>(null);
   const [sitePages, setSitePages] = useState<Page[]>([]);
   const [isMultiPagePreview, setIsMultiPagePreview] = useState(false);
-  const contentMenuRef = useRef<HTMLDivElement>(null);
+
+  // UI Preferences from store
+  const uiPreferences = useUIPreferencesStore();
+  const { leftPanelCollapsed, rightPanelCollapsed, showGrid, showRulers } = uiPreferences;
+
+  // Site manager store
+  const siteManager = useSiteManagerStore();
 
   const {
     currentPage,
@@ -74,6 +81,84 @@ export const BuilderPage: React.FC = () => {
       setSaveStatus('unsaved');
     }
   }, [currentPage]);
+
+  // handleSave must be defined before keyboard shortcuts useEffect
+  const handleSave = useCallback(async () => {
+    if (!currentPage) {
+      alert('Cannot save: No page data available');
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveStatus('saving');
+
+    try {
+      // If we have siteId and pageId, save to backend
+      if (siteId && pageId) {
+        console.log(`[Save] Saving page to backend: siteId=${siteId}, pageId=${pageId}, pageName="${currentPage.pageName}", componentsCount=${currentPage.components?.length}`);
+        const savedVersion = await pageService.savePageVersion(
+          parseInt(siteId),
+          parseInt(pageId),
+          currentPage,
+          'Manual save'
+        );
+        console.log(`[Save] Successfully saved version:`, savedVersion);
+      } else {
+        // Save to localStorage for demo/new pages
+        const savedPages = JSON.parse(localStorage.getItem('builder_saved_pages') || '{}');
+
+        // IMPORTANT: Always use currentPageMeta.pageSlug as the key to ensure
+        // each page is saved under its correct slug, not derived from pageName
+        // which can change when templates are dropped or page name is edited
+        let pageKey: string;
+        if (currentPageMeta?.pageSlug) {
+          pageKey = currentPageMeta.pageSlug;
+        } else {
+          // Fallback: derive from page name (only for brand new pages)
+          pageKey = currentPage.pageName.replace(/\s+/g, '-').toLowerCase() || 'untitled';
+          console.warn('No currentPageMeta.pageSlug, using derived key:', pageKey);
+        }
+
+        // Save the page with its correct pageName from metadata
+        savedPages[pageKey] = {
+          ...currentPage,
+          // Use metadata pageName if available (keeps original name regardless of template)
+          pageName: currentPageMeta?.pageName || currentPage.pageName,
+          savedAt: new Date().toISOString()
+        };
+        localStorage.setItem('builder_saved_pages', JSON.stringify(savedPages));
+        console.log('Page saved to localStorage:', pageKey, 'pageName:', savedPages[pageKey].pageName);
+
+        // Update currentPageMeta if not already set
+        if (!currentPageMeta) {
+          const pageKeys = Object.keys(savedPages);
+          const pageIndex = pageKeys.indexOf(pageKey);
+          setCurrentPageMeta({
+            id: Date.now(),
+            siteId: 0,
+            pageName: currentPage.pageName,
+            pageSlug: pageKey,
+            pageType: 'standard',
+            routePath: `/${pageKey}`,
+            displayOrder: pageIndex,
+            isPublished: false,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      }
+
+      setSaveStatus('saved');
+      setLastSaved(new Date());
+      saveSnapshot('Manual save');
+    } catch (err) {
+      setSaveStatus('error');
+      setError(err instanceof Error ? err.message : 'Failed to save page');
+      alert('Failed to save page. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [currentPage, siteId, pageId, currentPageMeta, saveSnapshot]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -114,31 +199,49 @@ export const BuilderPage: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [canUndo, canRedo, showCSSEditor]);
+  }, [canUndo, canRedo, showCSSEditor, handleSave, undo, redo]);
 
-  // Close content menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (contentMenuRef.current && !contentMenuRef.current.contains(e.target as Node)) {
-        setShowContentMenu(false);
-      }
-    };
-
-    if (showContentMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showContentMenu]);
 
   const loadPage = async (siteId: number, pageId: number) => {
     setLoading(true);
     setError(null);
 
     try {
-      const pageDefinition = await pageService.getPageDefinition(siteId, pageId);
-      setCurrentPage(pageDefinition);
-      setSaveStatus('saved');
-      setLastSaved(new Date());
+      // Load page metadata first (this should always succeed if page exists)
+      const pageMeta = await pageService.getPageById(siteId, pageId);
+      setCurrentPageMeta(pageMeta);
+
+      // Try to load page definition (may not exist yet for new pages)
+      try {
+        const pageDefinition = await pageService.getPageDefinition(siteId, pageId);
+        setCurrentPage(pageDefinition);
+        setSaveStatus('saved');
+        setLastSaved(new Date());
+      } catch (defErr: any) {
+        // If 404, page exists but has no saved content - create empty definition
+        if (defErr?.response?.status === 404) {
+          const emptyPage: PageDefinition = {
+            version: '1.0',
+            pageId: pageMeta.id,
+            pageName: pageMeta.pageName,
+            grid: {
+              columns: 12,
+              rows: 'auto',
+              gap: '20px',
+              minRowHeight: '50px'
+            },
+            components: [],
+            globalStyles: {
+              cssVariables: {},
+              customCSS: ''
+            }
+          };
+          setCurrentPage(emptyPage);
+          setSaveStatus('unsaved');
+        } else {
+          throw defErr;
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load page');
     } finally {
@@ -198,81 +301,6 @@ export const BuilderPage: React.FC = () => {
     setCurrentPageMeta(null);
   };
 
-  const handleSave = async () => {
-    if (!currentPage) {
-      alert('Cannot save: No page data available');
-      return;
-    }
-
-    setIsSaving(true);
-    setSaveStatus('saving');
-
-    try {
-      // If we have siteId and pageId, save to backend
-      if (siteId && pageId) {
-        await pageService.savePageVersion(
-          parseInt(siteId),
-          parseInt(pageId),
-          currentPage,
-          'Manual save'
-        );
-      } else {
-        // Save to localStorage for demo/new pages
-        const savedPages = JSON.parse(localStorage.getItem('builder_saved_pages') || '{}');
-
-        // IMPORTANT: Always use currentPageMeta.pageSlug as the key to ensure
-        // each page is saved under its correct slug, not derived from pageName
-        // which can change when templates are dropped or page name is edited
-        let pageKey: string;
-        if (currentPageMeta?.pageSlug) {
-          pageKey = currentPageMeta.pageSlug;
-        } else {
-          // Fallback: derive from page name (only for brand new pages)
-          pageKey = currentPage.pageName.replace(/\s+/g, '-').toLowerCase() || 'untitled';
-          console.warn('No currentPageMeta.pageSlug, using derived key:', pageKey);
-        }
-
-        // Save the page with its correct pageName from metadata
-        savedPages[pageKey] = {
-          ...currentPage,
-          // Use metadata pageName if available (keeps original name regardless of template)
-          pageName: currentPageMeta?.pageName || currentPage.pageName,
-          savedAt: new Date().toISOString()
-        };
-        localStorage.setItem('builder_saved_pages', JSON.stringify(savedPages));
-        console.log('Page saved to localStorage:', pageKey, 'pageName:', savedPages[pageKey].pageName);
-
-        // Update currentPageMeta if not already set
-        if (!currentPageMeta) {
-          const pageKeys = Object.keys(savedPages);
-          const pageIndex = pageKeys.indexOf(pageKey);
-          setCurrentPageMeta({
-            id: Date.now(),
-            siteId: 0,
-            pageName: currentPage.pageName,
-            pageSlug: pageKey,
-            pageType: 'standard',
-            routePath: `/${pageKey}`,
-            displayOrder: pageIndex,
-            isPublished: false,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          });
-        }
-      }
-
-      setSaveStatus('saved');
-      setLastSaved(new Date());
-      saveSnapshot('Manual save');
-    } catch (err) {
-      setSaveStatus('error');
-      setError(err instanceof Error ? err.message : 'Failed to save page');
-      alert('Failed to save page. Please try again.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const handlePublish = async () => {
     if (!siteId || !pageId) return;
 
@@ -307,9 +335,12 @@ export const BuilderPage: React.FC = () => {
   };
 
   const loadPagesForPreview = async () => {
-    if (siteId) {
+    // Use URL siteId or fall back to store's currentSiteId
+    const effectiveSiteId = siteId ? Number.parseInt(siteId) : siteManager.currentSiteId;
+
+    if (effectiveSiteId) {
       try {
-        const pages = await pageService.getAllPages(Number.parseInt(siteId));
+        const pages = await pageService.getAllPages(effectiveSiteId);
         setSitePages(pages);
       } catch (err) {
         console.error('Failed to load pages for preview:', err);
@@ -366,6 +397,31 @@ export const BuilderPage: React.FC = () => {
     link.download = `${currentPage.pageName.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.json`;
     link.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Handle import from JSON file
+  const handleImport = (pageDefinition: PageDefinition) => {
+    // Set the imported page as current
+    setCurrentPage(pageDefinition);
+    setSaveStatus('unsaved');
+
+    // Update page metadata
+    const pageSlug = pageDefinition.pageName.replace(/\s+/g, '-').toLowerCase();
+    setCurrentPageMeta({
+      id: Date.now(),
+      siteId: siteId ? Number.parseInt(siteId) : 0,
+      pageName: pageDefinition.pageName,
+      pageSlug: pageSlug,
+      pageType: 'standard',
+      routePath: `/${pageSlug}`,
+      displayOrder: 0,
+      isPublished: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    // Show success message
+    alert(`Page "${pageDefinition.pageName}" imported successfully! Remember to save your changes.`);
   };
 
   const handleCSSChange = (css: string) => {
@@ -485,8 +541,9 @@ export const BuilderPage: React.FC = () => {
   }
 
   return (
+    <ClipboardProvider>
     <div className={`builder-page ${viewMode === 'preview' ? 'preview-mode' : ''}`}>
-      {/* Top Toolbar - Show minimal toolbar in preview mode */}
+      {/* Top Menubar - Show minimal toolbar in preview mode */}
       {viewMode === 'preview' ? (
         <div className="builder-toolbar preview-toolbar">
           <div className="toolbar-center">
@@ -495,144 +552,26 @@ export const BuilderPage: React.FC = () => {
               onClick={handlePreview}
               title="Exit Preview (Press P or Escape)"
             >
-              ✏ Exit Preview
+              Exit Preview
             </button>
           </div>
         </div>
       ) : (
-        <div className="builder-toolbar">
-          <div className="toolbar-left">
-            <button
-              className="toolbar-button back-button"
-              onClick={() => navigate(-1)}
-              title="Back"
-            >
-              ← Back
-            </button>
-
-            <div className="page-title">
-              <input
-                type="text"
-                value={currentPage?.pageName || ''}
-                onChange={(e) => {
-                  if (currentPage) {
-                    setCurrentPage({ ...currentPage, pageName: e.target.value });
-                  }
-                }}
-                placeholder="Page Name"
-                className="page-name-input"
-              />
-            </div>
-
-            <div className="save-status">
-              <span className={`status-indicator status-${saveStatus}`}>
-                {saveStatus === 'saved' && '✓'}
-                {saveStatus === 'unsaved' && '●'}
-                {saveStatus === 'saving' && '↻'}
-                {saveStatus === 'error' && '⚠'}
-              </span>
-              <span className="status-text">
-                {saveStatus === 'saved' && `Saved ${formatLastSaved()}`}
-                {saveStatus === 'unsaved' && 'Unsaved changes'}
-                {saveStatus === 'saving' && 'Saving...'}
-                {saveStatus === 'error' && 'Save failed'}
-              </span>
-            </div>
-          </div>
-
-          <div className="toolbar-center">
-            <div className="action-group">
-              <button
-                className="toolbar-button"
-                onClick={undo}
-                disabled={!canUndo()}
-                title="Undo (Ctrl+Z)"
-              >
-                ↶ Undo
-              </button>
-              <button
-                className="toolbar-button"
-                onClick={redo}
-                disabled={!canRedo()}
-                title="Redo (Ctrl+Shift+Z)"
-              >
-                ↷ Redo
-              </button>
-            </div>
-
-            <div className="action-group">
-              <button
-                className={`toolbar-button ${viewMode === 'preview' ? 'active' : ''}`}
-                onClick={handlePreview}
-                title="Toggle Preview"
-              >
-                {viewMode === 'edit' ? '👁 Preview' : '✏ Edit'}
-              </button>
-            </div>
-
-            <div className="action-group">
-              <button
-                className={`toolbar-button ${showCSSEditor ? 'active' : ''}`}
-                onClick={() => setShowCSSEditor(!showCSSEditor)}
-                disabled={!selectedComponentId}
-                title="CSS Editor (Ctrl+E)"
-              >
-                {} CSS
-              </button>
-            </div>
-
-            {/* Content Menu */}
-            <div className="action-group content-menu-container" ref={contentMenuRef}>
-              <button
-                className={`toolbar-button ${showContentMenu ? 'active' : ''}`}
-                onClick={() => setShowContentMenu(!showContentMenu)}
-                title="Content Repository"
-              >
-                📁 Content ▾
-              </button>
-              {showContentMenu && (
-                <div className="content-dropdown-menu">
-                  <button
-                    className="dropdown-item"
-                    onClick={() => {
-                      setShowImageRepository(true);
-                      setShowContentMenu(false);
-                    }}
-                  >
-                    🖼️ Image Repository
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="toolbar-right">
-            <button
-              className="toolbar-button"
-              onClick={() => setShowExportModal(true)}
-              title="Export Site as HTML"
-            >
-              ⬇ Export
-            </button>
-
-            <button
-              className="toolbar-button primary-button"
-              onClick={handleSave}
-              disabled={isSaving || saveStatus === 'saved'}
-              title="Save (Ctrl+S)"
-            >
-              {isSaving ? '↻ Saving...' : '💾 Save'}
-            </button>
-
-            <button
-              className="toolbar-button success-button"
-              onClick={handlePublish}
-              title="Publish Page"
-            >
-              🚀 Publish
-            </button>
-          </div>
-        </div>
+        <BuilderMenubar
+          siteId={siteId ? Number.parseInt(siteId) : null}
+          pageId={pageId ? Number.parseInt(pageId) : null}
+          currentPageMeta={currentPageMeta}
+          saveStatus={saveStatus}
+          onSave={handleSave}
+          onPublish={handlePublish}
+          onPreview={handlePreview}
+          onExport={() => setShowExportModal(true)}
+          onImport={handleImport}
+          onShowCSSEditor={() => setShowCSSEditor(!showCSSEditor)}
+          onPageSelect={handlePageSelect}
+          onPageCreate={handlePageCreate}
+          onShowImageRepository={() => setShowImageRepository(true)}
+        />
       )}
 
       {/* Main Builder Area */}
@@ -642,15 +581,15 @@ export const BuilderPage: React.FC = () => {
           <div className={`builder-panel left-panel ${leftPanelCollapsed ? 'collapsed' : ''}`}>
             <button
               className="panel-toggle"
-              onClick={() => setLeftPanelCollapsed(!leftPanelCollapsed)}
+              onClick={() => uiPreferences.toggleLeftPanel()}
               title={leftPanelCollapsed ? 'Show Components' : 'Hide Components'}
             >
-              {leftPanelCollapsed ? '▶' : '◀'}
+              {leftPanelCollapsed ? '>' : '<'}
             </button>
             {!leftPanelCollapsed && (
               <LeftSidebar
-                siteId={siteId ? parseInt(siteId) : null}
-                currentPageId={currentPageMeta?.id ?? (pageId ? parseInt(pageId) : null)}
+                siteId={siteId ? Number.parseInt(siteId) : null}
+                currentPageId={currentPageMeta?.id ?? (pageId ? Number.parseInt(pageId) : null)}
                 onPageSelect={handlePageSelect}
                 onPageCreate={handlePageCreate}
                 onPageDelete={handlePageDelete}
@@ -661,8 +600,8 @@ export const BuilderPage: React.FC = () => {
 
         {/* Center - Canvas */}
         <div className="builder-canvas-area">
-          {/* Canvas Ruler - only show in edit mode */}
-          {viewMode === 'edit' && <CanvasRuler />}
+          {/* Canvas Ruler - only show in edit mode when enabled */}
+          {viewMode === 'edit' && showRulers && <CanvasRuler />}
 
           {isLoading ? (
             <div className="builder-loading">
@@ -712,10 +651,10 @@ export const BuilderPage: React.FC = () => {
           <div className={`builder-panel right-panel ${rightPanelCollapsed ? 'collapsed' : ''}`}>
             <button
               className="panel-toggle"
-              onClick={() => setRightPanelCollapsed(!rightPanelCollapsed)}
+              onClick={() => uiPreferences.toggleRightPanel()}
               title={rightPanelCollapsed ? 'Show Properties' : 'Hide Properties'}
             >
-              {rightPanelCollapsed ? '◀' : '▶'}
+              {rightPanelCollapsed ? '<' : '>'}
             </button>
             {!rightPanelCollapsed && <PropertiesPanel selectedComponentId={selectedComponentId} />}
           </div>
@@ -766,11 +705,12 @@ export const BuilderPage: React.FC = () => {
       <ExportModal
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
-        siteId={siteId ? parseInt(siteId) : null}
+        siteId={siteId ? Number.parseInt(siteId) : null}
         currentPageMeta={currentPageMeta}
         onSaveBeforeExport={handleSave}
         hasUnsavedChanges={saveStatus === 'unsaved'}
       />
     </div>
+    </ClipboardProvider>
   );
 };
