@@ -438,7 +438,7 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect,
         return {
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'stretch',
+          alignItems: 'flex-start', // Changed from 'stretch' to allow child components to have custom widths
         };
     }
   };
@@ -459,6 +459,12 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect,
       // Get layout type from component props - layoutMode is primary (set by UI), layoutType is fallback
       const layoutType = component.props?.layoutMode || component.props?.layoutType || 'flex-column';
       const layoutStyles = getLayoutStyles(layoutType);
+
+      // In preview mode, data container components (Repeater, DataList) need to use ComponentRenderer
+      // so they can fetch data and resolve template variables in children
+      if (!isEditMode && isDataContainerComponent) {
+        return <ComponentRenderer component={component} isEditMode={false} />;
+      }
 
       // In preview mode, render clean layout without builder chrome
       if (!isEditMode) {
@@ -582,7 +588,7 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect,
 
       return (
         <div
-          className={`component-placeholder layout-placeholder ${isScrollable ? 'scrollable-layout' : ''}`}
+          className={`component-placeholder layout-placeholder ${isScrollable ? 'scrollable-layout' : ''} ${isDataContainerComponent ? 'data-container' : ''}`}
           style={{
             ...component.styles,
             height: isScrollable ? containerHeight : undefined,
@@ -697,20 +703,32 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect,
         const dragData = JSON.parse(existingComponentData);
         console.log('Parsed drag data:', dragData);
         if (dragData.isExisting && dragData.instanceId) {
+          // Find the component being dragged
+          const draggedComponent = useBuilderStore.getState().findComponent(dragData.instanceId);
+          const isSameParent = draggedComponent?.parentId === parentContainerId;
+
           // Calculate insertion index based on drop position
           const parentComponent = currentPage?.components.find(c =>
             findComponentRecursive(c, parentContainerId)
           );
 
           let insertIndex: number | undefined = undefined;
+          let currentIndex = -1;
 
           if (parentComponent) {
             const parent = findComponentRecursive(parentComponent, parentContainerId);
             if (parent && parent.children) {
               const dropY = e.clientY;
 
+              // Find current index of the dragged component (if in same parent)
+              if (isSameParent) {
+                currentIndex = parent.children.findIndex(child => child.instanceId === dragData.instanceId);
+              }
+
               // Find the insertion index by comparing Y positions
               insertIndex = parent.children.findIndex(child => {
+                // Skip the component being dragged for accurate position calculation
+                if (child.instanceId === dragData.instanceId) return false;
                 const childElement = document.querySelector(`[data-component-id="${child.instanceId}"]`);
                 if (childElement) {
                   const rect = childElement.getBoundingClientRect();
@@ -724,12 +742,26 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect,
               if (insertIndex === -1) {
                 insertIndex = parent.children.length;
               }
+
+              // Adjust index if moving within same parent
+              // When removing from original position, indices shift
+              if (isSameParent && currentIndex !== -1 && currentIndex < insertIndex) {
+                insertIndex--;
+              }
             }
           }
 
-          // Moving existing component to this container
-          console.log('Reparenting', dragData.instanceId, 'to', parentContainerId, 'at index', insertIndex);
-          reparentComponent(dragData.instanceId, parentContainerId, insertIndex);
+          // Moving existing component
+          console.log('Moving', dragData.instanceId, 'to', parentContainerId, 'at index', insertIndex, 'isSameParent:', isSameParent);
+
+          if (isSameParent && insertIndex !== undefined) {
+            // Use moveComponentToIndex for reordering within same parent
+            useBuilderStore.getState().moveComponentToIndex(dragData.instanceId, insertIndex);
+          } else {
+            // Use reparentComponent for moving between containers
+            reparentComponent(dragData.instanceId, parentContainerId, insertIndex);
+          }
+
           selectComponent(dragData.instanceId);
           onComponentSelect?.(dragData.instanceId);
           return;

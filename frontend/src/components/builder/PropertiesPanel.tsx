@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useBuilderStore } from '../../stores/builderStore';
 import { useComponentStore } from '../../stores/componentStore';
-import { ComponentManifest, PropDefinition, PropType, ComponentEventConfig, ActionType } from '../../types/builder';
+import { ComponentManifest, PropDefinition, PropType, ComponentEventConfig, ActionType, DataSourceConfig } from '../../types/builder';
 import { getBuiltInManifest, hasBuiltInManifest } from '../../data/builtInManifests';
 import { PageLinkSelector } from './PageLinkSelector';
 import { ImageRepositoryModal } from './ImageRepositoryModal';
 import { GradientPicker } from './GradientPicker';
+import { DataSourceEditor } from './DataSourceEditor';
 import './PropertiesPanel.css';
 
 /**
@@ -931,6 +932,35 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ selectedCompon
             ) : (
               <div className="empty-section">
                 <p>No configurable properties</p>
+              </div>
+            )}
+
+            {/* Data Source Editor for data components (Repeater, DataList) */}
+            {(selectedComponent.componentId === 'Repeater' || selectedComponent.componentId === 'DataList') && (
+              <div className="property-field data-source-section">
+                <label className="property-label section-label">Data Source</label>
+                <DataSourceEditor
+                  dataSource={selectedComponent.dataSource}
+                  onChange={(dataSource) => {
+                    updateComponent(selectedComponent.instanceId, { dataSource });
+                  }}
+                  onTest={async (config: DataSourceConfig) => {
+                    if (config.type === 'api' && config.endpoint) {
+                      const response = await fetch(config.endpoint, {
+                        method: config.method || 'GET',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          ...config.headers,
+                        },
+                      });
+                      return response.json();
+                    }
+                    if (config.type === 'static') {
+                      return config.staticData;
+                    }
+                    return null;
+                  }}
+                />
               </div>
             )}
           </div>

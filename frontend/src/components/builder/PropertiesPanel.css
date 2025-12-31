@@ -859,3 +859,17 @@
 .nav-items-list::-webkit-scrollbar-thumb:hover {
   background: #adb5bd;
 }
+
+/* Data Source Section Styles */
+.data-source-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e9ecef;
+}
+
+.data-source-section .section-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #212529;
+  margin-bottom: 12px;
+}

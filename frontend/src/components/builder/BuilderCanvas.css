@@ -20,6 +20,11 @@
   padding: 0;
   /* Override grid layout - preview mode should be a simple block container */
   display: block !important;
+  /* Allow content to size naturally within the viewport */
+  min-height: auto;
+  /* Ensure scrolling only when content actually exceeds viewport */
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .builder-canvas.drag-over {
@@ -235,6 +240,17 @@
   min-width: 150px;
 }
 
+/* When the wrapper is selected, hide ALL descendant layout-placeholder borders to avoid double-border effect */
+/* This includes nested child components' layout-placeholders */
+.draggable-component.selected .layout-placeholder {
+  border-color: transparent;
+}
+
+/* Also hide child component borders when parent is selected - targets the immediate layout-placeholder */
+.draggable-component.selected .children-container .layout-placeholder {
+  border-color: transparent;
+}
+
 .layout-badge {
   display: inline-block;
   padding: 2px 8px;
@@ -249,6 +265,20 @@
 
 .layout-badge.data-badge {
   background: #6f42c1;
+}
+
+/* Data container components (Repeater, DataList) should grow to fit their children */
+.layout-placeholder.data-container {
+  height: auto; /* Override height: 100% to allow container to grow with content */
+  min-height: 100px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Children container inside data containers should also grow with content */
+.layout-placeholder.data-container .children-container {
+  flex: none; /* Don't use flex: 1, let content determine height */
+  min-height: 60px;
 }
 
 .layout-type-badge {
@@ -377,6 +407,12 @@
   overflow: visible;
 }
 
+/* Data containers (Repeater, DataList) nested as children should grow with content */
+.child-component .layout-placeholder.data-container {
+  height: auto;
+  max-height: none;
+}
+
 /* Children-container fills available space but stays within bounds */
 .child-component .children-container {
   width: 100%;
@@ -386,6 +422,11 @@
   /* Allow resize handles of child components to be visible */
   /* Each child's .resizable-content handles its own content clipping */
   overflow: visible;
+}
+
+/* Data containers nested as children - children-container should grow with content */
+.child-component .layout-placeholder.data-container .children-container {
+  max-height: none;
 }
 
 .no-children-placeholder {
@@ -477,7 +518,29 @@
 .layout-preview {
   /* Clean layout container in preview mode */
   /* All styling (gap, padding, width, background, etc.) comes from inline styles */
-  border: none;
+  /* Note: border is not reset here - it's controlled by component.styles */
+  box-sizing: border-box;
+  /* Allow content to wrap and fit within container */
+  overflow: visible;
+}
+
+/* Repeater items should wrap content properly */
+.repeater-container {
+  box-sizing: border-box;
+}
+
+.repeater-item {
+  box-sizing: border-box;
+}
+
+/* Ensure repeater child wrappers size properly to content */
+.repeater-child-wrapper {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+/* Layout wrappers inside repeater should size to content */
+.repeater-child-wrapper.layout-wrapper {
   box-sizing: border-box;
 }
 
