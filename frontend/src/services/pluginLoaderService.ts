@@ -52,6 +52,7 @@ const PLUGIN_GLOBAL_NAMES: Record<string, string> = {
   'scrollable-container-plugin': 'ScrollableContainerPlugin',
   'image-component-plugin': 'ImageComponentPlugin',
   'auth-component-plugin': 'AuthComponentPlugin',
+  'repeater-component-plugin': 'RepeaterComponentPlugin',
 };
 
 /**
@@ -69,6 +70,9 @@ const VIRTUAL_PLUGIN_MAPPINGS: Record<string, string[]> = {
   'core-navbar': [
     'navbar-component-plugin',
   ],
+  'core-components': [
+    'repeater-component-plugin',
+  ],
 };
 
 /**
@@ -81,6 +85,7 @@ const COMPONENT_TO_PLUGIN_MAPPING: Record<string, string> = {
   'Container': 'container-layout-plugin',
   'Textbox': 'textbox-component-plugin',
   'Image': 'image-component-plugin',
+  'Repeater': 'repeater-component-plugin',
 };
 
 /**
@@ -191,6 +196,13 @@ async function loadPluginBundle(pluginId: string): Promise<boolean> {
     // Get the plugin from the global variable
     const pluginBundle: PluginBundle = (window as Record<string, unknown>)[globalName] as PluginBundle;
 
+    console.log(`[PluginLoader] Looking for window.${globalName}:`, {
+      found: !!pluginBundle,
+      keys: pluginBundle ? Object.keys(pluginBundle) : [],
+      hasRenderers: !!pluginBundle?.renderers,
+      hasRegisterRenderers: typeof pluginBundle?.registerRenderers === 'function',
+    });
+
     if (!pluginBundle) {
       console.warn(`[PluginLoader] Plugin global not found: window.${globalName}`);
       return false;
@@ -203,7 +215,9 @@ async function loadPluginBundle(pluginId: string): Promise<boolean> {
 
     // If the plugin exports a registerRenderers function, use it
     if (typeof pluginBundle.registerRenderers === 'function') {
+      console.log(`[PluginLoader] Calling registerRenderers for ${pluginId}`);
       pluginBundle.registerRenderers(RendererRegistry);
+      console.log(`[PluginLoader] After registerRenderers, registry keys:`, RendererRegistry.debugGetAllKeys());
     }
     // Otherwise, register renderers manually
     else if (pluginBundle.renderers) {
@@ -336,11 +350,16 @@ function registerRenderersUnderAlias(actualPluginId: string, aliasPluginId: stri
     .filter(([_, plugin]) => plugin === actualPluginId)
     .map(([component]) => component);
 
+  console.log(`[PluginLoader] Registering renderers under alias ${aliasPluginId} from ${actualPluginId}:`, componentsFromPlugin);
+  console.log(`[PluginLoader] Current registry keys:`, RendererRegistry.debugGetAllKeys());
+
   componentsFromPlugin.forEach((componentId) => {
     const renderer = RendererRegistry.get(componentId, actualPluginId);
     if (renderer) {
       RendererRegistry.register(componentId, renderer, aliasPluginId);
       console.log(`[PluginLoader] Registered ${componentId} under alias ${aliasPluginId}`);
+    } else {
+      console.warn(`[PluginLoader] Renderer not found for ${componentId} under ${actualPluginId}`);
     }
   });
 }

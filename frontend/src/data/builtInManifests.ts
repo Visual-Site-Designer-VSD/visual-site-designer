@@ -909,6 +909,20 @@ const imageManifest: ComponentManifest = {
       helpText: 'Rounded corners (e.g., 8px, 50%)',
     },
     {
+      name: 'width',
+      type: PropType.STRING,
+      label: 'Width',
+      defaultValue: '',
+      helpText: 'Image width (e.g., 200px, 50%, auto)',
+    },
+    {
+      name: 'height',
+      type: PropType.STRING,
+      label: 'Height',
+      defaultValue: '',
+      helpText: 'Image height (e.g., 200px, auto)',
+    },
+    {
       name: 'placeholder',
       type: PropType.SELECT,
       label: 'Placeholder Type',
@@ -951,6 +965,8 @@ const imageManifest: ComponentManifest = {
     minHeight: 50,
     maxWidth: 2000,
     maxHeight: 2000,
+    defaultWidth: '200px',
+    defaultHeight: 'auto',
   },
   pluginId: 'image-component-plugin',
   pluginVersion: '1.0.0',
@@ -967,7 +983,7 @@ const repeaterManifest: ComponentManifest = {
   icon: '🔁',
   description: 'Iterate over array data and render children for each item',
   defaultProps: {
-    dataPath: 'items',
+    dataPath: '',
     itemAlias: 'item',
     indexAlias: 'index',
     emptyMessage: 'No items to display',
@@ -985,8 +1001,8 @@ const repeaterManifest: ComponentManifest = {
       name: 'dataPath',
       type: PropType.STRING,
       label: 'Data Path',
-      defaultValue: 'items',
-      helpText: "Path to the array in the data source (e.g., 'items', 'data.products')",
+      defaultValue: '',
+      helpText: "Path to the array in the data source (e.g., 'items', 'data.products'). Leave empty if data is already an array.",
     },
     {
       name: 'itemAlias',
@@ -1048,7 +1064,7 @@ const dataListManifest: ComponentManifest = {
   description: 'Pre-styled list for displaying data as cards, table, or list',
   defaultProps: {
     listStyle: 'cards',
-    dataPath: 'items',
+    dataPath: '',
     titleField: 'title',
     descriptionField: 'description',
     imageField: 'image',
