@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Menubar, Menu, MenuItem, MenuDivider, SubMenu, MenubarSpacer, MenubarButton } from '../menubar';
-import { ProfileModal, SettingsModal, SiteSettingsModal, PageSettingsModal, NewSiteModal, NewPageModal } from '../modals';
+import { ProfileModal, SettingsModal, SiteSettingsModal, PageSettingsModal, NewSiteModal, NewPageModal, PageManagerModal } from '../modals';
 import { useBuilderStore } from '../../stores/builderStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIPreferencesStore } from '../../stores/uiPreferencesStore';
@@ -53,6 +53,7 @@ export const BuilderMenubar: React.FC<BuilderMenubarProps> = ({
   const [showPageSettingsModal, setShowPageSettingsModal] = useState(false);
   const [showNewSiteModal, setShowNewSiteModal] = useState(false);
   const [showNewPageModal, setShowNewPageModal] = useState(false);
+  const [showPageManagerModal, setShowPageManagerModal] = useState(false);
 
   const { currentPage, selectedComponentId, undo, redo, canUndo, canRedo, deleteComponent, selectComponent } = builderStore;
   const { user, logout } = authStore;
@@ -197,7 +198,6 @@ export const BuilderMenubar: React.FC<BuilderMenubarProps> = ({
           </SubMenu>
           <MenuItem label="Import..." onClick={handleImport} />
           <MenuDivider />
-          <MenuItem label="Page Settings..." onClick={() => setShowPageSettingsModal(true)} disabled={!currentPageMeta} />
           <MenuItem label="Close Page" onClick={() => navigate('/dashboard')} />
         </Menu>
 
@@ -301,13 +301,15 @@ export const BuilderMenubar: React.FC<BuilderMenubarProps> = ({
                   />
                 ))}
                 <MenuDivider />
-                <MenuItem label="Manage Pages..." onClick={() => console.log('Manage pages')} />
+                <MenuItem label="Page Settings..." onClick={() => setShowPageSettingsModal(true)} disabled={!currentPageMeta} />
+                <MenuItem label="Manage Pages..." onClick={() => setShowPageManagerModal(true)} />
               </>
             ) : (
               <MenuItem label="No pages" disabled />
             )}
           </SubMenu>
           <MenuItem label="New Page..." onClick={() => setShowNewPageModal(true)} />
+          <MenuItem label="Page Settings..." onClick={() => setShowPageSettingsModal(true)} disabled={!currentPageMeta} />
           <MenuDivider />
           <MenuItem label="Layouts..." onClick={() => console.log('Layouts')} />
           <MenuItem label="Global Styles..." onClick={() => console.log('Global Styles')} />
@@ -407,6 +409,19 @@ export const BuilderMenubar: React.FC<BuilderMenubarProps> = ({
         onSuccess={(newPageId) => {
           const newPage = pageTree.find((n) => n.page.id === newPageId)?.page;
           if (newPage) onPageSelect(newPage);
+        }}
+      />
+      <PageManagerModal
+        isOpen={showPageManagerModal}
+        onClose={() => setShowPageManagerModal(false)}
+        onPageSelect={(page) => {
+          onPageSelect(page);
+          setShowPageManagerModal(false);
+        }}
+        onPageEdit={(page) => {
+          onPageSelect(page);
+          setShowPageManagerModal(false);
+          setShowPageSettingsModal(true);
         }}
       />
     </>

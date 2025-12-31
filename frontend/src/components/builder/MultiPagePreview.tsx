@@ -84,7 +84,13 @@ export const MultiPagePreview: React.FC<MultiPagePreviewProps> = ({
       let startPage = currentEditingPage || initialPages[0];
 
       if (startPage) {
-        const startPath = startPage.routePath || `/${startPage.pageSlug}`;
+        // Determine the path - use routePath if set and not empty, otherwise derive from pageSlug
+        // Ensure the pageSlug is lowercase for consistent URL handling
+        const slug = startPage.pageSlug?.toLowerCase() || 'home';
+        // Check for non-empty routePath (null, undefined, or empty string should all fallback)
+        const hasValidRoutePath = startPage.routePath && startPage.routePath.trim() !== '';
+        const startPath = hasValidRoutePath ? startPage.routePath : (slug === 'home' ? '/' : `/${slug}`);
+        console.log(`[Preview] Starting preview from page: "${startPage.pageName}", path="${startPath}", routePath="${startPage.routePath}", pageSlug="${startPage.pageSlug}"`);
 
         // Cache the current page definition under its correct path
         // This ensures the currently editing page is immediately available
@@ -186,8 +192,10 @@ export const MultiPagePreview: React.FC<MultiPagePreviewProps> = ({
         pages.map(p => ({ id: p.id, name: p.pageName, routePath: p.routePath, slug: p.pageSlug })));
 
       const page = pages.find(p => {
-        const pagePath = p.routePath || `/${p.pageSlug}`;
-        return pagePath === currentPreviewPath || `/${p.pageSlug}` === currentPreviewPath;
+        const slug = p.pageSlug?.toLowerCase() || 'home';
+        const hasValidRoutePath = p.routePath && p.routePath.trim() !== '';
+        const pagePath = hasValidRoutePath ? p.routePath : (slug === 'home' ? '/' : `/${slug}`);
+        return pagePath === currentPreviewPath || `/${slug}` === currentPreviewPath;
       });
 
       if (page) {
@@ -295,7 +303,9 @@ export const MultiPagePreview: React.FC<MultiPagePreviewProps> = ({
   // Get current page name for display
   const getCurrentPageName = (): string => {
     const page = pages.find(p => {
-      const pagePath = p.routePath || `/${p.pageSlug}`;
+      const slug = p.pageSlug?.toLowerCase() || 'home';
+      const hasValidRoutePath = p.routePath && p.routePath.trim() !== '';
+      const pagePath = hasValidRoutePath ? p.routePath : (slug === 'home' ? '/' : `/${slug}`);
       return pagePath === currentPreviewPath;
     });
     return page?.pageName || previewPage?.pageName || 'Preview';
@@ -346,7 +356,9 @@ export const MultiPagePreview: React.FC<MultiPagePreviewProps> = ({
               onChange={(e) => handlePageSelect(e.target.value)}
             >
               {pages.map(page => {
-                const path = page.routePath || `/${page.pageSlug}`;
+                const slug = page.pageSlug?.toLowerCase() || 'home';
+                const hasValidRoutePath = page.routePath && page.routePath.trim() !== '';
+                const path = hasValidRoutePath ? page.routePath : (slug === 'home' ? '/' : `/${slug}`);
                 return (
                   <option key={page.id} value={path}>
                     {page.pageName} ({path})
@@ -396,7 +408,15 @@ export const MultiPagePreview: React.FC<MultiPagePreviewProps> = ({
       <div className="preview-page-indicator">
         <span className="current-page-name">{getCurrentPageName()}</span>
         <span className="page-count">
-          {pages.length > 0 && `(${pages.findIndex(p => (p.routePath || `/${p.pageSlug}`) === currentPreviewPath) + 1} of ${pages.length} pages)`}
+          {pages.length > 0 && (() => {
+            const idx = pages.findIndex(p => {
+              const slug = p.pageSlug?.toLowerCase() || 'home';
+              const hasValidRoutePath = p.routePath && p.routePath.trim() !== '';
+              const pagePath = hasValidRoutePath ? p.routePath : (slug === 'home' ? '/' : `/${slug}`);
+              return pagePath === currentPreviewPath;
+            });
+            return `(${idx + 1} of ${pages.length} pages)`;
+          })()}
         </span>
       </div>
     </div>

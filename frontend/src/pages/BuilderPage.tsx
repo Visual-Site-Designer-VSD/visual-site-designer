@@ -302,20 +302,42 @@ export const BuilderPage: React.FC = () => {
   };
 
   const handlePublish = async () => {
-    if (!siteId || !pageId) return;
+    // Use URL params first, then fall back to store values
+    const effectiveSiteId = siteId ? parseInt(siteId) : siteManager.currentSiteId;
+    const effectivePageId = pageId ? parseInt(pageId) : currentPageMeta?.id;
+
+    console.log('[BuilderPage] handlePublish called:', {
+      urlSiteId: siteId,
+      urlPageId: pageId,
+      storeSiteId: siteManager.currentSiteId,
+      currentPageMetaId: currentPageMeta?.id,
+      effectiveSiteId,
+      effectivePageId,
+    });
+
+    if (!effectiveSiteId || !effectivePageId) {
+      console.warn('[BuilderPage] Cannot publish: siteId or pageId is missing');
+      alert('Cannot publish: Please select a site and page first.\n\nGo to Site menu → Select or create a site, then create or select a page.');
+      return;
+    }
 
     if (!confirm('Are you sure you want to publish this page? It will be visible to users.')) {
+      console.log('[BuilderPage] User cancelled publish confirmation');
       return;
     }
 
     try {
+      console.log('[BuilderPage] Saving before publish...');
       // Save first
       await handleSave();
 
+      console.log('[BuilderPage] Publishing page...');
       // Then publish
-      await pageService.publishPage(parseInt(siteId), parseInt(pageId));
+      await pageService.publishPage(effectiveSiteId, effectivePageId);
+      console.log('[BuilderPage] Page published successfully');
       alert('Page published successfully!');
     } catch (err) {
+      console.error('[BuilderPage] Failed to publish page:', err);
       alert('Failed to publish page: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
   };
