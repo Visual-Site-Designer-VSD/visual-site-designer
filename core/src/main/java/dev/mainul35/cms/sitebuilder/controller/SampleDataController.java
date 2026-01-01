@@ -22,7 +22,6 @@ import java.util.*;
 @RequestMapping("/api/sample")
 @RequiredArgsConstructor
 @Slf4j
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"})
 public class SampleDataController {
 
     /**
