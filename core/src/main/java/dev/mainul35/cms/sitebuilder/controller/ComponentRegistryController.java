@@ -1,11 +1,13 @@
 package dev.mainul35.cms.sitebuilder.controller;
 
 import dev.mainul35.cms.sdk.component.ComponentManifest;
+import dev.mainul35.cms.plugin.core.PluginAssetService;
 import dev.mainul35.cms.plugin.core.PluginManager;
 import dev.mainul35.cms.sitebuilder.entity.ComponentRegistryEntry;
 import dev.mainul35.cms.sitebuilder.service.ComponentRegistryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,6 +30,7 @@ public class ComponentRegistryController {
 
     private final ComponentRegistryService componentRegistryService;
     private final PluginManager pluginManager;
+    private final PluginAssetService pluginAssetService;
 
     @org.springframework.beans.factory.annotation.Value("${app.plugin.directory:plugins}")
     private String pluginDirectory;
@@ -170,29 +173,89 @@ public class ComponentRegistryController {
     }
 
     /**
-     * Component bundle endpoint (placeholder for future implementation)
-     * This will serve the actual React component JavaScript bundle
+     * Component bundle endpoint - serves the actual React component JavaScript bundle
+     * from plugin resources.
+     *
+     * The bundle is loaded from the plugin JAR's frontend directory.
+     * Supported bundle naming conventions:
+     * - frontend/{componentId}.js
+     * - frontend/components/{componentId}.js
+     * - frontend/bundle.js (for single-component plugins)
      *
      * @param pluginId Plugin identifier
      * @param componentId Component identifier
      * @return Component bundle as JavaScript
      */
     @GetMapping("/{pluginId}/{componentId}/bundle.js")
-    public ResponseEntity<String> getComponentBundle(
+    public ResponseEntity<byte[]> getComponentBundle(
             @PathVariable String pluginId,
             @PathVariable String componentId) {
         try {
             log.debug("Fetching bundle for component: {} from plugin: {}", componentId, pluginId);
 
-            // TODO: Implement actual bundle loading from plugin resources
-            // For now, return a placeholder
-            return ResponseEntity.ok("// Component bundle for " + pluginId + "/" + componentId + "\n" +
-                    "// This will be implemented when plugins are loaded\n" +
-                    "export default function Component(props) { return null; }");
+            // Try different bundle naming conventions
+            String[] bundlePaths = {
+                    componentId + ".js",                    // {componentId}.js
+                    "components/" + componentId + ".js",    // components/{componentId}.js
+                    componentId + "/index.js",              // {componentId}/index.js
+                    "bundle.js",                            // bundle.js (single-component plugins)
+                    "index.js"                              // index.js
+            };
+
+            for (String bundlePath : bundlePaths) {
+                var bundle = pluginAssetService.getAssetBytes(pluginId, bundlePath);
+                if (bundle.isPresent() && bundle.get().length > 0) {
+                    log.debug("Found bundle at: {} for plugin: {}", bundlePath, pluginId);
+                    return ResponseEntity.ok()
+                            .header(HttpHeaders.CONTENT_TYPE, "application/javascript; charset=utf-8")
+                            .header(HttpHeaders.CACHE_CONTROL, "no-cache, must-revalidate")
+                            .body(bundle.get());
+                }
+            }
+
+            // If no bundle found, return a fallback that logs a warning
+            log.warn("No bundle found for component: {} in plugin: {}", componentId, pluginId);
+            String fallbackScript = """
+                    // Component bundle not found for %s/%s
+                    // Ensure the plugin JAR contains frontend/%s.js or frontend/bundle.js
+                    console.warn('[Plugin] Component bundle not found: %s/%s');
+                    export default function %s(props) {
+                        return React.createElement('div', {
+                            style: { padding: '10px', border: '1px dashed #ccc', color: '#999' }
+                        }, 'Component not loaded: %s');
+                    }
+                    """.formatted(pluginId, componentId, componentId, pluginId, componentId,
+                    toPascalCase(componentId), componentId);
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_TYPE, "application/javascript; charset=utf-8")
+                    .body(fallbackScript.getBytes());
         } catch (Exception e) {
             log.error("Error fetching bundle for component: {} from plugin: {}", componentId, pluginId, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    /**
+     * Convert a kebab-case or snake_case string to PascalCase
+     */
+    private String toPascalCase(String input) {
+        if (input == null || input.isEmpty()) {
+            return input;
+        }
+        StringBuilder result = new StringBuilder();
+        boolean capitalizeNext = true;
+        for (char c : input.toCharArray()) {
+            if (c == '-' || c == '_') {
+                capitalizeNext = true;
+            } else if (capitalizeNext) {
+                result.append(Character.toUpperCase(c));
+                capitalizeNext = false;
+            } else {
+                result.append(c);
+            }
+        }
+        return result.toString();
     }
 
     /**
