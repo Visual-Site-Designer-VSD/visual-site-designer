@@ -258,22 +258,63 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect,
         return;
       }
 
-      // Find the most appropriate parent based on drop position
-      // For now, automatically assign to the first available layout
-      // TODO: Implement visual drop zones for precise parent selection
+      // Find the most appropriate parent based on drop position using visual drop zones
       if (!isLayout || allLayoutComponents.length > 0) {
         // Non-layout components must have a layout parent
         // Layout components can optionally have a layout parent (for nesting)
-        const rect = canvasRef.current?.getBoundingClientRect();
-        if (rect) {
+
+        // Use the currently highlighted drop zone container if available
+        if (dragOverContainerId) {
+          const targetContainer = allLayoutComponents.find(c => c.instanceId === dragOverContainerId);
+          if (targetContainer) {
+            parentLayout = targetContainer;
+            console.log(`[BuilderCanvas] Using highlighted container: ${dragOverContainerId}`);
+          }
+        }
+
+        // If no container is highlighted, find the deepest container under the mouse
+        if (!parentLayout) {
           const mouseX = e.clientX;
           const mouseY = e.clientY;
 
-          // Try to find a layout component that contains the drop point
-          // For now, use the first layout as parent
-          parentLayout = allLayoutComponents[0] || null;
+          // Find container elements and check which ones contain the drop point
+          // Sort by depth (most nested first) to get the most specific parent
+          const candidateContainers: Array<{component: ComponentInstance, depth: number, element: Element}> = [];
+
+          allLayoutComponents.forEach(comp => {
+            const containerEl = document.querySelector(`[data-component-id="${comp.instanceId}"]`);
+            if (containerEl) {
+              const rect = containerEl.getBoundingClientRect();
+              if (mouseX >= rect.left && mouseX <= rect.right &&
+                  mouseY >= rect.top && mouseY <= rect.bottom) {
+                // Calculate depth by counting parent containers
+                let depth = 0;
+                let current = comp;
+                while (current.parentId) {
+                  depth++;
+                  const parent = allLayoutComponents.find(c => c.instanceId === current.parentId);
+                  if (parent) current = parent;
+                  else break;
+                }
+                candidateContainers.push({ component: comp, depth, element: containerEl });
+              }
+            }
+          });
+
+          // Use the deepest (most nested) container
+          if (candidateContainers.length > 0) {
+            candidateContainers.sort((a, b) => b.depth - a.depth);
+            parentLayout = candidateContainers[0].component;
+            console.log(`[BuilderCanvas] Auto-selected container: ${parentLayout.instanceId} (depth: ${candidateContainers[0].depth})`);
+          } else {
+            // Fallback to first layout if no container contains the drop point
+            parentLayout = allLayoutComponents[0] || null;
+          }
         }
       }
+
+      // Clear drop zone highlight
+      setDragOverContainerId(null);
 
       // Calculate drop position in grid
       const rect = canvasRef.current?.getBoundingClientRect();
@@ -329,11 +370,49 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect,
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
     setIsDragOver(true);
+
+    // Find the container under the mouse cursor for visual drop zone highlighting
+    const mouseX = e.clientX;
+    const mouseY = e.clientY;
+
+    // Get all container elements (layout and data containers)
+    const containerElements = document.querySelectorAll('[data-is-container="true"]');
+    let deepestContainer: { id: string; depth: number } | null = null;
+
+    containerElements.forEach(containerEl => {
+      const rect = containerEl.getBoundingClientRect();
+      if (mouseX >= rect.left && mouseX <= rect.right &&
+          mouseY >= rect.top && mouseY <= rect.bottom) {
+        const containerId = containerEl.getAttribute('data-component-id');
+        if (containerId) {
+          // Calculate depth by counting parent containers
+          let depth = 0;
+          let current = containerEl.parentElement;
+          while (current) {
+            if (current.hasAttribute('data-is-container')) {
+              depth++;
+            }
+            current = current.parentElement;
+          }
+
+          if (!deepestContainer || depth > deepestContainer.depth) {
+            deepestContainer = { id: containerId, depth };
+          }
+        }
+      }
+    });
+
+    // Update the highlighted container
+    const newContainerId = deepestContainer?.id || null;
+    if (newContainerId !== dragOverContainerId) {
+      setDragOverContainerId(newContainerId);
+    }
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
+    setDragOverContainerId(null);
   };
 
   const handleCanvasClick = (e: React.MouseEvent) => {
@@ -660,6 +739,7 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect,
                   component={child}
                   isSelected={selectedComponentId === child.instanceId}
                   isInGridLayout={isGridLayout}
+                  isDropTarget={dragOverContainerId === child.instanceId}
                   onSelect={handleComponentSelect}
                   onDoubleClick={handleComponentDoubleClick}
                 >
@@ -898,6 +978,7 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect,
               key={component.instanceId}
               component={component}
               isSelected={selectedComponentId === component.instanceId}
+              isDropTarget={dragOverContainerId === component.instanceId}
               onSelect={handleComponentSelect}
               onDoubleClick={handleComponentDoubleClick}
             >

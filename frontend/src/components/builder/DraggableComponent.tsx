@@ -15,6 +15,7 @@ interface DraggableComponentProps {
   children: React.ReactNode;
   isSelected?: boolean;
   isInGridLayout?: boolean; // If true, don't apply fixed width - let grid control sizing
+  isDropTarget?: boolean; // If true, show drop zone highlight
   onSelect?: (componentId: string) => void;
   onDoubleClick?: (componentId: string) => void;
   onDelete?: (componentId: string) => void;
@@ -30,6 +31,7 @@ export const DraggableComponent: React.FC<DraggableComponentProps> = ({
   children,
   isSelected = false,
   isInGridLayout = false,
+  isDropTarget = false,
   onSelect,
   onDoubleClick,
   onDelete,
@@ -358,13 +360,17 @@ export const DraggableComponent: React.FC<DraggableComponentProps> = ({
     <>
       <div
         ref={componentRef}
-        className={`draggable-component ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''} ${!canDrag ? 'view-mode' : ''} ${isChildComponent ? 'child-component' : ''} ${isHovered && !isSelected ? 'hovered' : ''}`}
+        className={`draggable-component ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''} ${!canDrag ? 'view-mode' : ''} ${isChildComponent ? 'child-component' : ''} ${isHovered && !isSelected ? 'hovered' : ''} ${isDropTarget ? 'drop-target' : ''}`}
         style={getComponentStyles()}
         onMouseDown={handleMouseDown}
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
         onContextMenu={handleContextMenu}
         data-component-id={component.instanceId}
+        data-is-container={component.componentCategory?.toLowerCase() === 'layout' ||
+          (component.componentCategory?.toLowerCase() === 'data' &&
+           (component.componentId === 'Repeater' || component.componentId === 'DataList'))
+          ? 'true' : undefined}
       >
         {/* Selection Overlay */}
         {isSelected && canDrag && (
