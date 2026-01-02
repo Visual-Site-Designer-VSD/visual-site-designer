@@ -53,6 +53,7 @@ const PLUGIN_GLOBAL_NAMES: Record<string, string> = {
   'image-component-plugin': 'ImageComponentPlugin',
   'auth-component-plugin': 'AuthComponentPlugin',
   'repeater-component-plugin': 'RepeaterComponentPlugin',
+  'horizontal-row-plugin': 'HorizontalRowComponentPlugin',
 };
 
 /**
