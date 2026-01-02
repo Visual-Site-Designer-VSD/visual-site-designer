@@ -3,6 +3,10 @@ import ReactDOM from 'react-dom/client'
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime'
 import App from './App.tsx'
 import './index.css'
+import { initializeUIPreferences } from './stores/uiPreferencesStore'
+
+// Initialize UI preferences (dark mode, compact mode) from persisted storage
+initializeUIPreferences();
 
 // Expose React and ReactDOM globally for plugin IIFE bundles
 // Plugins are built as IIFE format and expect these to be available on window
