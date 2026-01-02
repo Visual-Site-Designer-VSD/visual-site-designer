@@ -471,3 +471,104 @@
     padding: 6px 10px;
   }
 }
+
+/* ============================================
+   DARK MODE OVERRIDES
+   ============================================ */
+
+:root.dark-mode {
+  --menubar-bg: var(--bg-secondary, #16213e);
+  --menubar-border: var(--border-color, #2a3f5f);
+  --menubar-text: var(--text-primary, #e8e8e8);
+
+  --menu-bg: var(--bg-secondary, #16213e);
+  --menu-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --menu-border: var(--border-color, #2a3f5f);
+
+  --menu-item-hover-bg: var(--bg-hover, #1f2940);
+  --menu-item-active-bg: var(--bg-active, #2a3f5f);
+  --menu-item-text: var(--text-primary, #e8e8e8);
+  --menu-item-disabled: var(--text-muted, #888888);
+
+  --shortcut-color: var(--text-secondary, #b8b8b8);
+
+  --menu-danger-color: var(--brand-danger, #ff6b6b);
+  --menu-danger-hover-bg: rgba(255, 107, 107, 0.15);
+}
+
+:root.dark-mode .menubar {
+  background-color: var(--menubar-bg);
+  border-color: var(--menubar-border);
+  transition: background-color var(--transition-normal, 200ms ease), border-color var(--transition-normal, 200ms ease);
+}
+
+:root.dark-mode .menu__trigger:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+:root.dark-mode .menu--open .menu__trigger {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+:root.dark-mode .menu__dropdown,
+:root.dark-mode .menu-dropdown {
+  background-color: var(--menu-bg);
+  border-color: var(--menu-border);
+}
+
+:root.dark-mode .menu-item {
+  color: var(--menu-item-text);
+}
+
+:root.dark-mode .menu-item:hover,
+:root.dark-mode .menu-item--focused {
+  background-color: var(--menu-item-hover-bg);
+}
+
+:root.dark-mode .menu-item__check {
+  color: var(--brand-primary, #4dabf5);
+}
+
+:root.dark-mode .menu-divider {
+  background-color: var(--menu-border);
+}
+
+:root.dark-mode .submenu__trigger {
+  color: var(--menu-item-text);
+}
+
+:root.dark-mode .submenu__trigger:hover {
+  background-color: var(--menu-item-hover-bg);
+}
+
+:root.dark-mode .submenu__content {
+  background-color: var(--menu-bg);
+  border-color: var(--menu-border);
+}
+
+:root.dark-mode .menubar__button--default {
+  background-color: var(--bg-tertiary, #0f3460);
+  border-color: var(--border-color, #2a3f5f);
+  color: var(--text-primary, #e8e8e8);
+}
+
+:root.dark-mode .menubar__button--default:hover {
+  background-color: var(--bg-active, #2a3f5f);
+  border-color: var(--border-dark, #3a4f6f);
+}
+
+:root.dark-mode .menu-user-info {
+  border-color: var(--menu-border);
+}
+
+:root.dark-mode .menu-user-info__name {
+  color: var(--text-primary, #e8e8e8);
+}
+
+:root.dark-mode .menu-user-info__email {
+  color: var(--text-secondary, #b8b8b8);
+}
+
+:root.dark-mode .menubar__brand:hover {
+  color: var(--brand-primary, #4dabf5);
+}
