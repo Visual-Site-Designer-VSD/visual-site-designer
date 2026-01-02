@@ -40,7 +40,7 @@ export const ResizableComponent: React.FC<ResizableComponentProps> = ({
   const [startSize, setStartSize] = useState<ComponentSize | null>(null);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
 
-  const { resizeComponent, viewMode, hoveredComponentId } = useBuilderStore();
+  const { resizeComponent, viewMode, hoveredComponentId, findComponent } = useBuilderStore();
 
   // Check if this component is the currently hovered one (global state)
   const isHovered = hoveredComponentId === component.instanceId;
@@ -55,6 +55,48 @@ export const ResizableComponent: React.FC<ResizableComponentProps> = ({
     if (size === 'auto' || size === 'inherit') return 0;
     const parsed = parseFloat(size);
     return isNaN(parsed) ? 0 : parsed;
+  };
+
+  // Calculate minimum size based on children's dimensions
+  // Returns { minWidth, minHeight } that the parent cannot shrink below
+  const getMinSizeFromChildren = (): { childMinWidth: number; childMinHeight: number } => {
+    if (!componentRef.current) {
+      return { childMinWidth: minWidth, childMinHeight: minHeight };
+    }
+
+    // Find all direct child components inside this container
+    const childrenContainer = componentRef.current.querySelector('.children-container');
+    if (!childrenContainer) {
+      return { childMinWidth: minWidth, childMinHeight: minHeight };
+    }
+
+    const parentRect = componentRef.current.getBoundingClientRect();
+    const children = childrenContainer.querySelectorAll(':scope > .draggable-component');
+
+    if (children.length === 0) {
+      return { childMinWidth: minWidth, childMinHeight: minHeight };
+    }
+
+    let maxRight = 0;
+    let maxBottom = 0;
+
+    children.forEach((child) => {
+      const childRect = child.getBoundingClientRect();
+      // Calculate child's right and bottom edges relative to parent's top-left
+      const childRight = childRect.right - parentRect.left;
+      const childBottom = childRect.bottom - parentRect.top;
+
+      maxRight = Math.max(maxRight, childRight);
+      maxBottom = Math.max(maxBottom, childBottom);
+    });
+
+    // Add buffer for padding/margins
+    const buffer = 20;
+
+    return {
+      childMinWidth: Math.max(minWidth, maxRight + buffer),
+      childMinHeight: Math.max(minHeight, maxBottom + buffer)
+    };
   };
 
   const handleResizeStart = (e: React.MouseEvent, handle: ResizeHandle) => {
@@ -116,9 +158,12 @@ export const ResizableComponent: React.FC<ResizableComponentProps> = ({
         break;
     }
 
-    // Apply constraints
-    newWidth = Math.max(minWidth, newWidth);
-    newHeight = Math.max(minHeight, newHeight);
+    // Get minimum size based on children (prevents shrinking smaller than children)
+    const { childMinWidth, childMinHeight } = getMinSizeFromChildren();
+
+    // Apply constraints - use the larger of default minWidth/minHeight and child-based minimum
+    newWidth = Math.max(minWidth, childMinWidth, newWidth);
+    newHeight = Math.max(minHeight, childMinHeight, newHeight);
 
     if (maxWidth) newWidth = Math.min(maxWidth, newWidth);
     if (maxHeight) newHeight = Math.min(maxHeight, newHeight);
@@ -151,6 +196,52 @@ export const ResizableComponent: React.FC<ResizableComponentProps> = ({
       width: `${finalWidth}px`,
       height: `${finalHeight}px`
     });
+
+    // If this is a child component, check if it overflows the parent and resize parent if needed
+    if (component.parentId) {
+      const parentComponent = findComponent(component.parentId);
+      if (parentComponent) {
+        // Find the parent's DOM element
+        const parentElement = document.querySelector(`[data-component-id="${component.parentId}"]`);
+        if (parentElement) {
+          const parentRect = parentElement.getBoundingClientRect();
+          const childRect = componentRef.current.getBoundingClientRect();
+
+          // Calculate required parent size based on child's actual position relative to parent
+          // This accounts for the child's offset within the parent, not just its dimensions
+          const buffer = 20; // Buffer for padding/margins
+
+          // Calculate how far the child's right edge extends from the parent's left edge
+          const childRightFromParentLeft = childRect.right - parentRect.left;
+          // Calculate how far the child's bottom edge extends from the parent's top edge
+          const childBottomFromParentTop = childRect.bottom - parentRect.top;
+
+          let newParentWidth = parentRect.width;
+          let newParentHeight = parentRect.height;
+          let needsParentResize = false;
+
+          // Check if child's right edge exceeds parent's right edge
+          if (childRightFromParentLeft + buffer > parentRect.width) {
+            newParentWidth = childRightFromParentLeft + buffer;
+            needsParentResize = true;
+          }
+
+          // Check if child's bottom edge exceeds parent's bottom edge
+          if (childBottomFromParentTop + buffer > parentRect.height) {
+            newParentHeight = childBottomFromParentTop + buffer;
+            needsParentResize = true;
+          }
+
+          // Resize parent if needed
+          if (needsParentResize) {
+            resizeComponent(component.parentId, {
+              width: `${newParentWidth}px`,
+              height: `${newParentHeight}px`
+            });
+          }
+        }
+      }
+    }
   };
 
   // Attach/detach mouse event listeners
