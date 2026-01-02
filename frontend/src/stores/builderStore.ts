@@ -14,8 +14,11 @@ interface BuilderState {
   // Current page being edited
   currentPage: PageDefinition | null;
 
-  // Selected component for editing
+  // Selected component for editing (single selection - primary)
   selectedComponentId: string | null;
+
+  // Multi-select: array of selected component IDs
+  selectedComponentIds: string[];
 
   // Hovered component (for hover highlighting - only one at a time)
   hoveredComponentId: string | null;
@@ -39,10 +42,18 @@ interface BuilderState {
   // Actions
   setCurrentPage: (page: PageDefinition) => void;
   selectComponent: (componentId: string | null) => void;
+  toggleComponentSelection: (componentId: string) => void;
+  addToSelection: (componentId: string) => void;
+  removeFromSelection: (componentId: string) => void;
+  selectMultiple: (componentIds: string[]) => void;
+  selectAll: () => void;
+  clearSelection: () => void;
+  isSelected: (componentId: string) => boolean;
   setHoveredComponent: (componentId: string | null) => void;
   addComponent: (component: ComponentInstance) => void;
   updateComponent: (componentId: string, updates: Partial<ComponentInstance>) => void;
   removeComponent: (componentId: string) => void;
+  deleteComponent: (componentId: string) => void;
   updateComponentStyles: (componentId: string, styles: Record<string, string>) => void;
   updateComponentProps: (componentId: string, props: Record<string, any>) => void;
   moveComponent: (componentId: string, newPosition: ComponentInstance['position']) => void;
@@ -59,6 +70,7 @@ interface BuilderState {
   setError: (error: string | null) => void;
   duplicateComponent: (componentId: string) => void;
   findComponent: (componentId: string) => ComponentInstance | null;
+  getAllComponentIds: () => string[];
   reparentComponent: (componentId: string, newParentId: string | null, insertIndex?: number) => void;
   reorderComponent: (componentId: string, direction: 'up' | 'down' | 'top' | 'bottom') => void;
   moveComponentToIndex: (componentId: string, newIndex: number) => void;
@@ -80,6 +92,7 @@ const DEFAULT_GRID_CONFIG: GridConfig = {
 export const useBuilderStore = create<BuilderState>((set, get) => ({
   currentPage: null,
   selectedComponentId: null,
+  selectedComponentIds: [],
   hoveredComponentId: null,
   history: [],
   historyIndex: -1,
@@ -99,15 +112,106 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
         timestamp: Date.now()
       }],
       historyIndex: 0,
-      selectedComponentId: null
+      selectedComponentId: null,
+      selectedComponentIds: []
     });
   },
 
   /**
-   * Select a component for editing
+   * Select a component for editing (single select - clears multi-select)
    */
   selectComponent: (componentId: string | null) => {
-    set({ selectedComponentId: componentId });
+    set({
+      selectedComponentId: componentId,
+      selectedComponentIds: componentId ? [componentId] : []
+    });
+  },
+
+  /**
+   * Toggle component selection (for Ctrl+click multi-select)
+   */
+  toggleComponentSelection: (componentId: string) => {
+    const { selectedComponentIds, selectedComponentId } = get();
+    const isCurrentlySelected = selectedComponentIds.includes(componentId);
+
+    if (isCurrentlySelected) {
+      // Remove from selection
+      const newSelection = selectedComponentIds.filter(id => id !== componentId);
+      set({
+        selectedComponentIds: newSelection,
+        selectedComponentId: newSelection.length > 0 ? newSelection[newSelection.length - 1] : null
+      });
+    } else {
+      // Add to selection
+      const newSelection = [...selectedComponentIds, componentId];
+      set({
+        selectedComponentIds: newSelection,
+        selectedComponentId: componentId
+      });
+    }
+  },
+
+  /**
+   * Add a component to the selection
+   */
+  addToSelection: (componentId: string) => {
+    const { selectedComponentIds } = get();
+    if (!selectedComponentIds.includes(componentId)) {
+      set({
+        selectedComponentIds: [...selectedComponentIds, componentId],
+        selectedComponentId: componentId
+      });
+    }
+  },
+
+  /**
+   * Remove a component from the selection
+   */
+  removeFromSelection: (componentId: string) => {
+    const { selectedComponentIds } = get();
+    const newSelection = selectedComponentIds.filter(id => id !== componentId);
+    set({
+      selectedComponentIds: newSelection,
+      selectedComponentId: newSelection.length > 0 ? newSelection[newSelection.length - 1] : null
+    });
+  },
+
+  /**
+   * Select multiple components at once
+   */
+  selectMultiple: (componentIds: string[]) => {
+    set({
+      selectedComponentIds: componentIds,
+      selectedComponentId: componentIds.length > 0 ? componentIds[componentIds.length - 1] : null
+    });
+  },
+
+  /**
+   * Select all components on the page
+   */
+  selectAll: () => {
+    const allIds = get().getAllComponentIds();
+    set({
+      selectedComponentIds: allIds,
+      selectedComponentId: allIds.length > 0 ? allIds[0] : null
+    });
+  },
+
+  /**
+   * Clear all selections
+   */
+  clearSelection: () => {
+    set({
+      selectedComponentId: null,
+      selectedComponentIds: []
+    });
+  },
+
+  /**
+   * Check if a component is selected
+   */
+  isSelected: (componentId: string) => {
+    return get().selectedComponentIds.includes(componentId);
   },
 
   /**
@@ -436,6 +540,46 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
     };
 
     return findInComponents(currentPage.components);
+  },
+
+  /**
+   * Get all component IDs on the page (for select all)
+   */
+  getAllComponentIds: (): string[] => {
+    const { currentPage } = get();
+    if (!currentPage) return [];
+
+    const collectIds = (components: ComponentInstance[]): string[] => {
+      const ids: string[] = [];
+      for (const component of components) {
+        ids.push(component.instanceId);
+        if (component.children && component.children.length > 0) {
+          ids.push(...collectIds(component.children));
+        }
+      }
+      return ids;
+    };
+
+    return collectIds(currentPage.components);
+  },
+
+  /**
+   * Delete a component (alias for removeComponent, clears selection if deleted)
+   */
+  deleteComponent: (componentId: string) => {
+    const { selectedComponentIds, removeComponent } = get();
+
+    // Remove the component
+    removeComponent(componentId);
+
+    // Clear from selection if it was selected
+    if (selectedComponentIds.includes(componentId)) {
+      const newSelection = selectedComponentIds.filter(id => id !== componentId);
+      set({
+        selectedComponentIds: newSelection,
+        selectedComponentId: newSelection.length > 0 ? newSelection[newSelection.length - 1] : null
+      });
+    }
   },
 
   /**
