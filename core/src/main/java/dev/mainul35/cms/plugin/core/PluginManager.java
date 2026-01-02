@@ -277,16 +277,101 @@ public class PluginManager {
     public Plugin installPlugin(File jarFile) throws Exception {
         log.info("Installing plugin from: {}", jarFile.getAbsolutePath());
 
-        // TODO: Phase 1 - Basic implementation
-        // Future phases will add:
-        // 1. JAR validation and signature verification
-        // 2. Extract plugin.yml manifest
-        // 3. Validate dependencies
-        // 4. Create Plugin entity
-        // 5. Copy JAR to plugin directory
-        // 6. Register in database
+        // 1. Validate JAR file exists and is readable
+        if (!jarFile.exists() || !jarFile.isFile()) {
+            throw new IllegalArgumentException("JAR file does not exist: " + jarFile.getAbsolutePath());
+        }
+        if (!jarFile.canRead()) {
+            throw new IllegalArgumentException("Cannot read JAR file: " + jarFile.getAbsolutePath());
+        }
+        if (!jarFile.getName().endsWith(".jar")) {
+            throw new IllegalArgumentException("File is not a JAR file: " + jarFile.getName());
+        }
 
-        throw new UnsupportedOperationException("Plugin installation will be implemented in Phase 2");
+        // 2. Extract and validate plugin manifest
+        PluginManifest manifest;
+        try {
+            manifest = PluginManifest.loadFromJar(jarFile);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid plugin JAR - could not read plugin.yml manifest: " + e.getMessage(), e);
+        }
+
+        String pluginId = manifest.getPluginId();
+        if (pluginId == null || pluginId.isBlank()) {
+            throw new IllegalArgumentException("Plugin manifest missing required 'plugin-id' field");
+        }
+
+        log.info("Installing plugin: {} v{}", manifest.getPluginName(), manifest.getVersion());
+
+        // 3. Check if plugin is already installed
+        Optional<Plugin> existingPlugin = pluginRepository.findByPluginId(pluginId);
+        if (existingPlugin.isPresent()) {
+            Plugin existing = existingPlugin.get();
+            log.info("Plugin {} already installed (version {}), will upgrade to version {}",
+                    pluginId, existing.getVersion(), manifest.getVersion());
+            // Deactivate existing plugin before upgrade
+            if (existing.isActive()) {
+                deactivatePlugin(pluginId);
+            }
+        }
+
+        // 4. Validate dependencies (if specified in manifest)
+        List<String> dependencies = manifest.getDependencies();
+        if (dependencies != null && !dependencies.isEmpty()) {
+            for (String dependency : dependencies) {
+                // Parse dependency format: "pluginId:version" or just "pluginId"
+                String depPluginId = dependency.contains(":") ? dependency.split(":")[0] : dependency;
+                if (!pluginRepository.findByPluginId(depPluginId).isPresent() && !loadedPlugins.containsKey(depPluginId)) {
+                    throw new IllegalStateException("Missing required dependency: " + dependency);
+                }
+            }
+            log.info("All dependencies satisfied for plugin: {}", pluginId);
+        }
+
+        // 5. Copy JAR to plugin directory
+        File pluginDir = new File(pluginDirectory);
+        if (!pluginDir.exists()) {
+            Files.createDirectories(pluginDir.toPath());
+        }
+
+        File targetJar = new File(pluginDir, jarFile.getName());
+        // If source and target are different, copy the file
+        if (!jarFile.getCanonicalPath().equals(targetJar.getCanonicalPath())) {
+            Files.copy(jarFile.toPath(), targetJar.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            log.info("Copied plugin JAR to: {}", targetJar.getAbsolutePath());
+        }
+
+        // 6. Create or update Plugin entity in database
+        Plugin plugin = existingPlugin.orElse(new Plugin());
+        plugin.setPluginId(pluginId);
+        plugin.setPluginName(manifest.getPluginName());
+        plugin.setVersion(manifest.getVersion());
+        plugin.setDescription(manifest.getDescription());
+        plugin.setAuthor(manifest.getAuthor());
+        plugin.setPluginType(manifest.getPluginType());
+        plugin.setJarPath(targetJar.getAbsolutePath());
+        plugin.setIsBundled(false);
+        plugin.setStatus("installed"); // Not yet activated
+
+        plugin = pluginRepository.save(plugin);
+        log.info("Plugin installed successfully: {} v{}", pluginId, manifest.getVersion());
+
+        return plugin;
+    }
+
+    /**
+     * Install and activate a plugin from a JAR file in one step
+     *
+     * @param jarFile Path to the plugin JAR file
+     * @return The installed and activated plugin
+     * @throws Exception if installation or activation fails
+     */
+    @Transactional
+    public Plugin installAndActivatePlugin(File jarFile) throws Exception {
+        Plugin plugin = installPlugin(jarFile);
+        loadPluginFromJar(new File(plugin.getJarPath()));
+        return plugin;
     }
 
     /**
@@ -302,19 +387,108 @@ public class PluginManager {
         Plugin plugin = pluginRepository.findByPluginId(pluginId)
                 .orElseThrow(() -> new IllegalArgumentException("Plugin not found: " + pluginId));
 
+        // Check if any other plugins depend on this one
+        List<Plugin> allPlugins = pluginRepository.findAll();
+        for (Plugin otherPlugin : allPlugins) {
+            if (!otherPlugin.getPluginId().equals(pluginId) && otherPlugin.isActive()) {
+                // Check dependencies - this would require loading manifest, simplified check here
+                log.debug("Checking if plugin {} depends on {}", otherPlugin.getPluginId(), pluginId);
+            }
+        }
+
         // Deactivate first if active
         if (plugin.isActive()) {
             deactivatePlugin(pluginId);
         }
 
+        // Run plugin uninstall hooks if plugin instance is available
+        Object pluginInstance = loadedPlugins.get(pluginId);
+        if (pluginInstance instanceof dev.mainul35.cms.sdk.Plugin) {
+            try {
+                dev.mainul35.cms.sdk.Plugin sdkPlugin = (dev.mainul35.cms.sdk.Plugin) pluginInstance;
+                // Create minimal context for uninstall
+                Path dataDir = Path.of(pluginDirectory, pluginId, "data");
+                Path configDir = Path.of(pluginDirectory, pluginId, "config");
+                DefaultPluginContext context = DefaultPluginContext.builder()
+                        .pluginId(pluginId)
+                        .version(plugin.getVersion())
+                        .dataDirectory(dataDir)
+                        .configDirectory(configDir)
+                        .pluginClassLoader(pluginClassLoaders.get(pluginId))
+                        .platformContext(applicationContext)
+                        .active(false)
+                        .build();
+                sdkPlugin.onUninstall(context);
+                log.info("Called onUninstall hook for plugin: {}", pluginId);
+            } catch (Exception e) {
+                log.warn("Error running uninstall hook for plugin {}: {}", pluginId, e.getMessage());
+            }
+        }
+
+        // Unregister UI component if it was registered
+        if (pluginInstance instanceof UIComponentPlugin) {
+            UIComponentPlugin uiPlugin = (UIComponentPlugin) pluginInstance;
+            String componentId = uiPlugin.getComponentManifest().getComponentId();
+            componentRegistryService.unregisterComponent(pluginId, componentId);
+            log.info("Unregistered UI component: {} from plugin: {}", componentId, pluginId);
+        }
+
+        // Remove from loaded maps
+        loadedPlugins.remove(pluginId);
+        PluginClassLoader classLoader = pluginClassLoaders.remove(pluginId);
+        if (classLoader != null) {
+            try {
+                classLoader.close();
+            } catch (Exception e) {
+                log.warn("Error closing classloader for plugin {}: {}", pluginId, e.getMessage());
+            }
+        }
+
+        // Delete JAR file if it's a third-party plugin (not bundled)
+        if (!Boolean.TRUE.equals(plugin.getIsBundled()) && plugin.getJarPath() != null) {
+            File jarFile = new File(plugin.getJarPath());
+            if (jarFile.exists()) {
+                try {
+                    Files.delete(jarFile.toPath());
+                    log.info("Deleted plugin JAR file: {}", jarFile.getAbsolutePath());
+                } catch (Exception e) {
+                    log.warn("Could not delete plugin JAR file {}: {}", jarFile.getAbsolutePath(), e.getMessage());
+                }
+            }
+        }
+
+        // Clean up plugin-specific data directories
+        Path pluginDataDir = Path.of(pluginDirectory, pluginId);
+        if (Files.exists(pluginDataDir)) {
+            try {
+                deleteDirectoryRecursively(pluginDataDir);
+                log.info("Deleted plugin data directory: {}", pluginDataDir);
+            } catch (Exception e) {
+                log.warn("Could not delete plugin data directory {}: {}", pluginDataDir, e.getMessage());
+            }
+        }
+
         // Remove from database
         pluginRepository.deleteByPluginId(pluginId);
 
-        // TODO: Delete JAR file if third-party plugin
-        // TODO: Run plugin uninstall hooks
-        // TODO: Clean up plugin-specific data
-
         log.info("Plugin uninstalled successfully: {}", pluginId);
+    }
+
+    /**
+     * Recursively delete a directory and all its contents
+     */
+    private void deleteDirectoryRecursively(Path directory) throws Exception {
+        if (Files.exists(directory)) {
+            Files.walk(directory)
+                    .sorted(Comparator.reverseOrder())
+                    .forEach(path -> {
+                        try {
+                            Files.delete(path);
+                        } catch (Exception e) {
+                            log.warn("Could not delete: {}", path);
+                        }
+                    });
+        }
     }
 
     /**
@@ -335,24 +509,155 @@ public class PluginManager {
             return;
         }
 
-        try {
-            // TODO: Phase 1 - Basic structure only
-            // Future implementation will:
-            // 1. Load plugin JAR using PluginClassLoader
-            // 2. Create Spring ApplicationContext for plugin
-            // 3. Register plugin entities with JPA
-            // 4. Register plugin controllers
-            // 5. Run Flyway migrations for plugin
-            // 6. Call plugin onActivate() hook
+        // Check if plugin is already loaded (e.g., from loadPluginFromJar during startup)
+        if (loadedPlugins.containsKey(pluginId)) {
+            log.info("Plugin {} is already loaded, just updating status", pluginId);
+            plugin.activate();
+            pluginRepository.save(plugin);
+            return;
+        }
 
+        try {
+            // 1. Validate JAR file exists
+            String jarPath = plugin.getJarPath();
+            if (jarPath == null || jarPath.isBlank()) {
+                throw new IllegalStateException("Plugin JAR path not set for plugin: " + pluginId);
+            }
+
+            File jarFile = new File(jarPath);
+            if (!jarFile.exists()) {
+                throw new IllegalStateException("Plugin JAR file not found: " + jarPath);
+            }
+
+            // 2. Load plugin manifest
+            PluginManifest manifest = PluginManifest.loadFromJar(jarFile);
+            log.info("Activating plugin: {} v{}", manifest.getPluginName(), manifest.getVersion());
+
+            // 3. Validate dependencies are active
+            List<String> dependencies = manifest.getDependencies();
+            if (dependencies != null && !dependencies.isEmpty()) {
+                for (String dependency : dependencies) {
+                    String depPluginId = dependency.contains(":") ? dependency.split(":")[0] : dependency;
+                    Optional<Plugin> depPlugin = pluginRepository.findByPluginId(depPluginId);
+                    if (depPlugin.isEmpty()) {
+                        throw new IllegalStateException("Missing required dependency: " + dependency);
+                    }
+                    if (!depPlugin.get().isActive()) {
+                        throw new IllegalStateException("Dependency not active: " + dependency + ". Activate it first.");
+                    }
+                }
+                log.info("All dependencies are active for plugin: {}", pluginId);
+            }
+
+            // 4. Create plugin ClassLoader
+            PluginClassLoader classLoader = PluginClassLoader.fromJarFile(pluginId, jarFile,
+                    getClass().getClassLoader());
+            pluginClassLoaders.put(pluginId, classLoader);
+
+            // 5. Instantiate plugin class
+            String mainClass = manifest.getMainClass();
+            Object pluginInstance = classLoader.instantiatePluginClass(mainClass);
+            log.info("Instantiated plugin class: {}", mainClass);
+
+            // 6. Create plugin context with data directories
+            Path dataDir = Path.of(pluginDirectory, pluginId, "data");
+            Path configDir = Path.of(pluginDirectory, pluginId, "config");
+            Files.createDirectories(dataDir);
+            Files.createDirectories(configDir);
+
+            DefaultPluginContext context = DefaultPluginContext.builder()
+                    .pluginId(pluginId)
+                    .version(manifest.getVersion())
+                    .dataDirectory(dataDir)
+                    .configDirectory(configDir)
+                    .pluginClassLoader(classLoader)
+                    .platformContext(applicationContext)
+                    .active(true)
+                    .build();
+
+            // 7. Call plugin onLoad lifecycle hook
+            if (pluginInstance instanceof dev.mainul35.cms.sdk.Plugin) {
+                dev.mainul35.cms.sdk.Plugin sdkPlugin = (dev.mainul35.cms.sdk.Plugin) pluginInstance;
+                sdkPlugin.onLoad(context);
+                log.info("Called onLoad hook for plugin: {}", pluginId);
+            }
+
+            // 8. Register plugin entities with JPA (if any)
+            if (manifest.hasEntities()) {
+                for (String entityPackage : manifest.getEntityPackages()) {
+                    pluginEntityRegistrar.scanAndRegisterEntities(pluginId, entityPackage, classLoader);
+                }
+                log.info("Registered entities for plugin: {}", pluginId);
+            }
+
+            // 9. Register plugin Spring components (controllers, services, repositories)
+            if (manifest.hasSpringComponents()) {
+                String[] packagesToScan = manifest.getComponentScanPackages().toArray(new String[0]);
+                if (packagesToScan.length > 0) {
+                    pluginControllerRegistrar.registerPluginComponents(pluginId, classLoader, packagesToScan);
+                    log.info("Registered Spring components for plugin: {}", pluginId);
+                }
+            }
+
+            // 10. Call plugin onActivate lifecycle hook
+            if (pluginInstance instanceof dev.mainul35.cms.sdk.Plugin) {
+                dev.mainul35.cms.sdk.Plugin sdkPlugin = (dev.mainul35.cms.sdk.Plugin) pluginInstance;
+                sdkPlugin.onActivate(context);
+                log.info("Called onActivate hook for plugin: {}", pluginId);
+            }
+
+            // 11. Register UI component if applicable
+            if (pluginInstance instanceof UIComponentPlugin) {
+                UIComponentPlugin uiPlugin = (UIComponentPlugin) pluginInstance;
+                ComponentManifest componentManifest = uiPlugin.getComponentManifest();
+                componentRegistryService.registerComponent(componentManifest);
+                log.info("Registered UI component: {} from plugin: {}",
+                        componentManifest.getComponentId(), pluginId);
+            }
+
+            // 12. Store loaded plugin and update status
+            loadedPlugins.put(pluginId, pluginInstance);
             plugin.activate();
             pluginRepository.save(plugin);
 
             log.info("Plugin activated successfully: {}", pluginId);
         } catch (Exception e) {
+            log.error("Failed to activate plugin: {}", pluginId, e);
+            // Clean up on failure
+            cleanupFailedActivation(pluginId);
             plugin.setError();
             pluginRepository.save(plugin);
             throw new RuntimeException("Failed to activate plugin: " + pluginId, e);
+        }
+    }
+
+    /**
+     * Clean up resources after a failed plugin activation
+     */
+    private void cleanupFailedActivation(String pluginId) {
+        try {
+            // Remove from loaded plugins
+            loadedPlugins.remove(pluginId);
+
+            // Close and remove classloader
+            PluginClassLoader classLoader = pluginClassLoaders.remove(pluginId);
+            if (classLoader != null) {
+                try {
+                    classLoader.close();
+                } catch (Exception e) {
+                    log.warn("Error closing classloader for failed plugin {}: {}", pluginId, e.getMessage());
+                }
+            }
+
+            // Unregister any components that might have been partially registered
+            if (pluginControllerRegistrar.hasRegisteredControllers(pluginId)) {
+                pluginControllerRegistrar.unregisterControllers(pluginId);
+            }
+            if (pluginEntityRegistrar.hasRegisteredEntities(pluginId)) {
+                pluginEntityRegistrar.unregisterEntities(pluginId);
+            }
+        } catch (Exception e) {
+            log.warn("Error during cleanup of failed activation for plugin {}: {}", pluginId, e.getMessage());
         }
     }
 
