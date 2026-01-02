@@ -1,3 +1,145 @@
+/* CSS Custom Properties (Light Mode - Default) */
+:root {
+  /* Background colors */
+  --bg-primary: #f5f5f5;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #e8e8e8;
+  --bg-hover: #f0f0f0;
+  --bg-active: #e0e0e0;
+
+  /* Text colors */
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  --text-inverse: #ffffff;
+
+  /* Border colors */
+  --border-color: #dddddd;
+  --border-light: #eeeeee;
+  --border-dark: #cccccc;
+
+  /* Brand colors */
+  --brand-primary: #3498db;
+  --brand-primary-hover: #2980b9;
+  --brand-success: #27ae60;
+  --brand-success-hover: #229954;
+  --brand-danger: #e74c3c;
+  --brand-danger-hover: #c0392b;
+  --brand-warning: #f39c12;
+  --brand-info: #17a2b8;
+
+  /* Header/Nav colors */
+  --header-bg: #2c3e50;
+  --nav-bg: #34495e;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.15);
+
+  /* Spacing (for compact mode) */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+  --spacing-xxl: 24px;
+
+  /* Font sizes (for compact mode) */
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-base: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-xxl: 24px;
+
+  /* Line heights */
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+
+  /* Border radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Transition */
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow: 300ms ease;
+}
+
+/* Dark Mode Theme */
+:root.dark-mode {
+  /* Background colors */
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-tertiary: #0f3460;
+  --bg-hover: #1f2940;
+  --bg-active: #2a3f5f;
+
+  /* Text colors */
+  --text-primary: #e8e8e8;
+  --text-secondary: #b8b8b8;
+  --text-muted: #888888;
+  --text-inverse: #1a1a2e;
+
+  /* Border colors */
+  --border-color: #2a3f5f;
+  --border-light: #1f2940;
+  --border-dark: #3a4f6f;
+
+  /* Brand colors (slightly adjusted for dark mode) */
+  --brand-primary: #4dabf5;
+  --brand-primary-hover: #6bbdf7;
+  --brand-success: #4eca7c;
+  --brand-success-hover: #6fd898;
+  --brand-danger: #ff6b6b;
+  --brand-danger-hover: #ff8787;
+  --brand-warning: #ffc107;
+  --brand-info: #40c4ff;
+
+  /* Header/Nav colors */
+  --header-bg: #0f3460;
+  --nav-bg: #16213e;
+
+  /* Shadow (darker for dark mode) */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Compact Mode Theme */
+:root.compact-mode {
+  /* Reduced spacing */
+  --spacing-xs: 2px;
+  --spacing-sm: 4px;
+  --spacing-md: 8px;
+  --spacing-lg: 12px;
+  --spacing-xl: 16px;
+  --spacing-xxl: 20px;
+
+  /* Reduced font sizes */
+  --font-size-xs: 10px;
+  --font-size-sm: 11px;
+  --font-size-base: 12px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-xxl: 20px;
+
+  /* Tighter line heights */
+  --line-height-tight: 1.1;
+  --line-height-normal: 1.3;
+  --line-height-relaxed: 1.5;
+
+  /* Smaller border radius */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+}
+
 /* Reset and base styles */
 * {
   margin: 0;
@@ -11,151 +153,157 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f5f5f5;
-  color: #333;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+  transition: background-color var(--transition-normal), color var(--transition-normal);
 }
 
 /* Container */
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
+  padding: var(--spacing-xl);
 }
 
 /* Header */
 .header {
-  background-color: #2c3e50;
-  color: white;
-  padding: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: var(--header-bg);
+  color: var(--text-inverse);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-md);
 }
 
 .header h1 {
   margin: 0;
-  font-size: 24px;
+  font-size: var(--font-size-xxl);
 }
 
 /* Navigation */
 .nav {
-  background-color: #34495e;
-  padding: 10px 20px;
+  background-color: var(--nav-bg);
+  padding: var(--spacing-md) var(--spacing-xl);
 }
 
 .nav-links {
   display: flex;
-  gap: 20px;
+  gap: var(--spacing-xl);
   list-style: none;
 }
 
 .nav-links a {
-  color: white;
+  color: var(--text-inverse);
   text-decoration: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  transition: background-color 0.3s;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-slow);
 }
 
 .nav-links a:hover,
 .nav-links a.active {
-  background-color: #2c3e50;
+  background-color: var(--header-bg);
 }
 
 /* Buttons */
 .btn {
-  padding: 10px 20px;
+  padding: var(--spacing-md) var(--spacing-xl);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.3s;
+  font-size: var(--font-size-base);
+  transition: background-color var(--transition-slow);
 }
 
 .btn-primary {
-  background-color: #3498db;
-  color: white;
+  background-color: var(--brand-primary);
+  color: var(--text-inverse);
 }
 
 .btn-primary:hover {
-  background-color: #2980b9;
+  background-color: var(--brand-primary-hover);
 }
 
 .btn-success {
-  background-color: #27ae60;
-  color: white;
+  background-color: var(--brand-success);
+  color: var(--text-inverse);
 }
 
 .btn-success:hover {
-  background-color: #229954;
+  background-color: var(--brand-success-hover);
 }
 
 .btn-danger {
-  background-color: #e74c3c;
-  color: white;
+  background-color: var(--brand-danger);
+  color: var(--text-inverse);
 }
 
 .btn-danger:hover {
-  background-color: #c0392b;
+  background-color: var(--brand-danger-hover);
 }
 
 .btn-secondary {
-  background-color: #95a5a6;
-  color: white;
+  background-color: var(--text-muted);
+  color: var(--text-inverse);
 }
 
 .btn-secondary:hover {
-  background-color: #7f8c8d;
+  background-color: var(--text-secondary);
 }
 
 /* Cards */
 .card {
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-md);
+  margin-bottom: var(--spacing-xl);
 }
 
 .card-title {
-  font-size: 20px;
-  margin-bottom: 10px;
-  color: #2c3e50;
+  font-size: var(--font-size-xl);
+  margin-bottom: var(--spacing-md);
+  color: var(--text-primary);
 }
 
 .card-content {
-  color: #555;
+  color: var(--text-secondary);
 }
 
 /* Grid Layout */
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
-  margin-top: 20px;
+  gap: var(--spacing-xl);
+  margin-top: var(--spacing-xl);
 }
 
 /* Form Elements */
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-xl);
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 5px;
+  margin-bottom: var(--spacing-xs);
   font-weight: 500;
-  color: #2c3e50;
+  color: var(--text-primary);
 }
 
 .form-control {
   width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
+  padding: var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-base);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  transition: border-color var(--transition-normal), background-color var(--transition-normal);
 }
 
 .form-control:focus {
   outline: none;
-  border-color: #3498db;
+  border-color: var(--brand-primary);
 }
 
 textarea.form-control {
@@ -172,8 +320,8 @@ textarea.form-control {
 }
 
 .spinner {
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #3498db;
+  border: 4px solid var(--border-light);
+  border-top: 4px solid var(--brand-primary);
   border-radius: 50%;
   width: 40px;
   height: 40px;
@@ -187,22 +335,22 @@ textarea.form-control {
 
 /* Error Message */
 .error {
-  background-color: #fee;
-  border: 1px solid #fcc;
-  color: #c00;
-  padding: 12px;
-  border-radius: 4px;
-  margin-bottom: 20px;
+  background-color: rgba(231, 76, 60, 0.1);
+  border: 1px solid var(--brand-danger);
+  color: var(--brand-danger);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-xl);
 }
 
 /* Success Message */
 .success {
-  background-color: #efe;
-  border: 1px solid #cfc;
-  color: #060;
-  padding: 12px;
-  border-radius: 4px;
-  margin-bottom: 20px;
+  background-color: rgba(39, 174, 96, 0.1);
+  border: 1px solid var(--brand-success);
+  color: var(--brand-success);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-xl);
 }
 
 /* Utility Classes */
@@ -211,11 +359,11 @@ textarea.form-control {
 }
 
 .mt-20 {
-  margin-top: 20px;
+  margin-top: var(--spacing-xl);
 }
 
 .mb-20 {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-xl);
 }
 
 .flex {
@@ -231,5 +379,5 @@ textarea.form-control {
 }
 
 .gap-10 {
-  gap: 10px;
+  gap: var(--spacing-md);
 }
