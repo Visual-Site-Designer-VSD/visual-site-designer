@@ -57,7 +57,7 @@ export const DraggableComponent: React.FC<DraggableComponentProps> = ({
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!canDrag || e.button !== 0) return; // Only left click
 
-    // Don't start drag if clicking on interactive elements or resize handles
+    // Don't start drag if clicking on interactive elements, resize handles, or move handle
     const target = e.target as HTMLElement;
     if (
       target.tagName === 'INPUT' ||
@@ -66,7 +66,9 @@ export const DraggableComponent: React.FC<DraggableComponentProps> = ({
       target.tagName === 'SELECT' ||
       target.isContentEditable ||
       target.classList.contains('resize-handle') ||
-      target.closest('.resize-handle')
+      target.closest('.resize-handle') ||
+      target.classList.contains('move-handle') ||
+      target.closest('.move-handle')
     ) {
       return;
     }
