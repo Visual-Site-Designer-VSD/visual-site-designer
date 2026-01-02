@@ -60,8 +60,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   <span className="settings-toggle-desc">Use dark color scheme</span>
                 </div>
                 <button
-                  className={`settings-switch ${false ? 'active' : ''}`}
-                  onClick={() => {/* TODO: Implement dark mode */}}
+                  className={`settings-switch ${uiPreferences.darkMode ? 'active' : ''}`}
+                  onClick={() => uiPreferences.toggleDarkMode()}
                   aria-label="Toggle dark mode"
                 >
                   <span className="settings-switch-knob" />
@@ -74,8 +74,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   <span className="settings-toggle-desc">Reduce spacing in UI elements</span>
                 </div>
                 <button
-                  className={`settings-switch ${false ? 'active' : ''}`}
-                  onClick={() => {/* TODO: Implement compact mode */}}
+                  className={`settings-switch ${uiPreferences.compactMode ? 'active' : ''}`}
+                  onClick={() => uiPreferences.toggleCompactMode()}
                   aria-label="Toggle compact mode"
                 >
                   <span className="settings-switch-knob" />
@@ -90,8 +90,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   <span className="settings-toggle-desc">Show notification when page auto-saves</span>
                 </div>
                 <button
-                  className={`settings-switch active`}
-                  onClick={() => {/* TODO */}}
+                  className={`settings-switch ${uiPreferences.autoSaveNotifications ? 'active' : ''}`}
+                  onClick={() => uiPreferences.toggleAutoSaveNotifications()}
                   aria-label="Toggle auto-save notifications"
                 >
                   <span className="settings-switch-knob" />
