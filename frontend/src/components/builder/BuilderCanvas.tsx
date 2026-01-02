@@ -630,9 +630,9 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect,
               flexWrap: editFlexWrap || layoutStyles.flexWrap,
               gap: containerGap,
               padding: isScrollable ? containerPadding : undefined,
-              // For scrollable containers with flex layouts, use flex: 1 to fill available space
-              // For grid layouts, don't use flex: 1 as it interferes with grid sizing
-              flex: (isScrollable && !isGridLayout) ? 1 : undefined,
+              // For data containers or scrollable containers, use flex: 1 to fill available space
+              // This ensures children-container expands when parent is resized
+              flex: (isDataContainerComponent || isScrollable) ? 1 : undefined,
               minHeight: (isScrollable && !isGridLayout) ? 0 : undefined, // Allow flex shrinking only for flex layouts
               scrollBehavior: component.props?.smoothScroll ? 'smooth' : 'auto',
             }}

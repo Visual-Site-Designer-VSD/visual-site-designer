@@ -269,15 +269,15 @@
 
 /* Data container components (Repeater, DataList) should grow to fit their children */
 .layout-placeholder.data-container {
-  height: auto; /* Override height: 100% to allow container to grow with content */
+  height: 100%; /* Fill parent height when parent is explicitly sized */
   min-height: 100px;
   display: flex;
   flex-direction: column;
 }
 
-/* Children container inside data containers should also grow with content */
+/* Children container inside data containers should fill available space */
 .layout-placeholder.data-container .children-container {
-  flex: none; /* Don't use flex: 1, let content determine height */
+  flex: 1; /* Fill available space when parent is explicitly sized */
   min-height: 60px;
 }
 
@@ -317,9 +317,16 @@
   min-width: 0; /* Allow grid items to shrink below their content width */
 }
 
-/* For grid layouts, override flex behavior and ensure proper grid sizing */
+/* For grid layouts in regular containers, override flex behavior for proper grid sizing */
+/* But NOT for data containers - they need flex: 1 to fill parent height when resized */
 .children-container.grid-layout {
-  flex: none !important; /* Override flex: 1 which interferes with grid sizing */
+  flex: none; /* Override flex: 1 which interferes with grid sizing */
+}
+
+/* Data containers with grid layout need flex: 1 to expand when parent is resized */
+.layout-placeholder.data-container > .children-container.grid-layout {
+  flex: 1 !important; /* Override the flex: none above for data containers */
+  height: auto; /* Let flex handle the height */
 }
 
 /* For grid layouts, children should fill their grid cells completely */
@@ -407,9 +414,9 @@
   overflow: visible;
 }
 
-/* Data containers (Repeater, DataList) nested as children should grow with content */
+/* Data containers (Repeater, DataList) nested as children should fill parent height */
 .child-component .layout-placeholder.data-container {
-  height: auto;
+  height: 100%;
   max-height: none;
 }
 
