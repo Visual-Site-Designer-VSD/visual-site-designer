@@ -140,7 +140,7 @@ The Thymeleaf export now detects API endpoints configured in Repeater components
 #### Fixed: Image Component Export Structure
 **Issue**: Images expanded to full page size in exported site, not matching preview.
 
-**Solution**: Rewrote `generateThymeleafImage()` to replicate the 3-level structure from `ImageRenderer.tsx`:
+**Solution**: Rewrote `generateThymeleafImage()` to replicate the 3-level structure from `HorizontalRowRenderer.tsx`:
 1. Container div (controls overall dimensions)
 2. Wrapper div (handles aspect ratio, background)
 3. Image element (with object-fit styling)
@@ -240,7 +240,7 @@ The system now uses a consistent priority order for component dimensions:
 
 This applies to:
 - `ResizableComponent.tsx` - Edit mode rendering
-- `ImageRenderer.tsx` - Preview mode rendering
+- `HorizontalRowRenderer.tsx` - Preview mode rendering
 - `thymeleafExportService.ts` - Export generation
 
 #### Flex Layout Behavior

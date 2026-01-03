@@ -13,8 +13,17 @@ const ImageRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
   const alt = (props.alt as string) || 'Image';
   const objectFit = (props.objectFit as string) || 'cover';
   const objectPosition = (props.objectPosition as string) || 'center';
-  const aspectRatio = (props.aspectRatio as string) || 'auto';
-  const borderRadius = (props.borderRadius as string) || '0px';
+  const aspectRatioRaw = (props.aspectRatio as string) || 'auto';
+  // Convert aspect ratio from "4:3" format to CSS "4 / 3" format
+  // Also handle "circle" as "1 / 1" and "auto" as-is
+  const aspectRatio = aspectRatioRaw === 'auto'
+    ? 'auto'
+    : aspectRatioRaw === 'circle'
+      ? '1 / 1'
+      : aspectRatioRaw.replace(':', ' / ');
+  // For circle aspect ratio, force border-radius to 50%
+  const isCircle = aspectRatioRaw === 'circle';
+  const borderRadius = isCircle ? '50%' : ((props.borderRadius as string) || '0px');
   const placeholderColor = (props.placeholderColor as string) || '#e0e0e0';
   const caption = (props.caption as string) || '';
   const showCaption = Boolean(props.showCaption);
@@ -41,7 +50,9 @@ const ImageRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
   const containerStyles: React.CSSProperties = {
     width: effectiveWidth,
     height: effectiveHeight,
-    maxWidth: '100%', // Prevent overflow in containers
+    // Only apply maxWidth for root-level Images to prevent page overflow
+    // Child Images should be resizable beyond parent bounds (container will expand)
+    maxWidth: hasParent ? undefined : '100%',
     position: 'relative',
     overflow: 'hidden',
     boxSizing: 'border-box',
@@ -51,12 +62,19 @@ const ImageRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
   // When height is not explicitly set (auto), use aspect ratio to determine height
   // Otherwise, fill the allocated space
   const hasExplicitHeight = (propsHeight && propsHeight !== 'auto') || (storedHeight && storedHeight !== 'auto');
-  const useAspectRatio = !hasExplicitHeight;
+
+  // Only use CSS aspect-ratio when a specific ratio is selected (not 'auto')
+  // and there's no explicit height set
+  const hasSpecificAspectRatio = aspectRatio !== 'auto';
+  const useAspectRatio = !hasExplicitHeight && hasSpecificAspectRatio;
 
   const imageWrapperStyles: React.CSSProperties = {
     width: '100%',
-    // If explicit height is set, fill it; otherwise use aspect ratio
-    height: hasExplicitHeight ? '100%' : 'auto',
+    // If explicit height is set, fill it
+    // If using aspect ratio, let aspect-ratio CSS control height (set height to undefined, not 'auto')
+    // Otherwise, let the image's natural dimensions determine height
+    height: hasExplicitHeight ? '100%' : (useAspectRatio ? undefined : 'auto'),
+    // Apply aspect-ratio only when a specific ratio is chosen
     aspectRatio: useAspectRatio ? aspectRatio : undefined,
     backgroundColor: placeholderColor,
     borderRadius: borderRadius,

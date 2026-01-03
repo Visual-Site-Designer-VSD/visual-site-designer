@@ -1,5 +1,6 @@
 import { PageDefinition, ComponentInstance, DataSourceConfig } from '../types/builder';
 import JSZip from 'jszip';
+import { ExportTemplateRegistry } from './ExportTemplateRegistry';
 
 /**
  * ThymeleafExportService - Exports site pages as Spring Boot/Thymeleaf project
@@ -93,20 +94,39 @@ function escapeHtml(text: string): string {
 }
 
 /**
+ * Convert dot notation property access to bracket notation for Map compatibility
+ * Example: "item.name" -> "item['name']"
+ * This is needed because JSON data is parsed as LinkedHashMap in Java,
+ * and Thymeleaf requires bracket notation for map access
+ */
+function convertToBracketNotation(variablePath: string): string {
+  // Split by dots and convert to bracket notation
+  // e.g., "item.name" -> "item['name']"
+  // e.g., "item.nested.value" -> "item['nested']['value']"
+  const parts = variablePath.split('.');
+  if (parts.length === 1) {
+    return variablePath; // No dots, return as-is
+  }
+  // First part stays as-is, subsequent parts use bracket notation
+  return parts[0] + parts.slice(1).map(part => `['${part}']`).join('');
+}
+
+/**
  * Convert template variables from {{variable}} to Thymeleaf ${variable} syntax
  * This is for simple replacement only - use convertToThymeleafExpression for th:text
  */
 function convertTemplateVariables(text: string): string {
   if (!text) return text;
-  // Replace {{variable.path}} with ${variable.path}
-  return text.replace(/\{\{([^}]+)\}\}/g, '${$1}');
+  // Replace {{variable.path}} with ${variable['path']} for map compatibility
+  return text.replace(/\{\{([^}]+)\}\}/g, (_, varPath) => `\${${convertToBracketNotation(varPath)}}`);
 }
 
 /**
  * Convert text with template variables to a proper Thymeleaf expression for th:text
- * Handles mixed literal text and variables: "Name: {{item.name}}" -> "'Name: ' + ${item.name}"
- * Pure variables: "{{item.name}}" -> "${item.name}"
- * Multiple variables: "{{item.name}} - {{item.price}}" -> "${item.name} + ' - ' + ${item.price}"
+ * Handles mixed literal text and variables: "Name: {{item.name}}" -> "'Name: ' + ${item['name']}"
+ * Pure variables: "{{item.name}}" -> "${item['name']}"
+ * Multiple variables: "{{item.name}} - {{item.price}}" -> "${item['name']} + ' - ' + ${item['price']}"
+ * Uses bracket notation for map compatibility with JSON data
  */
 function convertToThymeleafExpression(text: string): string {
   if (!text) return "''";
@@ -130,8 +150,8 @@ function convertToThymeleafExpression(text: string): string {
         parts.push(`'${literal.replace(/'/g, "\\'")}'`);
       }
     }
-    // Add the variable expression
-    parts.push(`\${${match[1]}}`);
+    // Add the variable expression with bracket notation for map compatibility
+    parts.push(`\${${convertToBracketNotation(match[1])}}`);
     lastIndex = match.index + match[0].length;
   }
 
@@ -155,6 +175,21 @@ function generateThymeleafComponent(component: ComponentInstance, depth: number 
   const indent = '    '.repeat(depth);
   const id = `component-${instanceId}`;
 
+  // First, check if there's a registered export template for this component
+  // This allows plugins to define their own export templates
+  if (ExportTemplateRegistry.has(componentId, component.pluginId)) {
+    const childrenHtml = (children || [])
+      .map(child => generateThymeleafComponent(child, depth + 1))
+      .join('\n');
+
+    const templateHtml = ExportTemplateRegistry.renderThymeleaf(component, childrenHtml);
+    if (templateHtml) {
+      // Wrap with indent and id
+      return `${indent}<div id="${id}" class="component ${componentId.toLowerCase()}">${templateHtml}</div>`;
+    }
+  }
+
+  // Handle different component types with built-in templates
   switch (componentId) {
     case 'Label':
       return generateThymeleafLabel(component, id, indent);
@@ -323,19 +358,32 @@ function generateThymeleafImage(component: ComponentInstance, id: string, indent
   const wrapperStyleStr = generateInlineStyle(wrapperStyles);
   const imageStyleStr = generateInlineStyle(imageStyles);
 
-  // Check if this image URL has been mapped to a local static path
+  // Check if this image URL has been mapped to a local static path (for packaged static images)
   if (imageUrlMap.has(src)) {
     src = imageUrlMap.get(src)!;
   }
 
-  // Generate the src attribute
+  // Generate the src attribute with smart URL handling
+  // For template variables, use ImageUrlResolver which handles:
+  // - External URLs (https://...) -> use directly
+  // - Relative paths (/uploads/...) -> proxy through ImageProxyController
+  // - Already resolved static paths (/images/...) -> use directly
   let srcAttr: string;
   if (src.includes('{{') || templateBindings?.src) {
+    // Template variable - use runtime URL resolution via ImageUrlResolver bean
     const srcExpr = convertTemplateVariables(templateBindings?.src || src);
-    srcAttr = `th:src="${srcExpr}"`;
+    // Extract the variable expression (remove ${ and })
+    const varExpr = srcExpr.replace(/^\$\{/, '').replace(/\}$/, '');
+    // Use th:src with the resolver - it returns the appropriate URL
+    srcAttr = `th:src="\${@imageUrlResolver.resolve(${varExpr})}"`;
   } else if (src.startsWith('/')) {
+    // Static relative path - use Thymeleaf URL expression
     srcAttr = `th:src="@{${src}}"`;
+  } else if (src.startsWith('http://') || src.startsWith('https://')) {
+    // Static external URL - use directly
+    srcAttr = `src="${src}"`;
   } else {
+    // Other static src - use as-is
     srcAttr = `src="${src}"`;
   }
 
@@ -346,7 +394,7 @@ function generateThymeleafImage(component: ComponentInstance, id: string, indent
 
   return `${indent}<div id="${id}" class="component image-container" style="${containerStyleStr}">
 ${indent}    <div class="image-wrapper" style="${wrapperStyleStr}">
-${indent}        <img ${srcAttr} ${altAttr} style="${imageStyleStr}" loading="lazy" />
+${indent}        <img ${srcAttr} ${altAttr} style="${imageStyleStr}" loading="lazy" onerror="this.onerror=null; this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22150%22><rect fill=%22%23ddd%22 width=%22200%22 height=%22150%22/><text fill=%22%23999%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22>Image not found</text></svg>';" />
 ${indent}    </div>
 ${indent}</div>`;
 }
@@ -1299,6 +1347,17 @@ spring.thymeleaf.prefix=classpath:/templates/
 spring.thymeleaf.suffix=.html
 
 # ============================================================
+# IMAGE REPOSITORY (for dynamic/template variable images)
+# ============================================================
+# Base URL for fetching images that use template variables (e.g., {{item.image}})
+# These images are NOT packaged in the exported project - they are proxied at runtime
+# Set this to your CMS/image repository URL (e.g., http://localhost:8080 for dev)
+app.image.repository.base-url=http://localhost:8080
+
+# Timeout in milliseconds for fetching images from the repository
+app.image.repository.timeout=5000
+
+# ============================================================
 # DATABASE (optional - uncomment and configure as needed)
 # ============================================================
 # For JPA (MySQL, PostgreSQL, H2, etc.)
@@ -1315,16 +1374,29 @@ logging.level.${options.groupId}=DEBUG
 }
 
 /**
- * Collect all image URLs from a component tree
- * Handles both absolute URLs (http://...) and relative paths (/uploads/...)
+ * Check if a string contains template variables (e.g., {{item.image}})
  */
-function collectImageUrls(components: ComponentInstance[]): Set<string> {
+function isTemplateVariable(value: string): boolean {
+  return value.includes('{{') && value.includes('}}');
+}
+
+/**
+ * Collect all STATIC image URLs from a component tree
+ * Only collects images with direct URLs - skips template variables like {{item.image}}
+ * Template variable images will be handled via proxy at runtime
+ */
+function collectStaticImageUrls(components: ComponentInstance[]): Set<string> {
   const urls = new Set<string>();
 
   const processComponent = (component: ComponentInstance) => {
     // Check for image src in props
     const src = component.props?.src || component.props?.url;
     if (src && typeof src === 'string' && src.trim() !== '') {
+      // Skip template variables - these are dynamic and fetched at runtime via proxy
+      if (isTemplateVariable(src)) {
+        console.log(`[Image Export] Skipping template variable image: ${src}`);
+        return;
+      }
       // Include both absolute URLs and relative paths (like /uploads/...)
       if (src.startsWith('http') || src.startsWith('/')) {
         urls.add(src);
@@ -1334,9 +1406,19 @@ function collectImageUrls(components: ComponentInstance[]): Set<string> {
     // Also check for background images in styles
     const bgImage = component.styles?.backgroundImage;
     if (bgImage && typeof bgImage === 'string') {
+      // Skip template variables in background images
+      if (isTemplateVariable(bgImage)) {
+        console.log(`[Image Export] Skipping template variable background: ${bgImage}`);
+        return;
+      }
       const urlMatch = bgImage.match(/url\(['"]?([^'")\s]+)['"]?\)/);
       if (urlMatch && urlMatch[1]) {
         const bgUrl = urlMatch[1];
+        // Skip template variables
+        if (isTemplateVariable(bgUrl)) {
+          console.log(`[Image Export] Skipping template variable background URL: ${bgUrl}`);
+          return;
+        }
         if (bgUrl.startsWith('http') || bgUrl.startsWith('/')) {
           urls.add(bgUrl);
         }
@@ -1419,7 +1501,8 @@ async function fetchImageAsBlob(url: string): Promise<Blob | null> {
 }
 
 /**
- * Collect images from all pages and add them to the ZIP
+ * Collect STATIC images from all pages and add them to the ZIP
+ * Only packages images with direct URLs - template variable images are proxied at runtime
  * Returns a map of original URL to new static path
  */
 async function collectAndAddImages(
@@ -1429,9 +1512,9 @@ async function collectAndAddImages(
   const urlMap = new Map<string, string>();
   const allUrls = new Set<string>();
 
-  // Collect all image URLs from all pages
+  // Collect all STATIC image URLs from all pages (excludes template variables)
   for (const page of pages) {
-    const pageUrls = collectImageUrls(page.definition.components);
+    const pageUrls = collectStaticImageUrls(page.definition.components);
     pageUrls.forEach(url => allUrls.add(url));
   }
 
@@ -1628,7 +1711,8 @@ src/
 │   │   └── ${options.groupId.replace(/\./g, '/')}/${options.artifactId}/
 │   │       ├── Application.java
 │   │       └── controller/
-│   │           └── PageController.java
+│   │           ├── PageController.java
+│   │           └── ImageProxyController.java  # Proxies dynamic images
 │   └── resources/
 │       ├── application.properties
 │       ├── pages/                    # Page data definitions
@@ -1636,8 +1720,32 @@ src/
 │       └── static/
 │           ├── css/
 │           ├── js/
-│           └── images/               # Exported images
+│           └── images/               # Exported static images
 \`\`\`
+
+## Image Handling
+
+This project uses a **hybrid image approach**:
+
+### Static Images (Packaged)
+Images with direct URLs set in the visual builder are downloaded and packaged in
+\`src/main/resources/static/images/\`. These are served directly by Spring Boot.
+
+### Dynamic Images (Proxied)
+Images using template variables (e.g., \`{{item.image}}\`) are **not** packaged.
+Instead, they are proxied at runtime from your image repository via \`ImageProxyController\`.
+
+**Configuration** (in \`application.properties\`):
+\`\`\`properties
+# Base URL of your image repository (CMS/content server)
+app.image.repository.base-url=http://localhost:8080
+
+# Request timeout in milliseconds
+app.image.repository.timeout=5000
+\`\`\`
+
+For production, update \`app.image.repository.base-url\` to point to your actual
+image repository/CMS server.
 
 ## Generated
 - Date: ${new Date().toISOString()}
@@ -2060,6 +2168,30 @@ src/
 │           └── images/               # Exported images
 \`\`\`
 
+## Image Handling
+
+This project uses a **hybrid image approach**:
+
+### Static Images (Packaged)
+Images with direct URLs set in the visual builder are downloaded and packaged in
+\`src/main/resources/static/images/\`. These are served directly by Spring Boot.
+
+### Dynamic Images (Proxied)
+Images using template variables (e.g., \`{{item.image}}\`) are **not** packaged.
+Instead, they are proxied at runtime from your image repository via \`ImageProxyController\`.
+
+**Configuration** (in \`application.properties\`):
+\`\`\`properties
+# Base URL of your image repository (CMS/content server)
+app.image.repository.base-url=http://localhost:8080
+
+# Request timeout in milliseconds
+app.image.repository.timeout=5000
+\`\`\`
+
+For production, update \`app.image.repository.base-url\` to point to your actual
+image repository/CMS server.
+
 ## Customizing API Endpoints
 
 The \`ApiDataController\` provides sample data out of the box. To connect to real data:
@@ -2078,6 +2210,250 @@ The \`ApiDataController\` provides sample data out of the box. To connect to rea
 ## Generated
 - Date: ${new Date().toISOString()}
 - Tool: Visual Site Builder
+`;
+}
+
+/**
+ * Generate ImageUrlResolver component for resolving image URLs at runtime in Thymeleaf templates
+ * This component determines the best way to load an image based on its URL type
+ */
+function generateImageUrlResolver(options: ThymeleafExportOptions): string {
+  const javaPackage = getJavaPackage(options);
+
+  return `package ${javaPackage}.service;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+/**
+ * ImageUrlResolver - Resolves image URLs at runtime for Thymeleaf templates.
+ *
+ * This component is used in Thymeleaf templates via SpEL: @{__\${@imageUrlResolver.resolve(imageUrl)}__}
+ *
+ * It handles different types of image URLs:
+ * - External URLs (http://, https://) -> returned as-is (browser loads directly)
+ * - Relative paths (/uploads/...) -> returned as-is (ImageProxyController will handle)
+ * - Null/empty -> returns placeholder
+ *
+ * Generated by Visual Site Builder
+ */
+@Component("imageUrlResolver")
+public class ImageUrlResolver {
+
+    @Value("\${app.image.placeholder:/images/placeholder.svg}")
+    private String placeholderImage;
+
+    /**
+     * Resolve an image URL to the appropriate path for loading
+     *
+     * @param imageUrl The image URL from the data source
+     * @return The resolved URL path
+     */
+    public String resolve(String imageUrl) {
+        // Handle null or empty URLs
+        if (imageUrl == null || imageUrl.trim().isEmpty()) {
+            return placeholderImage;
+        }
+
+        String url = imageUrl.trim();
+
+        // External URLs (http:// or https://) - return as-is
+        // The browser will load these directly
+        if (url.startsWith("http://") || url.startsWith("https://")) {
+            return url;
+        }
+
+        // Data URLs (base64 encoded) - return as-is
+        if (url.startsWith("data:")) {
+            return url;
+        }
+
+        // Relative paths - return as-is
+        // ImageProxyController will intercept /uploads/** and proxy to repository
+        // Static images in /images/** are served directly
+        if (url.startsWith("/")) {
+            return url;
+        }
+
+        // URLs without protocol but with domain (e.g., "example.com/image.jpg")
+        // Assume https
+        if (url.contains(".") && !url.contains("/")) {
+            return "https://" + url;
+        }
+
+        // Relative path without leading slash - add it
+        return "/" + url;
+    }
+
+    /**
+     * Resolve with fallback - returns fallback URL if primary is empty
+     */
+    public String resolveWithFallback(String imageUrl, String fallbackUrl) {
+        if (imageUrl == null || imageUrl.trim().isEmpty()) {
+            return resolve(fallbackUrl);
+        }
+        return resolve(imageUrl);
+    }
+}
+`;
+}
+
+/**
+ * Generate ImageProxyController for proxying dynamic images from the image repository
+ * This controller handles requests for images that use template variables
+ */
+function generateImageProxyController(options: ThymeleafExportOptions): string {
+  const javaPackage = getJavaPackage(options);
+
+  return `package ${javaPackage}.controller;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
+
+import jakarta.servlet.http.HttpServletRequest;
+import java.time.Duration;
+
+/**
+ * ImageProxyController - Proxies image requests to the image repository.
+ *
+ * This controller handles dynamic images that were configured with template variables
+ * (e.g., {{item.image}}) in the visual builder. Instead of packaging these images,
+ * they are fetched from the configured image repository at runtime.
+ *
+ * Handles multiple path patterns:
+ * - /uploads/** -> proxied to image repository
+ * - /api/uploads/** -> proxied to image repository (strips /api prefix if needed)
+ * - /proxy-image?url=... -> proxies any URL (for external images in data)
+ *
+ * Configuration (application.properties):
+ * - app.image.repository.base-url: Base URL of the image repository
+ * - app.image.repository.timeout: Request timeout in milliseconds
+ *
+ * Generated by Visual Site Builder
+ */
+@Controller
+@Slf4j
+public class ImageProxyController {
+
+    @Value("\${app.image.repository.base-url:http://localhost:8080}")
+    private String imageRepositoryBaseUrl;
+
+    @Value("\${app.image.repository.timeout:5000}")
+    private int timeout;
+
+    private final RestTemplate restTemplate;
+
+    public ImageProxyController() {
+        this.restTemplate = new RestTemplate();
+    }
+
+    /**
+     * Proxy image requests from /uploads/** to the image repository
+     * Handles: /uploads/** -> {imageRepositoryBaseUrl}/uploads/**
+     */
+    @GetMapping("/uploads/**")
+    public ResponseEntity<byte[]> proxyUploadsImage(HttpServletRequest request) {
+        String requestPath = request.getRequestURI();
+        return proxyImageFromRepository(requestPath);
+    }
+
+    /**
+     * Proxy image requests from /api/uploads/** to the image repository
+     * Some systems serve uploads via an API prefix
+     * Handles: /api/uploads/** -> {imageRepositoryBaseUrl}/api/uploads/**
+     */
+    @GetMapping("/api/uploads/**")
+    public ResponseEntity<byte[]> proxyApiUploadsImage(HttpServletRequest request) {
+        String requestPath = request.getRequestURI();
+        return proxyImageFromRepository(requestPath);
+    }
+
+    /**
+     * Generic image proxy endpoint for any external URL
+     * Usage: /proxy-image?url=https://example.com/image.jpg
+     * This is useful when image URLs in data come from external sources
+     */
+    @GetMapping("/proxy-image")
+    public ResponseEntity<byte[]> proxyExternalImage(@RequestParam String url) {
+        log.debug("Proxying external image: {}", url);
+
+        // If URL is relative (starts with /), prepend the repository base URL
+        String targetUrl = url.startsWith("http") ? url : imageRepositoryBaseUrl + url;
+
+        return fetchAndReturnImage(targetUrl);
+    }
+
+    /**
+     * Proxy an image from the repository using the request path
+     */
+    private ResponseEntity<byte[]> proxyImageFromRepository(String requestPath) {
+        String targetUrl = imageRepositoryBaseUrl + requestPath;
+        log.debug("Proxying image request: {} -> {}", requestPath, targetUrl);
+        return fetchAndReturnImage(targetUrl);
+    }
+
+    /**
+     * Fetch an image from a URL and return it as a response
+     */
+    private ResponseEntity<byte[]> fetchAndReturnImage(String targetUrl) {
+        try {
+            // Fetch the image from the repository
+            ResponseEntity<byte[]> response = restTemplate.exchange(
+                targetUrl,
+                HttpMethod.GET,
+                null,
+                byte[].class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                // Determine content type from response or infer from path
+                MediaType contentType = response.getHeaders().getContentType();
+                if (contentType == null) {
+                    contentType = inferContentType(targetUrl);
+                }
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(contentType);
+                headers.setCacheControl(CacheControl.maxAge(Duration.ofDays(7)).cachePublic());
+                headers.setContentLength(response.getBody().length);
+
+                return new ResponseEntity<>(response.getBody(), headers, HttpStatus.OK);
+            }
+
+            log.warn("Image not found or empty response: {}", targetUrl);
+            return ResponseEntity.notFound().build();
+
+        } catch (Exception e) {
+            log.error("Failed to proxy image: {} - {}", targetUrl, e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(("Failed to fetch image: " + e.getMessage()).getBytes());
+        }
+    }
+
+    /**
+     * Infer content type from file extension
+     */
+    private MediaType inferContentType(String path) {
+        String lowerPath = path.toLowerCase();
+        if (lowerPath.endsWith(".png")) {
+            return MediaType.IMAGE_PNG;
+        } else if (lowerPath.endsWith(".gif")) {
+            return MediaType.IMAGE_GIF;
+        } else if (lowerPath.endsWith(".webp")) {
+            return MediaType.parseMediaType("image/webp");
+        } else if (lowerPath.endsWith(".svg")) {
+            return MediaType.parseMediaType("image/svg+xml");
+        } else if (lowerPath.endsWith(".ico")) {
+            return MediaType.parseMediaType("image/x-icon");
+        }
+        // Default to JPEG for jpg, jpeg, and unknown
+        return MediaType.IMAGE_JPEG;
+    }
+}
 `;
 }
 
@@ -2111,8 +2487,8 @@ export async function exportAsThymeleafProject(
   const apiEndpoints = collectApiEndpoints(pages);
   console.log(`[Thymeleaf Export] Found ${apiEndpoints.length} API endpoints`);
 
-  // Generate pom.xml (with Lombok dependency for API controllers)
-  zip.file('pom.xml', generatePomXmlWithLombok(mergedOptions, apiEndpoints.length > 0));
+  // Generate pom.xml (always with Lombok since ImageProxyController uses @Slf4j)
+  zip.file('pom.xml', generatePomXmlWithLombok(mergedOptions, true));
 
   // Generate Application.java
   // Use sanitized package name for directory path (hyphens are invalid in Java packages)
@@ -2125,6 +2501,22 @@ export async function exportAsThymeleafProject(
 
   // Generate PageDataService.java
   zip.file(`${javaBasePath}/service/PageDataService.java`, generatePageDataService(mergedOptions));
+
+  // Always generate ImageUrlResolver for runtime URL resolution in Thymeleaf templates
+  // This component determines how to load images based on URL type (external, relative, etc.)
+  console.log('[Thymeleaf Export] Generating ImageUrlResolver for dynamic URL resolution...');
+  zip.file(
+    `${javaBasePath}/service/ImageUrlResolver.java`,
+    generateImageUrlResolver(mergedOptions)
+  );
+
+  // Always generate ImageProxyController for proxying dynamic images (template variables)
+  // This controller proxies /uploads/** requests to the configured image repository
+  console.log('[Thymeleaf Export] Generating ImageProxyController for dynamic images...');
+  zip.file(
+    `${javaBasePath}/controller/ImageProxyController.java`,
+    generateImageProxyController(mergedOptions)
+  );
 
   // Generate API controllers if API endpoints are detected
   if (apiEndpoints.length > 0) {
@@ -2175,6 +2567,16 @@ export async function exportAsThymeleafProject(
   // Generate static assets
   zip.file('src/main/resources/static/css/styles.css', generateBaseCSS());
   zip.file('src/main/resources/static/js/main.js', generateBaseJS());
+
+  // Generate placeholder image (SVG) for missing images
+  const placeholderSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
+  <rect fill="#f0f0f0" width="400" height="300"/>
+  <rect fill="#e0e0e0" x="50" y="50" width="300" height="200" rx="8"/>
+  <path fill="#ccc" d="M175 120 L225 120 L200 95 Z M150 180 L180 150 L210 175 L250 135 L280 180 Z"/>
+  <circle fill="#ccc" cx="260" cy="110" r="20"/>
+  <text fill="#999" font-family="Arial, sans-serif" font-size="16" x="200" y="230" text-anchor="middle">Image not available</text>
+</svg>`;
+  zip.file('src/main/resources/static/images/placeholder.svg', placeholderSvg);
 
   // Generate README (with API documentation if endpoints exist)
   if (apiEndpoints.length > 0) {

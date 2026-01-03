@@ -171,8 +171,9 @@
   border: 1px solid var(--border-color, #dee2e6);
   border-radius: 8px;
   padding: 16px;
-  /* Use hidden overflow to prevent children from extending outside container bounds */
-  overflow: hidden;
+  /* Use visible overflow to allow container to grow with children */
+  /* Previously used overflow: hidden which was clipping children content */
+  overflow: visible;
   box-shadow: var(--shadow-sm, 0 2px 4px rgba(0, 0, 0, 0.05));
   display: flex;
   flex-direction: column;
@@ -235,7 +236,9 @@
   border: 2px solid #28a745;
   background: linear-gradient(135deg, #ffffff 0%, #f8fff9 100%);
   min-height: 100px; /* Ensure minimum visibility */
-  height: 100%;
+  /* Use auto height to allow container to grow with children content */
+  /* height: 100% was causing children to overflow instead of container expanding */
+  height: auto;
   overflow: visible; /* Allow resize handles to show outside bounds */
   /* For flex-row layouts, ensure layout placeholders don't collapse */
   min-width: 150px;
@@ -303,12 +306,14 @@
   border-radius: 6px;
   min-height: 40px;
   /* Layout styles (display, flex-direction, grid-template-columns) are applied inline based on layoutType prop */
-  flex: 1;
+  /* Use flex: 0 1 auto to allow container to shrink and grow with content, not expand to fill parent */
+  /* Previously flex: 1 was causing children-container to expand beyond its content */
+  flex: 0 1 auto;
   position: relative;
   /* Allow resize handles to show - they have negative offsets */
   overflow: visible;
-  /* NOTE: align-items and justify-content are set via inline styles from component.props */
-  /* Do NOT set them here as it would override user-configured values */
+  /* NOTE: align-items is set via inline styles from getLayoutStyles() */
+  /* Do NOT set align-items here - it would be overridden by inline styles anyway */
   width: 100%;
   box-sizing: border-box;
 }
@@ -425,8 +430,9 @@
 .child-component .children-container {
   width: 100%;
   max-width: 100%;
-  /* Use calc to account for parent padding and ensure it fits */
-  max-height: calc(100% - 40px); /* Account for header */
+  /* Remove max-height constraint to allow flex-column containers to grow with content */
+  /* The previous calc(100% - 40px) was preventing containers from expanding */
+  max-height: none;
   /* Allow resize handles of child components to be visible */
   /* Each child's .resizable-content handles its own content clipping */
   overflow: visible;
@@ -477,9 +483,8 @@
 
 /* Fix for scrollable containers with grid layout - ensure grid items don't collapse */
 .scrollable-children.grid-layout {
-  /* Override flex: 1 behavior for grid layouts in scrollable containers */
   /* Grid needs explicit or auto sizing, not flex sizing */
-  flex: none !important; /* Override flex: 1 from .children-container */
+  flex: none !important;
   align-content: start; /* Align grid rows to start, preventing vertical collapse */
 }
 

@@ -17,7 +17,9 @@ const ContainerRenderer: React.FC<RendererProps> = ({ component, isEditMode }) =
     padding = '20px',
     maxWidth = '1200px',
     centerContent = true,
-    allowOverflow = false,
+    // Default to true to allow children to grow naturally in flex-column layouts
+    // This prevents children from being clipped when they overflow
+    allowOverflow = true,
   } = component.props;
 
   // Use layoutMode if set, otherwise fall back to layoutType, then default

@@ -97,4 +97,34 @@ public class ComponentManifest {
      * Allowed child component types (empty means all)
      */
     private List<String> allowedChildTypes;
+
+    // ===== Export Template Fields =====
+
+    /**
+     * HTML template for static export.
+     * Uses mustache-style placeholders: {{propName}}, {{styles.cssProperty}}
+     * Special placeholders: {{children}} for nested content, {{styleString}} for inline styles
+     * Example: "<hr style=\"{{styleString}}\" />"
+     */
+    private String staticExportTemplate;
+
+    /**
+     * Thymeleaf template for server-side export.
+     * Uses Thymeleaf syntax: th:text, th:style, th:each, etc.
+     * Example: "<hr th:style=\"${styleString}\" />"
+     */
+    private String thymeleafExportTemplate;
+
+    /**
+     * Whether this component has custom export handling.
+     * If true, the export services will use the provided templates.
+     * If false, falls back to generic export logic.
+     */
+    private boolean hasCustomExport;
+
+    /**
+     * Export template metadata containing additional export configuration.
+     * Can include: wrapperTag, cssClasses, dataAttributes, etc.
+     */
+    private Map<String, Object> exportMetadata;
 }

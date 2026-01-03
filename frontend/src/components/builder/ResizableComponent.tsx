@@ -344,6 +344,12 @@ export const ResizableComponent: React.FC<ResizableComponentProps> = ({
         childHeight = shouldChildAutoHeight ? 'auto' : component.size.height;
       }
 
+      // Determine if we should prevent flex stretch
+      // This applies when:
+      // 1. Explicit width set via Properties panel (propsWidth)
+      // 2. Width has been resized to a pixel value (not '100%' or 'auto')
+      const hasExplicitWidth = propsWidth || (childWidth && childWidth !== '100%' && childWidth !== 'auto');
+
       return {
         position: 'relative',
         width: childWidth,
@@ -352,9 +358,9 @@ export const ResizableComponent: React.FC<ResizableComponentProps> = ({
         height: childHeight,
         minHeight: (isDataContainerComponent || isLayoutComponent) ? '100px' : undefined,
         boxSizing: 'border-box',
-        // CRITICAL: When explicit width is set, prevent flex stretch from parent
+        // CRITICAL: When explicit width is set (from props or resize), prevent flex stretch from parent
         // Without this, flex-column parents stretch children to full width
-        alignSelf: propsWidth ? 'flex-start' : undefined,
+        alignSelf: hasExplicitWidth ? 'flex-start' : undefined,
       };
     }
 

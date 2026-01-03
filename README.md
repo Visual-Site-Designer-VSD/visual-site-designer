@@ -954,6 +954,91 @@ Exported templates use Thymeleaf syntax for dynamic content:
 </div>
 ```
 
+### Image Handling in Exported Sites
+
+The export system handles images dynamically to support various image source types seamlessly.
+
+#### Image Source Types
+
+| Source Type | Example | Handling |
+|-------------|---------|----------|
+| Static URLs | `https://example.com/image.jpg` | Packaged in ZIP during export |
+| Relative paths | `/uploads/photo.jpg` | Proxied through ImageProxyController |
+| Template variables | `{{item.imageUrl}}` | Resolved at runtime via ImageUrlResolver |
+| Data URLs | `data:image/png;base64,...` | Returned as-is |
+
+#### Generated Components
+
+When exporting with dynamic images (template variables), the export generates:
+
+**1. ImageUrlResolver** - Spring component that resolves image URLs at runtime:
+
+```java
+@Component("imageUrlResolver")
+public class ImageUrlResolver {
+    public String resolve(String imageUrl) {
+        if (imageUrl == null || imageUrl.isEmpty()) {
+            return "/placeholder.svg";
+        }
+        // External URLs (http/https) - return as-is
+        if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+            return imageUrl;
+        }
+        // Data URLs - return as-is
+        if (imageUrl.startsWith("data:")) {
+            return imageUrl;
+        }
+        // Relative paths - proxy through controller
+        return "/proxy-image?url=" + URLEncoder.encode(baseUrl + imageUrl);
+    }
+}
+```
+
+**2. ImageProxyController** - Proxies image requests to the CMS:
+
+```java
+@Controller
+public class ImageProxyController {
+    @GetMapping("/uploads/**")
+    public ResponseEntity<byte[]> proxyUploadsImage(HttpServletRequest request) { ... }
+
+    @GetMapping("/api/uploads/**")
+    public ResponseEntity<byte[]> proxyApiUploadsImage(HttpServletRequest request) { ... }
+
+    @GetMapping("/proxy-image")
+    public ResponseEntity<byte[]> proxyExternalImage(@RequestParam String url) { ... }
+}
+```
+
+#### Configuration
+
+Configure the image proxy in `application.properties`:
+
+```properties
+# Base URL of the CMS server (where images are stored)
+app.image.repository.base-url=http://localhost:8080
+
+# Request timeout in milliseconds
+app.image.repository.timeout=5000
+```
+
+**Important:** The `app.image.repository.base-url` must point to the CMS server, NOT the exported application's own URL. If both are the same, it will cause an infinite loop.
+
+#### Using Images with Template Variables
+
+In Repeater components or data-bound contexts, use template variable syntax:
+
+```
+{{item.imageUrl}}      - Image URL from data item
+{{product.thumbnail}}  - Product thumbnail
+{{user.avatar}}        - User avatar URL
+```
+
+The ImageUrlResolver automatically handles:
+- External URLs (https://...) - displayed directly
+- Relative paths (/uploads/...) - proxied through CMS
+- Missing/null values - shows placeholder
+
 ---
 
 ## Chapter 3.6: Data Binding and Dynamic Components
@@ -1274,8 +1359,15 @@ flowchart LR
 #### 1. Create Plugin Structure
 
 ```bash
+# Backend directories
 mkdir -p plugins/my-component-plugin/src/main/java/com/example/plugins
 mkdir -p plugins/my-component-plugin/src/main/resources/components
+mkdir -p plugins/my-component-plugin/src/main/resources/frontend
+
+# Frontend directories
+mkdir -p plugins/my-component-plugin/frontend/src/renderers
+mkdir -p plugins/my-component-plugin/frontend/src/styles
+
 cd plugins/my-component-plugin
 ```
 
@@ -2324,6 +2416,251 @@ Check out these example plugins in the repository (see [Chapter 7: Shipped Plugi
    - Multiple typography variants (h1-h6, p, span, caption)
    - Text truncation with ellipsis
    - Configurable alignment and styling
+
+---
+
+### Simplified Plugin Development with AbstractUIComponentPlugin
+
+For most UI components, you can use the simplified `AbstractUIComponentPlugin` base class instead of implementing `UIComponentPlugin` directly. This approach significantly reduces boilerplate code.
+
+#### Complete Example: HorizontalRow Plugin
+
+The following is a complete walkthrough of creating a plugin using the simplified approach, using the `horizontal-row-plugin` as a reference.
+
+##### 1. Directory Structure
+
+```
+horizontal-row-plugin/
+├── pom.xml
+├── frontend/
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── src/
+│       ├── index.ts                    # Plugin bundle entry
+│       ├── types.ts                    # TypeScript types
+│       └── renderers/
+│           └── HorizontalRowRenderer.tsx   # React component
+└── src/main/
+    ├── java/dev/mainul35/plugins/ui/
+    │   └── HorizontalRowComponentPlugin.java   # Plugin class
+    └── resources/
+        └── plugin.yml                  # Plugin metadata
+```
+
+##### 2. Plugin Metadata (plugin.yml)
+
+The `plugin.yml` file defines plugin metadata and is read by the PluginManager during startup:
+
+```yaml
+plugin-id: horizontal-row-plugin
+plugin-name: Horizontal Row
+version: 1.0.0
+author: mainul35
+main-class: dev.mainul35.plugins.ui.HorizontalRowComponentPlugin
+plugin-type: ui-component
+ui-component:
+  component-id: HorizontalRow
+  display-name: Horizontal Row
+  category: layout
+  icon: ➖
+  description: A horizontal divider / separator line
+  default-width: 400
+  default-height: 20
+  resizable: true
+```
+
+**Important fields:**
+- `plugin-id`: Unique identifier used for loading frontend bundles
+- `main-class`: Fully qualified class name of the plugin entry point
+- `plugin-type`: Must be `ui-component` for visual components
+- `ui-component.component-id`: Must match the `@UIComponent` annotation and frontend renderer key
+
+##### 3. Java Plugin Class
+
+Using `AbstractUIComponentPlugin`, you only need to define props and styles:
+
+```java
+package dev.mainul35.plugins.ui;
+
+import dev.mainul35.cms.sdk.AbstractUIComponentPlugin;
+import dev.mainul35.cms.sdk.annotation.UIComponent;
+import dev.mainul35.cms.sdk.component.PropDefinition;
+import dev.mainul35.cms.sdk.component.StyleDefinition;
+
+import java.util.List;
+
+@UIComponent(
+    componentId = "HorizontalRow",
+    displayName = "Horizontal Row",
+    category = "ui",
+    icon = "━",
+    description = "A horizontal divider/separator line",
+    defaultWidth = "100%",
+    defaultHeight = "20px",
+    minHeight = "1px",
+    maxHeight = "50px",
+    resizable = true
+)
+public class HorizontalRowComponentPlugin extends AbstractUIComponentPlugin {
+
+    @Override
+    protected List<PropDefinition> defineProps() {
+        return List.of(
+            selectProp("thickness", "2px", List.of("1px", "2px", "3px", "4px", "5px")),
+            selectProp("lineStyle", "solid", List.of("solid", "dashed", "dotted", "double")),
+            selectProp("width", "100%", List.of("25%", "50%", "75%", "100%")),
+            selectProp("alignment", "center", List.of("left", "center", "right"))
+        );
+    }
+
+    @Override
+    protected List<StyleDefinition> defineStyles() {
+        return List.of(
+            colorStyle("color", "#e0e0e0"),
+            sizeStyle("marginTop", "16px"),
+            sizeStyle("marginBottom", "16px")
+        );
+    }
+}
+```
+
+**Understanding the `@UIComponent` annotation:**
+
+The `@UIComponent` annotation provides component metadata that:
+- Gets merged with `plugin.yml` data to create the component manifest
+- Appears in the Component Palette (displayName, icon, description)
+- Defines size constraints for the canvas (defaultWidth, defaultHeight, min/max values)
+- Determines the category for organization in the palette
+
+**Important:** The `componentId` in `@UIComponent` must match:
+1. The `ui-component.component-id` in `plugin.yml`
+2. The key used in the frontend renderer registration
+
+**Helper methods in AbstractUIComponentPlugin:**
+
+| Method | Description | Example |
+|--------|-------------|---------|
+| `stringProp(name, defaultValue)` | Text input property | `stringProp("text", "Hello")` |
+| `numberProp(name, defaultValue)` | Numeric property | `numberProp("count", 5)` |
+| `booleanProp(name, defaultValue)` | Checkbox property | `booleanProp("enabled", true)` |
+| `selectProp(name, defaultValue, options)` | Dropdown select | `selectProp("size", "md", List.of("sm", "md", "lg"))` |
+| `colorProp(name, defaultValue)` | Color picker | `colorProp("textColor", "#333")` |
+| `colorStyle(name, defaultValue)` | Color style | `colorStyle("backgroundColor", "#fff")` |
+| `sizeStyle(name, defaultValue)` | Size with units | `sizeStyle("padding", "10px")` |
+
+##### 4. Frontend Renderer (React Component)
+
+```tsx
+import React from 'react';
+import type { RendererProps } from '../types';
+
+const HorizontalRowRenderer: React.FC<RendererProps> = ({ component }) => {
+  const props = component.props || {};
+  const styles = component.styles || {};
+
+  // Extract props with defaults (must match defineProps())
+  const thickness = (props.thickness as string) || '2px';
+  const lineStyle = (props.lineStyle as string) || 'solid';
+  const width = (props.width as string) || '100%';
+  const alignment = (props.alignment as string) || 'center';
+
+  // Extract styles with defaults (must match defineStyles())
+  const color = (styles.color as string) || '#e0e0e0';
+  const marginTop = (styles.marginTop as string) || '16px';
+  const marginBottom = (styles.marginBottom as string) || '16px';
+
+  const getJustifyContent = (): string => {
+    switch (alignment) {
+      case 'left': return 'flex-start';
+      case 'right': return 'flex-end';
+      default: return 'center';
+    }
+  };
+
+  return (
+    <div style={{
+      width: '100%',
+      display: 'flex',
+      justifyContent: getJustifyContent(),
+      alignItems: 'center',
+      marginTop,
+      marginBottom,
+    }}>
+      <hr style={{
+        width,
+        height: 0,
+        border: 'none',
+        borderTop: `${thickness} ${lineStyle} ${color}`,
+        margin: 0,
+      }} />
+    </div>
+  );
+};
+
+export default HorizontalRowRenderer;
+export { HorizontalRowRenderer };
+```
+
+##### 5. Frontend Bundle Registration (index.ts)
+
+```typescript
+import type { PluginBundle, RendererComponent } from './types';
+import HorizontalRowRenderer from './renderers/HorizontalRowRenderer';
+
+export const PLUGIN_ID = 'horizontal-row-plugin';
+
+export const renderers: Record<string, RendererComponent> = {
+  HorizontalRow: HorizontalRowRenderer,  // Key MUST match componentId
+};
+
+export const pluginBundle: PluginBundle = {
+  pluginId: PLUGIN_ID,
+  renderers,
+  version: '1.0.0',
+};
+
+export default pluginBundle;
+
+export function registerRenderers(registry: {
+  register: (componentId: string, renderer: RendererComponent, pluginId?: string) => void;
+}): void {
+  Object.entries(renderers).forEach(([componentId, renderer]) => {
+    registry.register(componentId, renderer, PLUGIN_ID);
+  });
+}
+```
+
+##### 6. Build and Deploy
+
+```bash
+# Build backend JAR
+cd plugins/horizontal-row-plugin
+mvn clean package
+
+# Build frontend bundle
+cd frontend
+npm install
+npm run build
+
+# Deploy to plugins directory
+cp target/horizontal-row-plugin-1.0.0.jar ../../plugins/
+# Frontend bundle is automatically served from resources/frontend/
+```
+
+#### Common Pitfalls and Important Notes
+
+1. **componentId Mismatch**: The `componentId` must be identical in:
+   - `@UIComponent(componentId = "...")`
+   - `plugin.yml` → `ui-component.component-id`
+   - Frontend `renderers` object key
+
+2. **Plugin ID in Frontend**: The `PLUGIN_ID` in `index.ts` must match `plugin-id` in `plugin.yml` for the plugin loader to find the bundle.
+
+3. **Props/Styles Defaults**: Default values in `defineProps()` and `defineStyles()` should match the defaults in the React renderer for consistency.
+
+4. **Frontend Bundle Location**: The built frontend bundle (`bundle.js`) must be placed in `src/main/resources/frontend/` to be served by the backend.
+
+5. **Hot Reload**: During development with `app.plugin.hot-reload.enabled=true`, changes to the JAR trigger automatic reloading, but frontend changes require rebuilding the bundle.
 
 ---
 
@@ -3918,18 +4255,392 @@ plugins/my-component-plugin/
 ├── frontend/                          # Plugin frontend source
 │   ├── package.json
 │   ├── vite.config.ts
-│   ├── src/
-│   │   ├── components/
-│   │   │   └── MyComponent.tsx
-│   │   └── index.ts                   # Entry point
-│   └── dist/                          # Built bundle (generated)
+│   ├── tsconfig.json
+│   └── src/
+│       ├── index.ts                   # Entry point with registration
+│       ├── types.ts                   # TypeScript definitions
+│       ├── styles/                    # Optional CSS files
+│       │   └── MyComponent.css
+│       └── renderers/
+│           └── MyComponentRenderer.tsx
 ├── src/main/
 │   ├── java/.../MyComponentPlugin.java
 │   └── resources/
 │       ├── plugin.yml
-│       └── frontend/                  # Bundled frontend (from dist/)
-│           └── my-component.iife.js
+│       └── frontend/                  # Build output directory
+│           ├── bundle.js              # Generated IIFE bundle
+│           └── bundle.css             # Generated CSS (optional)
 ```
+
+### Plugin Frontend Loading Architecture
+
+```
+Plugin Frontend Loading Flow:
+
+┌─────────────────┐    ┌──────────────────┐    ┌────────────────────┐
+│ BuilderCanvas   │───>│ PluginLoaderSvc  │───>│ /api/plugins/{id}/ │
+│ needs renderer  │    │ loadPlugin()     │    │ bundle.js          │
+└─────────────────┘    └──────────────────┘    └────────────────────┘
+                                │
+                                ▼
+                       ┌──────────────────┐
+                       │ RendererRegistry │
+                       │ register()       │
+                       └──────────────────┘
+```
+
+Plugins are built as IIFE (Immediately Invoked Function Expression) bundles that:
+1. Are served from the backend via `/api/plugins/{pluginId}/bundle.js`
+2. Expose a global variable (e.g., `window.MyComponentPlugin`)
+3. Register their renderers with the core RendererRegistry
+
+### Step 1: Create package.json
+
+```json
+{
+  "name": "@dynamic-site-builder/my-component-plugin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Frontend bundle for my-component-plugin",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "build:watch": "vite build --watch"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "typescript": "^5.3.0",
+    "vite": "^5.1.0"
+  }
+}
+```
+
+**Key points:**
+- React is a `peerDependency` (provided by host application)
+- No runtime dependencies in the bundle
+- Build outputs to `../src/main/resources/frontend/`
+
+### Step 2: Create vite.config.ts
+
+```typescript
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { resolve } from 'path';
+
+export default defineConfig({
+  plugins: [react()],
+  build: {
+    outDir: resolve(__dirname, '../src/main/resources/frontend'),
+    emptyOutDir: true,
+    lib: {
+      entry: resolve(__dirname, 'src/index.ts'),
+      name: 'MyComponentPlugin',  // Global variable name (PascalCase)
+      formats: ['iife'],
+      fileName: () => 'bundle.js',
+    },
+    rollupOptions: {
+      external: ['react', 'react-dom', 'react/jsx-runtime'],
+      output: {
+        globals: {
+          react: 'React',
+          'react-dom': 'ReactDOM',
+          'react/jsx-runtime': 'jsxRuntime',
+        },
+        extend: true,
+        exports: 'named',
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name === 'style.css') return 'bundle.css';
+          return assetInfo.name || 'asset';
+        },
+      },
+    },
+    sourcemap: true,
+    minify: 'esbuild',
+  },
+});
+```
+
+**Important:** The `name` field must match the entry in `PLUGIN_GLOBAL_NAMES` in `pluginLoaderService.ts`.
+
+### Step 3: Create types.ts
+
+```typescript
+export interface ComponentPosition {
+  x: number;
+  y: number;
+}
+
+export interface ComponentSize {
+  width: number;
+  height: number;
+}
+
+export interface ComponentInstance {
+  instanceId: string;
+  pluginId: string;
+  componentId: string;
+  componentCategory?: string;
+  parentId?: string | null;
+  position: ComponentPosition;
+  size: ComponentSize;
+  props: Record<string, unknown>;
+  styles: Record<string, string>;
+  children?: ComponentInstance[];
+  zIndex?: number;
+  displayOrder?: number;
+  isVisible?: boolean;
+}
+
+export interface RendererProps {
+  component: ComponentInstance;
+  isEditMode: boolean;
+}
+
+export type RendererComponent = React.FC<RendererProps>;
+
+export interface PluginBundle {
+  pluginId: string;
+  renderers: Record<string, RendererComponent>;
+  styles?: string;
+  version?: string;
+}
+```
+
+### Step 4: Create Renderer Component
+
+Location: `frontend/src/renderers/{ComponentId}Renderer.tsx`
+
+**Naming Convention:** The filename must be `{ComponentId}Renderer.tsx` where `ComponentId` matches the component ID registered in the Java plugin.
+
+```tsx
+import React, { useState } from 'react';
+import type { RendererProps } from '../types';
+
+const MyComponentRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
+  // Extract props with defaults
+  const {
+    text = 'Default Text',
+    variant = 'primary',
+    disabled = false,
+  } = component.props;
+
+  // Handle edit mode (prevent interactions in builder)
+  const handleClick = (e: React.MouseEvent) => {
+    if (isEditMode) {
+      e.preventDefault();
+      return;
+    }
+    // Production behavior here
+  };
+
+  // Build styles
+  const containerStyles: React.CSSProperties = {
+    padding: '16px',
+    backgroundColor: component.styles.backgroundColor || '#ffffff',
+    borderRadius: component.styles.borderRadius || '8px',
+    ...component.styles,
+  };
+
+  return (
+    <div style={containerStyles} onClick={handleClick}>
+      {text as string}
+    </div>
+  );
+};
+
+export default MyComponentRenderer;
+export { MyComponentRenderer };
+```
+
+**Best Practices:**
+
+1. **Extract props with defaults:** `const { text = 'Default' } = component.props;`
+2. **Handle isEditMode:** Disable interactions in edit mode
+3. **Apply component.styles:** Merge with default styles
+4. **Type casting for props:** `{text as string}`
+
+### Step 5: Create index.ts (Entry Point)
+
+```typescript
+import type { PluginBundle, RendererComponent } from './types';
+import MyComponentRenderer from './renderers/MyComponentRenderer';
+
+// PLUGIN_ID must match the Java plugin's ID exactly
+export const PLUGIN_ID = 'my-component-plugin';
+
+export const renderers: Record<string, RendererComponent> = {
+  MyComponent: MyComponentRenderer,
+};
+
+export const pluginBundle: PluginBundle = {
+  pluginId: PLUGIN_ID,
+  renderers,
+  version: '1.0.0',
+};
+
+export { MyComponentRenderer };
+export default pluginBundle;
+
+// Self-registration function (called by host app)
+export function registerRenderers(registry: {
+  register: (componentId: string, renderer: RendererComponent, pluginId?: string) => void;
+}): void {
+  Object.entries(renderers).forEach(([componentId, renderer]) => {
+    registry.register(componentId, renderer, PLUGIN_ID);
+  });
+  console.log(`[${PLUGIN_ID}] Registered ${Object.keys(renderers).length} renderers`);
+}
+```
+
+**Multiple Renderers Example:**
+
+```typescript
+export const renderers: Record<string, RendererComponent> = {
+  Navbar: NavbarRenderer,
+  NavbarDefault: NavbarDefaultRenderer,
+  NavbarCentered: NavbarCenteredRenderer,
+};
+```
+
+### Step 6: Register Plugin in PluginLoaderService
+
+Add your plugin to `frontend/src/services/pluginLoaderService.ts`:
+
+```typescript
+const PLUGIN_GLOBAL_NAMES: Record<string, string> = {
+  // ... existing plugins
+  'my-component-plugin': 'MyComponentPlugin',
+};
+```
+
+### Step 7: Add CSS Styles (Optional)
+
+Create `frontend/src/styles/MyComponent.css`:
+
+```css
+.my-component {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+```
+
+Import in renderer: `import '../styles/MyComponent.css';`
+
+### Step 8: Build Frontend
+
+```bash
+cd plugins/my-component-plugin/frontend
+npm install
+npm run build
+```
+
+Outputs to `../src/main/resources/frontend/`:
+- `bundle.js` - IIFE JavaScript bundle
+- `bundle.css` - CSS styles (if any)
+
+### Renderer Patterns
+
+#### Simple Component (Label)
+
+```tsx
+const LabelRenderer: React.FC<RendererProps> = ({ component }) => {
+  const { text = 'Label', fontSize = '14px' } = component.props;
+  return <span style={{ fontSize, ...component.styles }}>{text as string}</span>;
+};
+```
+
+#### Component with State (Button)
+
+```tsx
+const ButtonRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <button
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onClick={(e) => isEditMode && e.preventDefault()}
+      style={{
+        backgroundColor: isHovered ? '#0056b3' : '#007bff',
+        ...component.styles,
+      }}
+    >
+      {component.props.text as string}
+    </button>
+  );
+};
+```
+
+#### Container with Children
+
+```tsx
+const ContainerRenderer: React.FC<RendererProps> = ({ component }) => {
+  const { layoutMode = 'flex-column', padding = '20px' } = component.props;
+
+  const layoutStyles = layoutMode === 'flex-row'
+    ? { display: 'flex', flexDirection: 'row' as const }
+    : { display: 'flex', flexDirection: 'column' as const };
+
+  return (
+    <div style={{ ...layoutStyles, padding, ...component.styles }}>
+      {/* Children rendered by BuilderCanvas in edit mode */}
+    </div>
+  );
+};
+```
+
+#### Form Component (Login)
+
+```tsx
+const LoginFormRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isEditMode) return;
+
+    await fetch(component.props.loginEndpoint as string || '/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={isEditMode} />
+      <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={isEditMode} />
+      <button type="submit" disabled={isEditMode}>{component.props.submitText as string || 'Sign In'}</button>
+    </form>
+  );
+};
+```
+
+### Debugging Plugin Loading
+
+```javascript
+// In browser console:
+window.MyComponentPlugin                    // Check plugin bundle
+RendererRegistry.debugGetAllKeys()          // List registered renderers
+window.jsxRuntime                           // Verify jsxRuntime available
+```
+
+### Frontend Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| "Plugin global not found" | Ensure `PLUGIN_GLOBAL_NAMES` matches vite config `name` |
+| "jsxRuntime is not available" | Check React is loaded before plugin bundle |
+| Renderer not found | Verify componentId matches between Java and TypeScript |
+| Styles not applied | Check CSS import and build output |
+| Edit mode interactions | Ensure `isEditMode` check prevents clicks/inputs |
 
 ### PluginId Matching
 
@@ -3937,13 +4648,12 @@ plugins/my-component-plugin/
 
 Backend registration (Java):
 ```java
-// In ComponentRegistryService or BuiltInNavbarComponentInitializer
-componentRegistry.setPluginId("navbar-component-plugin");
+componentRegistry.setPluginId("my-component-plugin");
 ```
 
 Frontend registration (TypeScript):
 ```typescript
-RendererRegistry.register('Navbar', NavbarRenderer, 'navbar-component-plugin');
+RendererRegistry.register('MyComponent', MyComponentRenderer, 'my-component-plugin');
 ```
 
 If these don't match, the ComponentRenderer will fail to find the plugin-specific renderer and fall back to a generic one (or show a placeholder).

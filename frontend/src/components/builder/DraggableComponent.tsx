@@ -300,19 +300,16 @@ export const DraggableComponent: React.FC<DraggableComponentProps> = ({
     const isChildComponent = !!parentId;
 
     if (isChildComponent) {
-      // Child components: no grid positioning, but apply dimensions for resizing
-      // Don't apply z-index for child components in flex layouts - let flex order handle stacking
-      // For grid layouts, don't apply any width - let grid cells control sizing completely
-      // For flex layouts, use stored width but provide a fallback for 'auto' to prevent collapsing
-      const childWidth = isInGridLayout
-        ? undefined
-        : (size.width === 'auto' || !size.width ? '100%' : size.width);
+      // Child components: no grid positioning
+      // IMPORTANT: Do NOT apply width/height here - let ResizableComponent handle sizing
+      // This allows resize operations to work correctly without being overridden by this wrapper
+      // For grid layouts, don't apply any width - let grid cells control sizing
       return {
         ...styles,
-        width: childWidth,
-        // Note: Don't apply maxWidth inline - it prevents resize from working
-        // The CSS handles overflow constraints
-        height: size.height,
+        // Let ResizableComponent handle width and height
+        // Only apply width for grid layouts where we need cells to fill
+        width: isInGridLayout ? '100%' : undefined,
+        height: undefined, // Let ResizableComponent handle height
         boxSizing: 'border-box' as const,
       };
     }

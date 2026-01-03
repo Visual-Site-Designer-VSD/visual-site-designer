@@ -865,6 +865,20 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect,
 
       // Create new component instance with the specific parent
       // Layout components inside containers should default to 100% width to fill parent
+      // Non-layout components (Label, Button, etc.) should also fill width and use auto height
+      const getDefaultChildWidth = (): string => {
+        if (isLayoutComponent) return '100%';
+        if (parsedManifest.sizeConstraints?.defaultWidth) return parsedManifest.sizeConstraints.defaultWidth;
+        // UI components default to 100% width in flex-column containers
+        return '100%';
+      };
+
+      const getDefaultChildHeight = (): string => {
+        if (parsedManifest.sizeConstraints?.defaultHeight) return parsedManifest.sizeConstraints.defaultHeight;
+        // Use 'auto' to let component size naturally to its content
+        return 'auto';
+      };
+
       const newComponent: ComponentInstance = {
         instanceId: `${componentEntry.componentId}-${Date.now()}`,
         pluginId: componentEntry.pluginId,
@@ -878,9 +892,8 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect,
           columnSpan: 1
         },
         size: {
-          // Child layout containers should fill parent width by default
-          width: isLayoutComponent ? '100%' : (parsedManifest.sizeConstraints?.defaultWidth || '200px'),
-          height: parsedManifest.sizeConstraints?.defaultHeight || 'auto'
+          width: getDefaultChildWidth(),
+          height: getDefaultChildHeight()
         },
         props: parsedManifest.defaultProps || {},
         styles: parsedManifest.defaultStyles || {},

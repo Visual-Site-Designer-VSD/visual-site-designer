@@ -11,6 +11,10 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 // Services
 import { authService } from './services/authService';
+import { registerCoreExportTemplates } from './services/coreExportTemplates';
+
+// Register core export templates on module load (before components render)
+registerCoreExportTemplates();
 
 function App() {
   // Initialize auth on app load

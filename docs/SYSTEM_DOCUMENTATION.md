@@ -900,7 +900,7 @@ The system uses a consistent priority order for component dimensions across all 
 
 This applies to:
 - **ResizableComponent.tsx** - Edit mode rendering and resize behavior
-- **ImageRenderer.tsx** - Preview mode rendering
+- **HorizontalRowRenderer.tsx** - Preview mode rendering
 - **thymeleafExportService.ts** - Thymeleaf/Spring Boot export
 
 ### Flex Layout Behavior

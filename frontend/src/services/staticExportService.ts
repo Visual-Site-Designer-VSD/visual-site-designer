@@ -1,6 +1,7 @@
 import { PageDefinition, ComponentInstance } from '../types/builder';
 import { Page } from '../types/site';
 import JSZip from 'jszip';
+import { ExportTemplateRegistry } from './ExportTemplateRegistry';
 
 /**
  * StaticExportService - Exports site pages as deployable static HTML/CSS/JS files
@@ -122,7 +123,21 @@ function generateComponentHTML(component: ComponentInstance, depth: number = 0):
   const indent = '  '.repeat(depth);
   const id = `component-${instanceId}`;
 
-  // Handle different component types
+  // First, check if there's a registered export template for this component
+  // This allows plugins to define their own export templates
+  if (ExportTemplateRegistry.has(componentId, component.pluginId)) {
+    const childrenHtml = (children || [])
+      .map(child => generateComponentHTML(child, depth + 1))
+      .join('\n');
+
+    const templateHtml = ExportTemplateRegistry.renderStatic(component, childrenHtml);
+    if (templateHtml) {
+      // Wrap with indent and id
+      return `${indent}<div id="${id}" class="component ${componentId.toLowerCase()}">${templateHtml}</div>`;
+    }
+  }
+
+  // Handle different component types with built-in templates
   switch (componentId) {
     case 'Label':
       return generateLabelHTML(component, id, indent);

@@ -45,12 +45,21 @@
 
 .resizable-component.child-component .resizable-content {
   width: 100%;
-  height: 100%; /* Fill parent height when parent is explicitly sized */
+  /* Use auto height to let content determine size naturally */
+  /* This ensures Labels, Buttons, etc. size to their content, not expand to fill parent */
+  height: auto;
   min-height: 40px;
   box-sizing: border-box;
   /* Allow nested children's resize handles to be visible */
   /* Leaf components clip their own content via .component-placeholder */
   overflow: visible;
+}
+
+/* Layout containers nested as children should grow with their content */
+/* Use auto height so flex-column containers expand to fit child labels, etc. */
+.resizable-component.child-component.auto-height-container .resizable-content {
+  height: auto;
+  min-height: 100px;
 }
 
 .resize-handles {

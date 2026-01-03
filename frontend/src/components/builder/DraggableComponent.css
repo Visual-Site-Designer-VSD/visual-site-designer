@@ -190,7 +190,7 @@
 /* Child components - allow resizing while fitting in grid/flex layout */
 .draggable-component.child-component {
   min-height: 40px;
-  min-width: 100px; /* Increased to ensure visibility in flex-row layouts */
+  min-width: 40px; /* Reduced to allow smaller resizing */
   box-sizing: border-box;
   /* Ensure child components don't have absolute positioning that breaks flex layout */
   position: relative;
@@ -199,13 +199,21 @@
   flex-grow: 0;
   /* Flex-basis auto ensures the element uses its width/height from inline styles */
   flex-basis: auto;
-  /* Width and height are controlled by inline styles from component.size */
+  /* CRITICAL: Use flex-start to prevent stretch behavior from parent's align-items: stretch */
+  /* This allows child components to have their own width from ResizableComponent */
+  align-self: flex-start;
+  /* CRITICAL: Use fit-content so the wrapper shrinks to match child's resized width */
+  /* Without this, the draggable wrapper stays full width and prevents resize */
+  width: fit-content;
+  /* Width and height are controlled by ResizableComponent */
   /* Allow resize handles to show (they extend outside with negative offsets) */
   overflow: visible;
 }
 
 .draggable-component.child-component .component-content {
-  width: 100%;
+  /* CRITICAL: Use width: auto to allow child to be resized smaller than parent */
+  /* The ResizableComponent inside controls the actual width via inline styles */
+  width: auto;
   /* Don't force height: 100% - let inline styles from component.size control height */
   /* For 'auto' height components (like navbars), this allows content-based sizing */
   min-height: 40px;
@@ -227,4 +235,43 @@
   top: -20px;
   font-size: 10px;
   padding: 1px 6px;
+}
+
+/* ===== HORIZONTAL ROW COMPONENT - FULL WIDTH ===== */
+/* HorizontalRow should always span the full width of its parent container */
+.draggable-component.child-component[data-component-id^="HorizontalRow-"] {
+  width: 100% !important;
+  align-self: stretch !important;
+}
+
+.draggable-component.child-component[data-component-id^="HorizontalRow-"] .component-content {
+  width: 100%;
+}
+
+.draggable-component.child-component[data-component-id^="HorizontalRow-"] .resizable-component {
+  width: 100%;
+}
+
+/* ===== IMAGE COMPONENT SPECIFIC SIZING ===== */
+/* Image components need special handling for width resize because they have */
+/* internal maxWidth: 100% that prevents expansion beyond parent */
+
+/* Target Image components by their data-component-id attribute (starts with "Image-") */
+.draggable-component.child-component[data-component-id^="Image-"] {
+  /* Allow Image to have explicit pixel width from resize */
+  width: auto;
+  /* Prevent flex stretch */
+  align-self: flex-start;
+}
+
+/* Ensure the ResizableComponent inside Image can control width */
+.draggable-component.child-component[data-component-id^="Image-"] .component-content {
+  width: auto;
+  display: block; /* Override flex display so width is not stretched */
+}
+
+/* The resizable-component for Image should not be constrained */
+.draggable-component.child-component[data-component-id^="Image-"] .resizable-component {
+  width: auto;
+  max-width: none;
 }
