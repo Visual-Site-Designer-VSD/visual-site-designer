@@ -1396,10 +1396,9 @@ horizontal-row-plugin/
     <packaging>jar</packaging>
 
     <name>Horizontal Row Plugin</name>
-    <description>A horizontal divider/separator line component</description>
+    <description>A horizontal divider/separator line component for visual site builder</description>
 
     <properties>
-        <java.version>21</java.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -1408,9 +1407,25 @@ horizontal-row-plugin/
     <dependencies>
         <!-- Plugin SDK -->
         <dependency>
-            <groupId>dev.mainul35</groupId>
+            <groupId>com.flashcard</groupId>
             <artifactId>flashcard-cms-plugin-sdk</artifactId>
             <version>1.0.0-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.36</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- SLF4J API -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.16</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
@@ -1420,13 +1435,42 @@ horizontal-row-plugin/
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
+                <version>3.14.1</version>
                 <configuration>
                     <source>21</source>
                     <target>21</target>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.36</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.2</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                        </manifest>
+                    </archive>
                 </configuration>
             </plugin>
         </plugins>
+
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <includes>
+                    <include>**/*</include>
+                </includes>
+            </resource>
+        </resources>
     </build>
 </project>
 ```
@@ -1476,6 +1520,12 @@ import dev.mainul35.cms.sdk.component.StyleDefinition;
 
 import java.util.List;
 
+/**
+ * Horizontal Row Component Plugin
+ * Provides a horizontal divider/separator line for visual layouts.
+ *
+ * This plugin demonstrates the simplified plugin development using AbstractUIComponentPlugin.
+ */
 @UIComponent(
     componentId = "HorizontalRow",
     displayName = "Horizontal Row",
@@ -1534,45 +1584,66 @@ The annotation provides component metadata that:
 import React from 'react';
 import type { RendererProps } from '../types';
 
+/**
+ * HorizontalRowRenderer - Renders a horizontal divider/separator line
+ *
+ * Props:
+ *   - thickness: Line thickness (1px, 2px, 3px, 4px, 5px)
+ *   - lineStyle: Line style (solid, dashed, dotted, double)
+ *   - width: Line width (25%, 50%, 75%, 100%)
+ *   - alignment: Horizontal alignment (left, center, right)
+ *
+ * Styles:
+ *   - color: Line color
+ *   - marginTop: Top margin
+ *   - marginBottom: Bottom margin
+ */
 const HorizontalRowRenderer: React.FC<RendererProps> = ({ component }) => {
   const props = component.props || {};
   const styles = component.styles || {};
 
-  // Extract props with defaults (must match defineProps())
+  // Extract configurable properties with defaults
   const thickness = (props.thickness as string) || '2px';
   const lineStyle = (props.lineStyle as string) || 'solid';
   const width = (props.width as string) || '100%';
   const alignment = (props.alignment as string) || 'center';
 
-  // Extract styles with defaults (must match defineStyles())
+  // Extract styles with defaults
   const color = (styles.color as string) || '#e0e0e0';
   const marginTop = (styles.marginTop as string) || '16px';
   const marginBottom = (styles.marginBottom as string) || '16px';
 
+  // Map alignment to flexbox justify-content
   const getJustifyContent = (): string => {
     switch (alignment) {
       case 'left': return 'flex-start';
       case 'right': return 'flex-end';
+      case 'center':
       default: return 'center';
     }
   };
 
+  const containerStyles: React.CSSProperties = {
+    width: '100%',
+    display: 'flex',
+    justifyContent: getJustifyContent(),
+    alignItems: 'center',
+    boxSizing: 'border-box',
+    marginTop,
+    marginBottom,
+  };
+
+  const hrStyles: React.CSSProperties = {
+    width,
+    height: 0,
+    border: 'none',
+    borderTop: `${thickness} ${lineStyle} ${color}`,
+    margin: 0,
+  };
+
   return (
-    <div style={{
-      width: '100%',
-      display: 'flex',
-      justifyContent: getJustifyContent(),
-      alignItems: 'center',
-      marginTop,
-      marginBottom,
-    }}>
-      <hr style={{
-        width,
-        height: 0,
-        border: 'none',
-        borderTop: `${thickness} ${lineStyle} ${color}`,
-        margin: 0,
-      }} />
+    <div style={containerStyles} className="horizontal-row-container">
+      <hr style={hrStyles} />
     </div>
   );
 };
@@ -1586,13 +1657,17 @@ export { HorizontalRowRenderer };
 `frontend/src/index.ts`:
 
 ```typescript
+/**
+ * Horizontal Row Component Plugin - Frontend Bundle
+ */
+
 import type { PluginBundle, RendererComponent } from './types';
 import HorizontalRowRenderer from './renderers/HorizontalRowRenderer';
 
 export const PLUGIN_ID = 'horizontal-row-plugin';
 
 export const renderers: Record<string, RendererComponent> = {
-  HorizontalRow: HorizontalRowRenderer,  // Key MUST match componentId
+  HorizontalRow: HorizontalRowRenderer,
 };
 
 export const pluginBundle: PluginBundle = {
@@ -1600,6 +1675,8 @@ export const pluginBundle: PluginBundle = {
   renderers,
   version: '1.0.0',
 };
+
+export { HorizontalRowRenderer };
 
 export default pluginBundle;
 
@@ -1609,10 +1686,64 @@ export function registerRenderers(registry: {
   Object.entries(renderers).forEach(([componentId, renderer]) => {
     registry.register(componentId, renderer, PLUGIN_ID);
   });
+  console.log(`[${PLUGIN_ID}] Registered ${Object.keys(renderers).length} renderers`);
 }
 ```
 
-#### 7. Build and Deploy
+#### 7. Create Type Definitions
+
+`frontend/src/types.ts`:
+
+```typescript
+/**
+ * Type definitions for plugin renderers.
+ */
+
+import type React from 'react';
+
+export interface ComponentPosition {
+  x: number;
+  y: number;
+}
+
+export interface ComponentSize {
+  width: string;
+  height: string;
+}
+
+export interface ComponentInstance {
+  instanceId: string;
+  pluginId: string;
+  componentId: string;
+  componentCategory?: string;
+  parentId?: string | null;
+  position: ComponentPosition;
+  size: ComponentSize;
+  props: Record<string, unknown>;
+  styles: Record<string, string>;
+  children?: ComponentInstance[];
+  zIndex?: number;
+  displayOrder?: number;
+  isVisible?: boolean;
+  reactBundlePath?: string;
+}
+
+export interface RendererProps {
+  component: ComponentInstance;
+  isEditMode: boolean;
+}
+
+export type RendererComponent = React.FC<RendererProps>;
+
+export interface PluginBundle {
+  pluginId: string;
+  renderers: Record<string, RendererComponent>;
+  styles?: string;
+  version?: string;
+}
+```
+
+#### 8. Build and Deploy
 
 ```bash
 # Build backend JAR
