@@ -21,7 +21,7 @@ import java.util.Map;
     componentId = "button",
     displayName = "Button",
     category = "ui",
-    icon = "🔘",
+    icon = "Button",
     resizable = true,
     defaultWidth = "150px",
     defaultHeight = "40px",

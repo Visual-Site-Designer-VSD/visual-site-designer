@@ -1,18 +1,70 @@
 import React from 'react';
-import type { RendererProps } from '../types';
+import type { ComponentInstance } from '../types';
 
-const LabelRenderer: React.FC<RendererProps> = ({ component }) => {
+/**
+ * Props for the Label component.
+ * Use these props directly: <LabelRenderer text="Hello" variant="h1" />
+ */
+export interface LabelProps {
+  /** The text content to display */
+  text?: string;
+  /** Typography variant: h1, h2, h3, h4, h5, h6, p, span, caption */
+  variant?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'p' | 'span' | 'caption';
+  /** Override the HTML tag (defaults to variant) */
+  htmlTag?: string;
+  /** Text alignment: left, center, right, justify */
+  textAlign?: 'left' | 'center' | 'right' | 'justify';
+  /** Truncate text with ellipsis */
+  truncate?: boolean;
+  /** Maximum number of lines before truncating (0 = no limit) */
+  maxLines?: number;
+  /** Edit mode flag */
+  isEditMode?: boolean;
+  /** Custom inline styles */
+  style?: React.CSSProperties;
+  /** Font size */
+  fontSize?: string;
+  /** Font weight */
+  fontWeight?: string | number;
+  /** Text color */
+  color?: string;
+  /** Line height */
+  lineHeight?: string | number;
+  /** Letter spacing */
+  letterSpacing?: string;
+  /** Background image (for gradient text) */
+  backgroundImage?: string;
+  /** @deprecated Use direct props instead. Legacy component prop for backward compatibility */
+  component?: ComponentInstance;
+}
+
+const LabelRenderer: React.FC<LabelProps> = (props) => {
+  // Support both new direct props and legacy component prop
+  const isLegacyMode = props.component !== undefined;
+
   const {
-    text = 'Label Text',
-    variant,
-    htmlTag,
-    textAlign = 'left',
-    truncate = false,
-    maxLines = 0,
-  } = component.props;
+    text = isLegacyMode ? (props.component?.props?.text as string) ?? 'Label Text' : 'Label Text',
+    variant = isLegacyMode ? (props.component?.props?.variant as string) : undefined,
+    htmlTag = isLegacyMode ? (props.component?.props?.htmlTag as string) : undefined,
+    textAlign = isLegacyMode ? (props.component?.props?.textAlign as string) ?? 'left' : 'left',
+    truncate = isLegacyMode ? (props.component?.props?.truncate as boolean) ?? false : false,
+    maxLines = isLegacyMode ? (props.component?.props?.maxLines as number) ?? 0 : 0,
+  } = props;
+
+  // Get custom styles from either direct props or legacy component.styles
+  const customStyles: React.CSSProperties = isLegacyMode
+    ? (props.component?.styles as React.CSSProperties) || {}
+    : {
+        fontSize: props.fontSize,
+        fontWeight: props.fontWeight,
+        color: props.color,
+        lineHeight: props.lineHeight,
+        letterSpacing: props.letterSpacing,
+        backgroundImage: props.backgroundImage,
+        ...props.style,
+      };
 
   const elementType = (htmlTag || variant || 'p') as string;
-  const customStyles = component.styles || {};
 
   const variantDefaults: Record<string, React.CSSProperties> = {
     h1: { fontSize: '2.5rem', fontWeight: 700, lineHeight: 1.2 },
@@ -50,8 +102,8 @@ const LabelRenderer: React.FC<RendererProps> = ({ component }) => {
     ...variantDefaults[elementType],
     // Apply custom styles but exclude gradient-related ones if using gradient text
     ...Object.fromEntries(
-      Object.entries(customStyles as React.CSSProperties).filter(
-        ([key]) => !hasGradientText || !['backgroundImage', 'backgroundClip', 'WebkitBackgroundClip', 'WebkitTextFillColor'].includes(key)
+      Object.entries(customStyles).filter(
+        ([key, value]) => value !== undefined && (!hasGradientText || !['backgroundImage', 'backgroundClip', 'WebkitBackgroundClip', 'WebkitTextFillColor'].includes(key))
       )
     ),
     // Apply gradient text styles last to ensure they override
@@ -71,7 +123,7 @@ const LabelRenderer: React.FC<RendererProps> = ({ component }) => {
     labelStyles.overflow = 'hidden';
   }
 
-  const Element = elementType as keyof JSX.IntrinsicElements;
+  const Element = elementType as keyof React.JSX.IntrinsicElements;
 
   return <Element style={labelStyles}>{text as string}</Element>;
 };

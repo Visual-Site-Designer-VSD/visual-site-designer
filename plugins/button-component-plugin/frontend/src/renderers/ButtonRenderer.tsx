@@ -1,19 +1,61 @@
 import React, { useState } from 'react';
-import type { RendererProps } from '../types';
+import type { ComponentInstance } from '../types';
+
+/**
+ * Props for the Button component.
+ * Use these props directly: <ButtonRenderer text="Click Me" variant="primary" />
+ */
+export interface ButtonProps {
+  /** Button text */
+  text?: string;
+  /** Button variant style */
+  variant?: 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'outline' | 'outline-light' | 'link';
+  /** Button size */
+  size?: 'small' | 'medium' | 'large';
+  /** Disable the button */
+  disabled?: boolean;
+  /** Make button full width */
+  fullWidth?: boolean;
+  /** Edit mode flag */
+  isEditMode?: boolean;
+  /** Custom inline styles */
+  style?: React.CSSProperties;
+  /** Border radius */
+  borderRadius?: string;
+  /** Font weight */
+  fontWeight?: string | number;
+  /** Click handler */
+  onClick?: (e: React.MouseEvent) => void;
+  /** @deprecated Use direct props instead. Legacy component prop for backward compatibility */
+  component?: ComponentInstance;
+}
 
 /**
  * ButtonRenderer - Renders a button component with its props
  */
-const ButtonRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
+const ButtonRenderer: React.FC<ButtonProps> = (props) => {
   const [isHovered, setIsHovered] = useState(false);
 
+  // Support both new direct props and legacy component prop
+  const isLegacyMode = props.component !== undefined;
+
   const {
-    text = 'Click Me',
-    variant = 'primary',
-    size = 'medium',
-    disabled = false,
-    fullWidth = false,
-  } = component.props;
+    text = isLegacyMode ? (props.component?.props?.text as string) ?? 'Click Me' : 'Click Me',
+    variant = isLegacyMode ? (props.component?.props?.variant as string) ?? 'primary' : 'primary',
+    size = isLegacyMode ? (props.component?.props?.size as string) ?? 'medium' : 'medium',
+    disabled = isLegacyMode ? (props.component?.props?.disabled as boolean) ?? false : false,
+    fullWidth = isLegacyMode ? (props.component?.props?.fullWidth as boolean) ?? false : false,
+    isEditMode = false,
+  } = props;
+
+  // Get custom styles from either direct props or legacy component.styles
+  const customStyles: React.CSSProperties = isLegacyMode
+    ? (props.component?.styles as React.CSSProperties) || {}
+    : {
+        borderRadius: props.borderRadius,
+        fontWeight: props.fontWeight,
+        ...props.style,
+      };
 
   const variantStyles: Record<string, React.CSSProperties> = {
     primary: {
@@ -109,7 +151,9 @@ const ButtonRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
     ...(variantStyles[variant as string] || variantStyles.primary),
     ...(sizeStyles[size as string] || sizeStyles.medium),
     ...(isHovered && !disabled ? hoverStyles[variant as string] : {}),
-    ...(component.styles as React.CSSProperties),
+    ...Object.fromEntries(
+      Object.entries(customStyles).filter(([, value]) => value !== undefined)
+    ),
   };
 
   const handleClick = (e: React.MouseEvent) => {
@@ -117,7 +161,9 @@ const ButtonRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
       e.preventDefault();
       return;
     }
-    // In production, would navigate or trigger action
+    if (props.onClick) {
+      props.onClick(e);
+    }
   };
 
   return (
