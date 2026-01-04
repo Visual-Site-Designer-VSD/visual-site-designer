@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+
+    /* Paths for cross-plugin imports */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@vsd/components": ["../../../generated-types/plugins/index.ts"],
+      "@vsd/components/*": ["../../../generated-types/plugins/*"],
+      "@vsd/button-component-plugin": ["../../../generated-types/plugins/button-component-plugin/index.ts"],
+      "@vsd/button-component-plugin/*": ["../../../generated-types/plugins/button-component-plugin/*"],
+      "@vsd/label-component-plugin": ["../../../generated-types/plugins/label-component-plugin/index.ts"],
+      "@vsd/label-component-plugin/*": ["../../../generated-types/plugins/label-component-plugin/*"],
+      "@vsd/textbox-component-plugin": ["../../../generated-types/plugins/textbox-component-plugin/index.ts"],
+      "@vsd/textbox-component-plugin/*": ["../../../generated-types/plugins/textbox-component-plugin/*"]
+    }
+  },
+  "include": ["src"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}

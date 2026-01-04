@@ -180,7 +180,24 @@ const containerManifest: ComponentManifest = {
       type: PropType.SELECT,
       label: 'Layout Mode',
       defaultValue: 'flex-column',
-      options: ['flex-column', 'flex-row', 'flex-wrap', 'grid-2col', 'grid-3col', 'grid-4col', 'grid-auto'],
+      options: [
+        'flex-column',
+        'flex-row',
+        'flex-wrap',
+        'grid-2col',
+        'grid-3col',
+        'grid-4col',
+        'grid-auto',
+        // Asymmetric 2-column layouts
+        'grid-20-80',
+        'grid-25-75',
+        'grid-33-67',
+        'grid-40-60',
+        'grid-60-40',
+        'grid-67-33',
+        'grid-75-25',
+        'grid-80-20',
+      ],
       helpText: 'How child components are arranged',
     },
     {
@@ -1559,6 +1576,121 @@ const forgotPasswordFormManifest: ComponentManifest = {
 };
 
 /**
+ * NewsletterForm component manifest
+ */
+const newsletterFormManifest: ComponentManifest = {
+  componentId: 'NewsletterForm',
+  displayName: 'Newsletter Form',
+  category: 'form',
+  icon: '📧',
+  description: 'Newsletter subscription form with email input and customizable styling',
+  defaultProps: {
+    title: 'Subscribe to Our Newsletter',
+    subtitle: 'Get the latest updates delivered to your inbox.',
+    placeholder: 'Enter your email address',
+    buttonText: 'Subscribe',
+    buttonVariant: 'primary',
+    layout: 'stacked',
+    showTitle: true,
+    showSubtitle: true,
+    successMessage: 'Thank you for subscribing!',
+    errorMessage: 'Please enter a valid email address.',
+  },
+  defaultStyles: {
+    backgroundColor: '#f8f9fa',
+    padding: '24px',
+    borderRadius: '8px',
+    titleColor: '#333333',
+    subtitleColor: '#666666',
+  },
+  reactComponentPath: 'renderers/NewsletterFormRenderer',
+  configurableProps: [
+    {
+      name: 'title',
+      type: PropType.STRING,
+      label: 'Title',
+      defaultValue: 'Subscribe to Our Newsletter',
+      helpText: 'Main heading for the form',
+    },
+    {
+      name: 'subtitle',
+      type: PropType.STRING,
+      label: 'Subtitle',
+      defaultValue: 'Get the latest updates delivered to your inbox.',
+      helpText: 'Description text below the title',
+    },
+    {
+      name: 'placeholder',
+      type: PropType.STRING,
+      label: 'Email Placeholder',
+      defaultValue: 'Enter your email address',
+      helpText: 'Placeholder text for the email input',
+    },
+    {
+      name: 'buttonText',
+      type: PropType.STRING,
+      label: 'Button Text',
+      defaultValue: 'Subscribe',
+      helpText: 'Text on the submit button',
+    },
+    {
+      name: 'buttonVariant',
+      type: PropType.SELECT,
+      label: 'Button Style',
+      defaultValue: 'primary',
+      options: ['primary', 'secondary', 'success', 'danger', 'warning', 'outline', 'link'],
+      helpText: 'Visual style of the submit button',
+    },
+    {
+      name: 'layout',
+      type: PropType.SELECT,
+      label: 'Layout',
+      defaultValue: 'stacked',
+      options: ['stacked', 'inline'],
+      helpText: 'Form layout: stacked (vertical) or inline (horizontal)',
+    },
+    {
+      name: 'showTitle',
+      type: PropType.BOOLEAN,
+      label: 'Show Title',
+      defaultValue: true,
+      helpText: 'Display the title',
+    },
+    {
+      name: 'showSubtitle',
+      type: PropType.BOOLEAN,
+      label: 'Show Subtitle',
+      defaultValue: true,
+      helpText: 'Display the subtitle',
+    },
+    {
+      name: 'successMessage',
+      type: PropType.STRING,
+      label: 'Success Message',
+      defaultValue: 'Thank you for subscribing!',
+      helpText: 'Message shown after successful subscription',
+    },
+    {
+      name: 'errorMessage',
+      type: PropType.STRING,
+      label: 'Error Message',
+      defaultValue: 'Please enter a valid email address.',
+      helpText: 'Message shown when email validation fails',
+    },
+  ],
+  configurableStyles: [],
+  sizeConstraints: {
+    minWidth: 250,
+    minHeight: 150,
+    maxWidth: 800,
+    maxHeight: 500,
+  },
+  pluginId: 'newsletter-form-plugin',
+  pluginVersion: '1.0.0',
+  canHaveChildren: false,
+};
+
+/**
  * LogoutButton component manifest
  */
 const logoutButtonManifest: ComponentManifest = {
@@ -1658,6 +1790,9 @@ export const builtInManifests: Record<string, ComponentManifest> = {
   'auth-component-plugin:SocialLoginButtons': socialLoginButtonsManifest,
   'auth-component-plugin:ForgotPasswordForm': forgotPasswordFormManifest,
   'auth-component-plugin:LogoutButton': logoutButtonManifest,
+
+  // Newsletter form component
+  'newsletter-form-plugin:NewsletterForm': newsletterFormManifest,
 };
 
 /**

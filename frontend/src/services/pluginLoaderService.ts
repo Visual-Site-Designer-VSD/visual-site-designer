@@ -54,6 +54,7 @@ const PLUGIN_GLOBAL_NAMES: Record<string, string> = {
   'auth-component-plugin': 'AuthComponentPlugin',
   'repeater-component-plugin': 'RepeaterComponentPlugin',
   'horizontal-row-plugin': 'HorizontalRowComponentPlugin',
+  'newsletter-form-plugin': 'NewsletterFormPlugin',
 };
 
 /**
@@ -87,6 +88,7 @@ const COMPONENT_TO_PLUGIN_MAPPING: Record<string, string> = {
   'Textbox': 'textbox-component-plugin',
   'Image': 'image-component-plugin',
   'Repeater': 'repeater-component-plugin',
+  'NewsletterForm': 'newsletter-form-plugin',
 };
 
 /**

@@ -1,0 +1,29 @@
+plugin-id: newsletter-form-plugin
+plugin-name: Newsletter Form
+version: 1.0.0
+author: Mainul35
+description: A newsletter subscription form with email input and subscribe button
+main-class: dev.mainul35.plugins.ui.NewsletterFormPlugin
+plugin-type: ui-component
+
+# UI Component Configuration
+ui-component:
+  component-id: NewsletterForm
+  display-name: Newsletter Form
+  category: form
+  icon: mail
+  description: Newsletter subscription form with email input and customizable styling
+
+  # Default dimensions
+  default-width: 400px
+  default-height: auto
+
+  # Size constraints
+  resizable: true
+  min-width: 280px
+  max-width: 800px
+  min-height: 120px
+  max-height: 500px
+
+  # React component path (relative to plugin resources)
+  react-component-path: /components/NewsletterForm.jsx
