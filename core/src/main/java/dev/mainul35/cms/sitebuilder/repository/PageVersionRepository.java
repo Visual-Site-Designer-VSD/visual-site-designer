@@ -27,6 +27,18 @@ public interface PageVersionRepository extends JpaRepository<PageVersion, Long> 
     Optional<PageVersion> findByPageIdAndIsActiveTrue(Long pageId);
 
     /**
+     * Find all active versions across all pages
+     */
+    List<PageVersion> findByIsActiveTrue();
+
+    /**
+     * Find all active versions using explicit JPQL query
+     * This is a fallback in case the derived query method has naming issues
+     */
+    @Query("SELECT pv FROM PageVersion pv WHERE pv.isActive = true")
+    List<PageVersion> findAllActiveVersions();
+
+    /**
      * Find the latest version for a page (by version number)
      */
     Optional<PageVersion> findTopByPageIdOrderByVersionNumberDesc(Long pageId);

@@ -9,6 +9,7 @@ import dev.mainul35.cms.sitebuilder.dto.PageDto;
 import dev.mainul35.cms.sitebuilder.dto.PageVersionDto;
 import dev.mainul35.cms.sitebuilder.dto.SavePageVersionRequest;
 import dev.mainul35.cms.sitebuilder.dto.UpdatePageRequest;
+import dev.mainul35.cms.sitebuilder.service.ComponentRegistryService;
 import dev.mainul35.cms.sitebuilder.service.PageService;
 import dev.mainul35.cms.sitebuilder.service.PageVersionService;
 import dev.mainul35.cms.sitebuilder.service.SiteService;
@@ -32,12 +33,16 @@ public class PageController {
     private final PageService pageService;
     private final PageVersionService pageVersionService;
     private final SiteService siteService;
+    private final ComponentRegistryService componentRegistryService;
     private final ObjectMapper objectMapper;
 
-    public PageController(PageService pageService, PageVersionService pageVersionService, SiteService siteService, ObjectMapper objectMapper) {
+    public PageController(PageService pageService, PageVersionService pageVersionService,
+                          SiteService siteService, ComponentRegistryService componentRegistryService,
+                          ObjectMapper objectMapper) {
         this.pageService = pageService;
         this.pageVersionService = pageVersionService;
         this.siteService = siteService;
+        this.componentRegistryService = componentRegistryService;
         this.objectMapper = objectMapper;
     }
 
@@ -493,5 +498,44 @@ public class PageController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
         }
+    }
+
+    // ========== Component Validation Endpoints ==========
+
+    /**
+     * Validate page components - check if any components are deactivated.
+     * Returns list of deactivated components found in the page.
+     * Use this before allowing page editing to block editing pages with deactivated components.
+     */
+    @PostMapping("/{pageId}/validate-components")
+    public ResponseEntity<?> validatePageComponents(
+            @PathVariable Long siteId,
+            @PathVariable Long pageId,
+            @AuthenticationPrincipal JwtUserPrincipal principal
+    ) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        if (!siteService.isOwner(siteId, principal.userId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "You don't have access to this site"));
+        }
+
+        // Get the active page definition
+        return pageVersionService.getPageDefinition(pageId)
+                .map(definition -> {
+                    List<Map<String, Object>> deactivatedComponents =
+                            componentRegistryService.validatePageComponents(definition);
+
+                    boolean isValid = deactivatedComponents.isEmpty();
+
+                    return ResponseEntity.ok(Map.of(
+                            "valid", isValid,
+                            "deactivatedComponents", deactivatedComponents,
+                            "deactivatedCount", deactivatedComponents.size()
+                    ));
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 }

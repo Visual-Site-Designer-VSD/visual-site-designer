@@ -147,6 +147,20 @@ public class PluginManager {
         String pluginId = manifest.getPluginId();
         String mainClass = manifest.getMainClass();
 
+        // Close any existing classloader for this plugin (important for upgrades)
+        PluginClassLoader existingClassLoader = pluginClassLoaders.remove(pluginId);
+        if (existingClassLoader != null) {
+            log.info("Closing existing classloader for plugin: {}", pluginId);
+            try {
+                existingClassLoader.close();
+            } catch (Exception e) {
+                log.warn("Error closing existing classloader for plugin {}: {}", pluginId, e.getMessage());
+            }
+        }
+
+        // Remove from loaded plugins map if exists (for clean upgrade)
+        loadedPlugins.remove(pluginId);
+
         // Create plugin ClassLoader
         PluginClassLoader classLoader = PluginClassLoader.fromJarFile(pluginId, jarFile,
                 getClass().getClassLoader());
@@ -328,19 +342,20 @@ public class PluginManager {
             log.info("All dependencies satisfied for plugin: {}", pluginId);
         }
 
-        // 5. Copy JAR to plugin directory
+        // 5. Copy JAR to plugin directory with proper naming
         File pluginDir = new File(pluginDirectory);
         if (!pluginDir.exists()) {
             Files.createDirectories(pluginDir.toPath());
         }
 
-        File targetJar = new File(pluginDir, jarFile.getName());
-        // If source and target are different, copy the file
-        if (!jarFile.getCanonicalPath().equals(targetJar.getCanonicalPath())) {
-            Files.copy(jarFile.toPath(), targetJar.toPath(),
-                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            log.info("Copied plugin JAR to: {}", targetJar.getAbsolutePath());
-        }
+        // Use plugin ID and version for the JAR file name (not the temp file name)
+        String targetJarName = pluginId + "-" + manifest.getVersion() + ".jar";
+        File targetJar = new File(pluginDir, targetJarName);
+
+        // Always copy the file (replaces existing if upgrading)
+        Files.copy(jarFile.toPath(), targetJar.toPath(),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        log.info("Copied plugin JAR to: {}", targetJar.getAbsolutePath());
 
         // 6. Create or update Plugin entity in database
         Plugin plugin = existingPlugin.orElse(new Plugin());
