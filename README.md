@@ -25,9 +25,11 @@ A plugin-based visual site builder platform with drag-and-drop components, live 
 **Plugin Development**
 
 - [Chapter 4: Plugin Development Basics](#chapter-4-plugin-development-basics)
+- [Chapter 4.1: Component Capabilities System](#chapter-41-component-capabilities-system)
 - [Chapter 5: Developing Dynamic Components](#chapter-5-developing-dynamic-components)
 - [Chapter 6: Plugin Management](#chapter-6-plugin-management)
 - [Chapter 6.1: Plugin Frontend Architecture](#chapter-61-plugin-frontend-architecture)
+- [Chapter 6.2: Component Administration UI](#chapter-62-component-administration-ui)
 
 **Shipped Plugins**
 
@@ -1034,7 +1036,7 @@ app.image.repository.timeout=5000
 
 #### Using Images with Template Variables
 
-In Repeater components or data-bound contexts, use template variable syntax:
+In data-bound contexts, use template variable syntax:
 
 ```
 {{item.imageUrl}}      - Image URL from data item
@@ -1078,42 +1080,6 @@ Use `{{variable}}` syntax to bind data to component props:
 {{items[0].title}}      - Access array element
 {{product.price}}       - Display product price
 ```
-
-### Repeater Component
-
-The **Repeater** component iterates over arrays and renders children for each item:
-
-**Props:**
-
-| Prop | Type | Description |
-|------|------|-------------|
-| `dataSource` | DataSourceConfig | Where to fetch data |
-| `itemAlias` | string | Variable name for current item (default: "item") |
-| `indexAlias` | string | Variable name for index (default: "index") |
-| `emptyMessage` | string | Message when no items |
-| `layoutType` | string | flex-column, flex-row, grid-2col, grid-20-80, etc. |
-
-**Usage:**
-
-1. Drag a **Repeater** onto the canvas
-2. Configure the data source (e.g., `/api/products`)
-3. Add child components inside the Repeater
-4. Use `{{item.fieldName}}` in child component props
-
-### DataList Component
-
-The **DataList** component provides pre-styled list rendering:
-
-**Props:**
-
-| Prop | Type | Description |
-|------|------|-------------|
-| `dataSource` | DataSourceConfig | Where to fetch data |
-| `listStyle` | string | "cards", "table", "list", "grid" |
-| `columns` | ColumnConfig[] | For table style |
-| `cardTemplate` | string | "default", "image-top", "horizontal" |
-| `pagination` | boolean | Enable pagination |
-| `pageSize` | number | Items per page |
 
 ### Field Mapping
 
@@ -1856,7 +1822,6 @@ The `BuilderCanvas` component renders container children directly in edit mode (
 | ---- | -------- | ------- |
 | `frontend/src/components/builder/BuilderCanvas.tsx` | `getLayoutStyles()` | Edit mode rendering |
 | `frontend/src/services/thymeleafExportService.ts` | `getLayoutStyles()` | Thymeleaf export |
-| `frontend/src/services/thymeleafExportService.ts` | `getRepeaterLayoutStyles()` | Repeater export |
 | `frontend/src/services/staticExportService.ts` | `getContainerLayoutStyles()` | Static HTML export |
 
 **Example:** Adding `grid-20-80` layout to `BuilderCanvas.tsx`:
@@ -2737,6 +2702,156 @@ Check out these example plugins in the repository (see [Chapter 7: Shipped Plugi
 
 ---
 
+## Chapter 4.1: Component Capabilities System
+
+The Component Capabilities System provides a declarative way to define component behavior without hardcoding component IDs in the core application. This enables a truly extensible architecture where new components can be added without modifying core code.
+
+### Why Capabilities?
+
+**Before (Anti-pattern):**
+```typescript
+// Hardcoded component checks scattered throughout the codebase
+if (componentId === 'Container' || componentId === 'Repeater') {
+  // Enable container behavior
+}
+```
+
+**After (Capability-driven):**
+```typescript
+// Clean, declarative checks using the capability service
+if (capabilityService.isContainer(component)) {
+  // Enable container behavior
+}
+```
+
+### Available Capabilities
+
+| Capability | Type | Default | Description |
+|------------|------|---------|-------------|
+| `canHaveChildren` | boolean | false | Component can contain child components (enables drag-drop) |
+| `isContainer` | boolean | false | Component is treated as a layout container |
+| `hasDataSource` | boolean | false | Shows Data Source Editor in Properties Panel |
+| `autoHeight` | boolean | false | Component height adjusts automatically to content |
+| `supportsIteration` | boolean | false | Component can iterate over data arrays |
+| `isResizable` | boolean | true | User can resize the component |
+| `supportsTemplateBindings` | boolean | true | Component supports `{{variable}}` syntax |
+
+### Defining Capabilities in Manifests
+
+Add a `capabilities` object to your component manifest:
+
+```typescript
+const myComponentManifest: ComponentManifest = {
+  componentId: 'MyComponent',
+  pluginId: 'my-plugin',
+  // ... other manifest properties
+
+  // Declare capabilities
+  capabilities: {
+    canHaveChildren: true,      // This is a container
+    isContainer: true,          // Enable drag-drop into this component
+    hasDataSource: true,        // Show Data Source Editor
+    autoHeight: true,           // Auto-size to content
+    supportsIteration: false,   // Not a repeater component
+    isResizable: true,          // Allow resizing
+    supportsTemplateBindings: true,
+  },
+};
+```
+
+### Using the Capability Service
+
+Import and use the capability service in your components:
+
+```typescript
+import { capabilityService } from '../../services/componentCapabilityService';
+
+// Check if a component is a container
+if (capabilityService.isContainer(component)) {
+  // Enable container behavior
+}
+
+// Check if component supports data source
+if (capabilityService.hasDataSource(component)) {
+  // Show Data Source Editor
+}
+
+// Check if component should auto-height
+if (capabilityService.shouldAutoHeight(component)) {
+  // Apply auto-height styling
+}
+```
+
+### Capability Service API
+
+```typescript
+class ComponentCapabilityService {
+  // Get the full manifest for a component
+  getManifest(pluginId: string, componentId: string): ComponentManifest | null;
+
+  // Get all capabilities (merged with defaults)
+  getCapabilities(component: ComponentInstance): ComponentCapabilities;
+
+  // Individual capability checks
+  canHaveChildren(component: ComponentInstance): boolean;
+  isContainer(component: ComponentInstance): boolean;
+  hasDataSource(component: ComponentInstance): boolean;
+  shouldAutoHeight(component: ComponentInstance): boolean;
+  supportsIteration(component: ComponentInstance): boolean;
+  isResizable(component: ComponentInstance): boolean;
+  supportsTemplateBindings(component: ComponentInstance): boolean;
+
+  // Cache management
+  clearCache(): void;
+  registerManifest(pluginId: string, componentId: string, manifest: ComponentManifest): void;
+}
+```
+
+### Default Capabilities by Category
+
+Components inherit default capabilities based on their category:
+
+| Category | canHaveChildren | isContainer | autoHeight | hasDataSource |
+|----------|-----------------|-------------|------------|---------------|
+| `layout` | true | true | true | false |
+| `ui` | false | false | false | false |
+| `data` | false | false | false | false |
+| `form` | false | false | false | false |
+| `navbar` | false | false | false | false |
+
+### Example: Creating a Data Container Component
+
+To create a component like a Repeater that can have children and supports data sources:
+
+```typescript
+const dataContainerManifest: ComponentManifest = {
+  componentId: 'DataGrid',
+  displayName: 'Data Grid',
+  category: 'data',
+  pluginId: 'data-grid-plugin',
+
+  capabilities: {
+    canHaveChildren: true,      // Can contain child components
+    isContainer: true,          // Acts as a container for drag-drop
+    hasDataSource: true,        // Shows Data Source Editor
+    autoHeight: true,           // Expands to fit content
+    supportsIteration: true,    // Can iterate over data arrays
+  },
+
+  // ... rest of manifest
+};
+```
+
+With this manifest, the core application will automatically:
+- Enable drag-drop of children into this component
+- Show the Data Source Editor in the Properties Panel
+- Apply auto-height styling
+- Treat it as a container in the builder canvas
+
+**No core code changes required!**
+
+---
+
 ## Chapter 5: Developing Dynamic Components
 
 This chapter explains how to build components that load data dynamically from backend APIs, respond to user interactions, and update their state based on backend responses.
@@ -3398,9 +3513,75 @@ curl http://localhost:8080/api/components/my-component-plugin/my-component/manif
    - Edit CSS styles
    - Resize component
 
-### Remove Plugin
+### Plugin Deactivation and Removal
 
-**Method 1: Delete JAR**
+The platform supports full plugin lifecycle management including deactivation and uninstallation.
+
+#### Deactivation Flow (Backend)
+
+When a plugin is deactivated via `PluginManager.deactivatePlugin()`, the following steps occur:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                  Plugin Deactivation Flow                        │
+├─────────────────────────────────────────────────────────────────┤
+│ 1. Unregister Spring Controllers                                 │
+│    └─ Remove REST endpoints from application context             │
+│                                                                  │
+│ 2. Unregister JPA Entities                                       │
+│    └─ Remove plugin entities from EntityManager                  │
+│                                                                  │
+│ 3. Destroy Plugin ApplicationContext                             │
+│    └─ Close isolated Spring context for this plugin              │
+│                                                                  │
+│ 4. Close ClassLoader                                             │
+│    └─ Release plugin JAR and class resources                     │
+│                                                                  │
+│ 5. Delete Plugin Files (third-party only)                        │
+│    └─ Remove JAR (bundled plugins preserved)                     │
+│    └─ Delete plugin data directory recursively                   │
+│                                                                  │
+│ 6. Update Database                                               │
+│    └─ Set status to "deactivated" in plugins table               │
+│    └─ Remove from component_registry_entries                     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Uninstallation Flow
+
+When a plugin is uninstalled via `PluginManager.uninstallPlugin()`:
+
+1. **Check Dependencies** - Logs warning if other plugins depend on this one
+2. **Deactivate First** - Calls deactivatePlugin() if plugin is active
+3. **Call Lifecycle Hook** - Invokes `plugin.onUninstall(context)` for cleanup
+4. **Unregister UI Components** - Removes from ComponentRegistryService
+5. **Clean Up Resources** - Same as deactivation (files, ClassLoader, etc.)
+
+#### Frontend Unloading
+
+When a plugin is unloaded in the frontend via `pluginLoaderService.unloadPlugin()`:
+
+```typescript
+// 1. Remove CSS styles
+const styleElement = document.getElementById(`plugin-styles-${pluginId}`);
+styleElement?.remove();
+
+// 2. Remove script tag
+const scriptElement = document.getElementById(`plugin-script-${pluginId}`);
+scriptElement?.remove();
+
+// 3. Clean up window global
+delete window[pluginGlobalName];
+
+// 4. Remove from loaded cache
+loadedPlugins.delete(pluginId);
+```
+
+**Note:** Frontend unloading does not unregister renderers from RendererRegistry. A page refresh is required for full cleanup.
+
+#### Remove Plugin (Manual)
+
+**Method 1: Delete JAR and Restart**
 
 ```bash
 # 1. Stop application
@@ -3415,12 +3596,87 @@ cd core
 mvn spring-boot:run
 ```
 
-**Method 2: Deactivate (Future Feature)**
+**Method 2: Via API (if implemented)**
 
 ```bash
-# Via API (not yet implemented)
+# Deactivate plugin (keeps data)
 curl -X POST http://localhost:8080/api/plugins/my-component-plugin/deactivate
+
+# Uninstall plugin (removes all data)
+curl -X DELETE http://localhost:8080/api/plugins/my-component-plugin
 ```
+
+#### Plugin Lifecycle Hooks (Plugin Developer's Responsibility)
+
+The platform calls lifecycle methods on plugins at specific points. **Plugin developers** must implement these methods to manage their own resources (background tasks, connections, caches, etc.).
+
+**What the Platform Does vs. What Plugin Developers Do:**
+
+| Responsibility | Platform (PluginManager) | Plugin Developer |
+|----------------|-------------------------|------------------|
+| Call lifecycle hooks | Yes | N/A |
+| Unregister Spring controllers | Yes | N/A |
+| Close ClassLoader | Yes | N/A |
+| Stop background tasks | No | Yes (in `onDeactivate`) |
+| Close custom DB connections | No | Yes (in `onDeactivate`) |
+| Delete plugin-specific data | No | Yes (in `onUninstall`) |
+
+**Example Plugin Implementation:**
+
+```java
+public class MyComponentPlugin extends AbstractUIComponentPlugin {
+
+    // Plugin-specific resources (managed by plugin developer)
+    private ScheduledExecutorService backgroundSync;
+    private MyCustomCache cache;
+
+    @Override
+    public void onActivate(PluginContext context) throws Exception {
+        log.info("Activating plugin: {}", getPluginId());
+
+        // Plugin developer starts their own background tasks
+        backgroundSync = Executors.newSingleThreadScheduledExecutor();
+        backgroundSync.scheduleAtFixedRate(
+            this::syncExternalData, 0, 5, TimeUnit.MINUTES
+        );
+
+        // Plugin developer initializes their own caches
+        cache = new MyCustomCache();
+        cache.warmUp();
+    }
+
+    @Override
+    public void onDeactivate(PluginContext context) throws Exception {
+        log.info("Deactivating plugin: {}", getPluginId());
+
+        // Plugin developer stops their background tasks
+        if (backgroundSync != null) {
+            backgroundSync.shutdownNow();
+            backgroundSync = null;
+        }
+
+        // Plugin developer clears their caches
+        if (cache != null) {
+            cache.clear();
+            cache = null;
+        }
+        // Note: On reactivation, onActivate() will reinitialize these
+    }
+
+    @Override
+    public void onUninstall(PluginContext context) throws Exception {
+        log.info("Uninstalling plugin: {}", getPluginId());
+
+        // Plugin developer deletes plugin-specific data permanently
+        myPluginRepository.deleteAll();
+    }
+}
+```
+
+**Key Points:**
+- The platform only calls the hooks; **cleanup implementation is the plugin developer's job**
+- Resources stopped in `onDeactivate()` should be restarted in `onActivate()`
+- `onUninstall()` is for permanent cleanup (data deletion)
 
 ### Export Plugin
 
@@ -3498,13 +3754,360 @@ plugin-cli publish my-component-plugin-1.0.0.jar \
 
 ---
 
+## Chapter 6.2: Component Administration UI
+
+The Component Administration UI provides administrators with a graphical interface to manage registered components without requiring direct database access or code changes. This feature is accessible through the Settings Modal and is restricted to admin users only.
+
+### Overview
+
+The Component Administration system consists of:
+
+1. **Backend Admin Endpoints** - REST API for component management operations
+2. **Frontend Management Tab** - UI in Settings Modal for viewing and managing components
+3. **JAR Upload Modal** - Drag-and-drop interface for uploading plugin JAR files
+4. **Component Usage Tracking** - Ability to see which pages use each component
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     Component Administration Architecture                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                               │
+│  ┌──────────────────┐    ┌─────────────────────┐    ┌────────────────────┐   │
+│  │ Settings Modal   │    │ ComponentAdmin      │    │ ComponentRegistry  │   │
+│  │ (Components Tab) │───>│ Controller          │───>│ Service            │   │
+│  │                  │    │ /api/admin/         │    │                    │   │
+│  │ - List all       │    │ components          │    │ - CRUD operations  │   │
+│  │ - Activate       │    │                     │    │ - Usage tracking   │   │
+│  │ - Deactivate     │    │ @PreAuthorize       │    │ - Validation       │   │
+│  │ - Delete         │    │ ("hasRole('ADMIN')")│    │                    │   │
+│  │ - Upload JAR     │    │                     │    │                    │   │
+│  └──────────────────┘    └─────────────────────┘    └────────────────────┘   │
+│           │                                                    │              │
+│           ▼                                                    ▼              │
+│  ┌──────────────────┐                              ┌────────────────────┐    │
+│  │ Upload Modal     │                              │ cms_component_     │    │
+│  │ (Drag & Drop)    │                              │ registry table     │    │
+│  │                  │                              │                    │    │
+│  │ - File validation│                              │ - pluginId         │    │
+│  │ - Progress       │                              │ - componentId      │    │
+│  │ - Error handling │                              │ - isActive         │    │
+│  └──────────────────┘                              │ - manifest JSON    │    │
+│                                                    └────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Backend Admin Endpoints
+
+The `ComponentAdminController` provides admin-only REST endpoints for component management:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/components` | List all components (including inactive) |
+| POST | `/api/admin/components/register` | Register component from manifest JSON |
+| POST | `/api/admin/components/upload` | Upload and install plugin JAR file |
+| PATCH | `/api/admin/components/{pluginId}/{componentId}/activate` | Activate a component |
+| PATCH | `/api/admin/components/{pluginId}/{componentId}/deactivate` | Deactivate a component |
+| DELETE | `/api/admin/components/{pluginId}/{componentId}` | Delete a component |
+| GET | `/api/admin/components/{pluginId}/{componentId}/usage` | Get pages using this component |
+
+**Security**: All endpoints require `ADMIN` role via `@PreAuthorize("hasRole('ADMIN')")`.
+
+#### Example API Usage
+
+```bash
+# List all components (admin only)
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8080/api/admin/components
+
+# Upload a plugin JAR
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -F "file=@my-plugin-1.0.0.jar" \
+  http://localhost:8080/api/admin/components/upload
+
+# Activate a component
+curl -X PATCH -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8080/api/admin/components/my-plugin/MyComponent/activate
+
+# Deactivate a component
+curl -X PATCH -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8080/api/admin/components/my-plugin/MyComponent/deactivate
+
+# Check component usage
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8080/api/admin/components/my-plugin/MyComponent/usage
+
+# Delete a component (fails if used by pages)
+curl -X DELETE -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8080/api/admin/components/my-plugin/MyComponent
+
+# Register component from manifest JSON
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "pluginId": "my-plugin",
+    "componentId": "MyComponent",
+    "displayName": "My Component",
+    "category": "ui",
+    "icon": "🎨"
+  }' \
+  http://localhost:8080/api/admin/components/register
+```
+
+### Frontend Components
+
+#### Settings Modal Integration
+
+The Component Management tab is added to the Settings Modal and is only visible to admin users:
+
+```typescript
+// SettingsModal.tsx
+type SettingsTab = 'general' | 'editor' | 'keyboard' | 'security' | 'components';
+
+// Build tabs list - Components tab only visible to admins
+const tabs: { id: SettingsTab; label: string }[] = [
+  { id: 'general', label: 'General' },
+  { id: 'editor', label: 'Editor' },
+  { id: 'keyboard', label: 'Shortcuts' },
+  ...(isAdmin() ? [
+    { id: 'security' as SettingsTab, label: 'Security' },
+    { id: 'components' as SettingsTab, label: 'Components' },
+  ] : []),
+];
+```
+
+#### ComponentManagementTab
+
+The main management interface (`frontend/src/components/settings/ComponentManagementTab.tsx`) provides:
+
+**Features:**
+- **Component List** - Shows all registered components with status badges (Active/Inactive)
+- **Search & Filter** - Filter by category, status, or search by name/ID
+- **Statistics** - Shows total, active, and inactive component counts
+- **Actions per component**:
+  - View Usage - Shows which pages use this component
+  - Activate/Deactivate - Toggle component availability
+  - Delete - Remove component (blocked if used by pages)
+
+**UI Layout:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Component Registry                                               │
+│ ┌──────────────┐ ┌─────────────┐ ┌───────────┐ ┌──────────────┐ │
+│ │ 🔍 Search... │ │ Category ▼  │ │ Status ▼  │ │Upload Plugin │ │
+│ └──────────────┘ └─────────────┘ └───────────┘ └──────────────┘ │
+│                                                                  │
+│ 25 total | 23 active | 2 inactive                               │
+├─────────────────────────────────────────────────────────────────┤
+│ Components (25)                                                  │
+│ ┌─────────────────────────────────────────────────────────────┐ │
+│ │ 🏷️ Label                              [Active]              │ │
+│ │    label-component-plugin | ui                               │ │
+│ │                        [Usage] [Deactivate] [Delete]        │ │
+│ └─────────────────────────────────────────────────────────────┘ │
+│ ┌─────────────────────────────────────────────────────────────┐ │
+│ │ 🔘 Button                             [Active]              │ │
+│ │    button-component-plugin | ui                              │ │
+│ │                        [Usage] [Deactivate] [Delete]        │ │
+│ └─────────────────────────────────────────────────────────────┘ │
+│ ...                                                              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### ComponentUploadModal
+
+The JAR upload modal (`frontend/src/components/settings/ComponentUploadModal.tsx`) provides:
+
+**Features:**
+- **Drag and Drop** - Drop JAR files directly onto the upload zone
+- **Click to Browse** - Traditional file picker option
+- **File Validation** - Validates file type (.jar) and size (max 50MB)
+- **Progress Indicator** - Shows upload progress with spinner
+- **Error Handling** - Displays descriptive error messages
+- **Success Feedback** - Confirms successful upload with auto-close
+
+**Upload Flow:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Upload Plugin JAR                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Upload a plugin JAR file to register new components.            │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │                                                             │ │
+│  │        ⬆️ Drag and drop a JAR file here                    │ │
+│  │           or click to browse                                │ │
+│  │                                                             │ │
+│  │        Accepts .jar files up to 50MB                        │ │
+│  │                                                             │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+│                                                                  │
+│  Requirements:                                                   │
+│  • JAR file must contain a valid plugin.yml manifest            │
+│  • Plugin must extend the component SDK interfaces               │
+│  • Component IDs must be unique (not already registered)         │
+│                                                                  │
+│                                    [Cancel] [Upload Plugin]      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Component Admin Service (Frontend)
+
+The `componentAdminService` (`frontend/src/services/componentAdminService.ts`) provides the TypeScript API client:
+
+```typescript
+// Get all components (including inactive)
+const components = await componentAdminService.getAllComponents();
+
+// Upload a plugin JAR file
+const result = await componentAdminService.uploadPlugin(file);
+
+// Register component from manifest JSON
+const entry = await componentAdminService.registerComponent(manifest);
+
+// Activate/deactivate a component
+await componentAdminService.activateComponent(pluginId, componentId);
+await componentAdminService.deactivateComponent(pluginId, componentId);
+
+// Delete a component
+await componentAdminService.deleteComponent(pluginId, componentId);
+
+// Get component usage (which pages use it)
+const usage = await componentAdminService.getComponentUsage(pluginId, componentId);
+
+// Validate page components (check for deactivated components)
+const validation = await componentAdminService.validatePageComponents(siteId, pageId);
+```
+
+### TypeScript Interfaces
+
+```typescript
+interface ComponentRegistryEntry {
+  id: number;
+  pluginId: string;
+  componentId: string;
+  componentName: string;
+  category: string;
+  icon: string | null;
+  componentManifest: string;  // JSON string
+  reactBundlePath: string | null;
+  isActive: boolean;
+  registeredAt: string;
+}
+
+interface PageUsageInfo {
+  pageId: number;
+  pageName: string;
+  pageSlug: string;
+  siteId: number;
+  siteName: string;
+}
+
+interface ComponentValidationResult {
+  valid: boolean;
+  deactivatedComponents: DeactivatedComponentInfo[];
+  deactivatedCount: number;
+}
+```
+
+### Deactivation Behavior
+
+When a component is **deactivated**:
+
+1. **Hidden from Palette** - Component no longer appears in the Component Palette
+2. **Existing Pages Affected** - Pages containing the component may be blocked from editing
+3. **Warning on Deactivate** - Admin sees which pages will be affected before confirming
+4. **Reversible** - Component can be reactivated at any time
+
+**Deactivation Warning Dialog:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Confirm Deactivate                                        [X]   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Are you sure you want to deactivate Label?                     │
+│                                                                  │
+│  ⚠️ Warning: This component is used in 3 page(s).               │
+│  Deactivating it will prevent editing those pages until          │
+│  the component is removed or reactivated.                        │
+│                                                                  │
+│  • Home Page (My Website)                                        │
+│  • About Us (My Website)                                         │
+│  • Contact (My Website)                                          │
+│                                                                  │
+│                                    [Cancel] [Deactivate]         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Deletion Behavior
+
+When attempting to **delete** a component:
+
+1. **Usage Check** - System checks if any pages use this component
+2. **Blocked if Used** - Cannot delete components that are in use
+3. **Must Remove First** - Pages must have the component removed before deletion
+4. **Permanent** - Deletion cannot be undone
+
+**Delete Blocked Dialog (component in use):**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Component Usage: Label                                    [X]   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  This component is used in 3 page(s):                           │
+│                                                                  │
+│  • Home Page (/home) in My Website                              │
+│  • About Us (/about) in My Website                              │
+│  • Contact (/contact) in My Website                             │
+│                                                                  │
+│  Remove the component from these pages before deleting.          │
+│                                                                  │
+│                                              [Close]             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### File Structure
+
+```
+frontend/src/
+├── components/
+│   ├── modals/
+│   │   └── SettingsModal.tsx           # Contains Components tab (admin-only)
+│   └── settings/
+│       ├── ComponentManagementTab.tsx  # Main management UI
+│       ├── ComponentManagementTab.css  # Styles (cm- prefix)
+│       ├── ComponentUploadModal.tsx    # JAR upload modal
+│       └── ComponentUploadModal.css    # Styles (cup- prefix)
+└── services/
+    └── componentAdminService.ts        # API client for admin endpoints
+
+core/src/main/java/dev/mainul35/cms/sitebuilder/
+├── controller/
+│   └── ComponentAdminController.java   # Admin REST endpoints
+├── service/
+│   └── ComponentRegistryService.java   # Business logic (extended)
+└── repository/
+    └── ComponentRegistryRepository.java # Data access
+```
+
+### CSS Class Naming Convention
+
+To avoid conflicts with other components, CSS classes use prefixes:
+
+- **`cm-`** - Component Management Tab classes (e.g., `cm-tab`, `cm-item`, `cm-list`)
+- **`cup-`** - Component Upload Modal classes (e.g., `cup-dropzone`, `cup-spinner`)
+
+---
+
 ## Chapter 7: Shipped Plugins Reference
 
 This chapter documents all plugins that ship with the Visual Site Builder platform. These plugins serve as both functional components and reference implementations for plugin development.
 
 ### Plugin Overview
 
-The platform includes 10 plugins organized into four categories:
+The platform ships with the following plugins organized into categories:
 
 | Plugin | Type | Category | Description |
 | ------ | ---- | -------- | ----------- |
@@ -3513,10 +4116,10 @@ The platform includes 10 plugins organized into four categories:
 | Textbox | UI Component | ui | Input field with validation |
 | Navbar | UI Component | ui | Navigation bar with dropdowns |
 | Image | UI Component | ui | Image display with aspect ratios |
+| HorizontalRow | UI Component | ui | Horizontal divider/separator line |
 | Container | Layout | layout | Flexible container with grid/flex layouts |
 | ScrollableContainer | Layout | layout | Scrollable area with snap support |
-| Repeater | Data | data | Iterate over arrays to render children |
-| DataList | Data | data | Pre-styled list/table/grid rendering |
+| NewsletterForm | Form | form | Newsletter subscription form (compound plugin) |
 | Auth | Authentication | auth | Login, register, social login components |
 
 ### Plugin Directory Structure
@@ -3530,8 +4133,8 @@ plugins/
 ├── image-component-plugin/        # Image display component
 ├── container-layout-plugin/       # Flex/grid container
 ├── scrollable-container-plugin/   # Scrollable container
-├── repeater-component-plugin/     # Data repeater for arrays
-├── datalist-component-plugin/     # Styled data lists
+├── horizontal-row-plugin/         # Horizontal divider/separator
+├── newsletter-form-plugin/        # Newsletter subscription form
 └── auth-component-plugin/         # Authentication components
 ```
 
@@ -3894,80 +4497,6 @@ To create a horizontal carousel:
 
 ---
 
-### Data Component Plugins
-
-#### Repeater Component
-
-A component that iterates over data arrays and renders children for each item.
-
-**Plugin Details:**
-
-| Property | Value |
-| -------- | ----- |
-| Plugin ID | `repeater-component-plugin` |
-| Component ID | `repeater` |
-| Category | `data` |
-| Icon | 🔄 |
-| Can Have Children | Yes |
-
-**Configurable Props:**
-
-| Prop | Type | Default | Description |
-| ---- | ---- | ------- | ----------- |
-| `dataSource` | OBJECT | null | Data source configuration (API endpoint, method, etc.) |
-| `itemAlias` | STRING | "item" | Variable name for current item in template |
-| `indexAlias` | STRING | "index" | Variable name for current index |
-| `emptyMessage` | STRING | "No items" | Message when array is empty |
-| `layoutType` | SELECT | "flex-column" | Layout: flex-column, flex-row, grid-2col, grid-3col, grid-20-80, etc. |
-
-**Usage:**
-
-1. Drag Repeater onto canvas
-2. Configure data source (e.g., `/api/products`)
-3. Add child components inside
-4. Use `{{item.fieldName}}` in child props
-
----
-
-#### DataList Component
-
-A pre-styled component for rendering data collections as tables, cards, lists, or grids.
-
-**Plugin Details:**
-
-| Property | Value |
-| -------- | ----- |
-| Plugin ID | `datalist-component-plugin` |
-| Component ID | `datalist` |
-| Category | `data` |
-| Icon | 📋 |
-| Can Have Children | No |
-
-**Configurable Props:**
-
-| Prop | Type | Default | Description |
-| ---- | ---- | ------- | ----------- |
-| `dataSource` | OBJECT | null | Data source configuration |
-| `listStyle` | SELECT | "table" | Display style: table, cards, list, grid |
-| `columns` | JSON | [] | Column configuration for table style |
-| `cardTemplate` | SELECT | "default" | Card template: default, image-top, horizontal |
-| `pagination` | BOOLEAN | false | Enable pagination |
-| `pageSize` | NUMBER | 10 | Items per page |
-| `showSearch` | BOOLEAN | false | Show search input |
-| `sortable` | BOOLEAN | false | Enable column sorting |
-
-**Column Configuration:**
-
-```json
-[
-  { "key": "name", "label": "Name", "sortable": true },
-  { "key": "email", "label": "Email" },
-  { "key": "status", "label": "Status", "type": "badge" }
-]
-```
-
----
-
 ### Authentication Component Plugins
 
 #### Auth Component Plugin
@@ -4112,14 +4641,14 @@ cd label-component-plugin && mvn clean package && cd ..
 cd textbox-component-plugin && mvn clean package && cd ..
 cd navbar-component-plugin && mvn clean package && cd ..
 cd image-component-plugin && mvn clean package && cd ..
+cd horizontal-row-plugin && mvn clean package && cd ..
 
 # Layout Components
 cd container-layout-plugin && mvn clean package && cd ..
 cd scrollable-container-plugin && mvn clean package && cd ..
 
-# Data Components
-cd repeater-component-plugin && mvn clean package && cd ..
-cd datalist-component-plugin && mvn clean package && cd ..
+# Form Components
+cd newsletter-form-plugin && mvn clean package && cd ..
 
 # Authentication Components
 cd auth-component-plugin && mvn clean package && cd ..
@@ -4140,14 +4669,14 @@ cd label-component-plugin; mvn clean package; cd ..
 cd textbox-component-plugin; mvn clean package; cd ..
 cd navbar-component-plugin; mvn clean package; cd ..
 cd image-component-plugin; mvn clean package; cd ..
+cd horizontal-row-plugin; mvn clean package; cd ..
 
 # Layout Components
 cd container-layout-plugin; mvn clean package; cd ..
 cd scrollable-container-plugin; mvn clean package; cd ..
 
-# Data Components
-cd repeater-component-plugin; mvn clean package; cd ..
-cd datalist-component-plugin; mvn clean package; cd ..
+# Form Components
+cd newsletter-form-plugin; mvn clean package; cd ..
 
 # Authentication Components
 cd auth-component-plugin; mvn clean package; cd ..
@@ -4370,10 +4899,80 @@ Plugin Frontend Loading Flow:
                        └──────────────────┘
 ```
 
+#### Virtual Plugins (Frontend Optimization)
+
+Virtual plugins allow loading multiple related plugins with a single call. This is a **frontend-only optimization** - the backend serves each actual plugin individually.
+
+**How Virtual Plugin Mapping Works:**
+
+1. **Mapping Definition** (`VIRTUAL_PLUGIN_MAPPINGS`):
+```typescript
+const VIRTUAL_PLUGIN_MAPPINGS = {
+  'core-ui': ['label-component-plugin', 'button-component-plugin',
+              'container-layout-plugin', 'textbox-component-plugin',
+              'image-component-plugin'],
+  'core-navbar': ['navbar-component-plugin'],
+  'core-layout': ['container-layout-plugin'],
+};
+```
+
+2. **Loading Process** - When `loadPlugin('core-ui')` is called:
+   - Checks if `'core-ui'` exists in `VIRTUAL_PLUGIN_MAPPINGS`
+   - Loads all 5 actual plugins in parallel via `Promise.all()`
+   - Each actual plugin's bundle.js is fetched from the backend
+   - Renderers are registered under **both** the actual plugin ID and the virtual alias
+
+3. **Alias Registration** - The key mechanism that makes virtual plugins work:
+```typescript
+// After loading label-component-plugin for virtual 'core-ui':
+// Label renderer is registered as:
+//   - 'label-component-plugin:Label' (actual)
+//   - 'core-ui:Label' (alias)
+```
+
+This allows components with `pluginId: 'core-ui'` to find renderers even though they were provided by `label-component-plugin`.
+
+**Component-to-Plugin Mapping:**
+```typescript
+const COMPONENT_TO_PLUGIN_MAPPING = {
+  'Label': 'label-component-plugin',
+  'Button': 'button-component-plugin',
+  'Container': 'container-layout-plugin',
+  // ... used to know which renderers to alias
+};
+```
+
+#### Plugin Loading Pipeline
+
+The `pluginLoaderService` follows this sequence:
+
+1. **Check cache** - Skip if plugin already loaded (stored in `loadedPlugins` Set)
+2. **Prevent duplicates** - Skip if currently loading (stored in `loadingPlugins` Map)
+3. **Resolve virtual plugins** - If virtual, load all actual plugins in parallel
+4. **For each actual plugin:**
+   - `GET /api/plugins/{pluginId}/has-frontend` - Check frontend availability
+   - Load CSS first to prevent unstyled content flash
+   - Load JS via `<script>` injection from `/api/plugins/{pluginId}/bundle.js`
+5. **Extract bundle** - Get from `window.{PascalCasePluginId}` (e.g., `window.NavbarComponentPlugin`)
+6. **Register renderers** - Call `registerRenderers()` or manually register from `bundle.renderers`
+7. **Register aliases** - For virtual plugins, register under alias plugin ID
+8. **Mark loaded** - Add to `loadedPlugins` cache
+
+#### Bundle Serving Endpoints
+
+The backend serves plugin assets via `PluginAssetController`:
+
+| Endpoint | Response | Purpose |
+|----------|----------|---------|
+| `GET /api/plugins/{pluginId}/has-frontend` | `{ pluginId, hasBundleJs, hasBundleCss }` | Check if plugin has frontend assets |
+| `GET /api/plugins/{pluginId}/bundle.js` | JavaScript (IIFE) | Compiled frontend bundle |
+| `GET /api/plugins/{pluginId}/bundle.css` | CSS | Optional styles |
+
 Plugins are built as IIFE (Immediately Invoked Function Expression) bundles that:
 1. Are served from the backend via `/api/plugins/{pluginId}/bundle.js`
 2. Expose a global variable (e.g., `window.MyComponentPlugin`)
 3. Register their renderers with the core RendererRegistry
+4. Can include optional CSS that's loaded before JavaScript
 
 ### Step 1: Create package.json
 
@@ -4749,10 +5348,11 @@ The VSD IntelliJ Plugin provides IDE support for developing Visual Site Builder 
 
 The VSD IntelliJ Plugin is an IDE extension that:
 
-1. **Generates TypeScript Types** - Automatically creates typed interfaces for all plugin components from the component manifest
-2. **Enables Cross-Plugin Imports** - Provides `@vsd/plugin-id` import aliases for using components from other plugins
-3. **Provides Code Completion** - Offers IntelliSense for component props, styles, and factory functions
-4. **Watches for Changes** - Automatically regenerates types when plugin renderers or manifests change
+1. **Build & Deploy Plugins** - One-click build and deployment to your VSD installation
+2. **Generates TypeScript Types** - Automatically creates typed interfaces for all plugin components from the component manifest
+3. **Enables Cross-Plugin Imports** - Provides `@vsd/plugin-id` import aliases for using components from other plugins
+4. **Provides Code Completion** - Offers IntelliSense for component props, styles, and factory functions
+5. **Watches for Changes** - Automatically regenerates types when plugin renderers or manifests change
 
 ### How It Works
 
@@ -4931,6 +5531,53 @@ Extend your `tsconfig.json` with the generated paths:
     // ... your other options
   }
 }
+```
+
+#### 5. Configure Build & Deploy (New in v1.1.0)
+
+Set up one-click plugin deployment:
+
+1. Go to **Settings > Tools > VSD Plugin Deployment**
+2. Set the **Target Plugins Directory** to your VSD installation's `plugins/` folder
+   - Example: `C:\path\to\dynamic-site-builder\plugins`
+3. Optionally enable **Restart Reminder** to be reminded to restart the backend
+
+### Build & Deploy Workflow
+
+The VSD IntelliJ Plugin streamlines the plugin development cycle:
+
+```mermaid
+flowchart LR
+    A[Edit Plugin Code] --> B[Build & Deploy]
+    B --> C[JAR copied to plugins/]
+    C --> D[Restart Backend]
+    D --> E[Test in Browser]
+    E --> A
+```
+
+**Using Build & Deploy:**
+
+1. **From Menu:** Tools > VSD > Build & Deploy Plugin
+2. **From Context Menu:** Right-click on plugin folder > "Build & Deploy VSD Plugin"
+
+**What It Does:**
+
+1. Detects the plugin directory (looks for `pom.xml` and `plugin.yml`)
+2. Runs `mvn package -DskipTests` to build the JAR
+3. Copies the JAR to your configured plugins directory
+4. Shows a success notification with deployment details
+
+**Example Workflow:**
+
+```bash
+# 1. Make changes to your plugin (e.g., label-component-plugin)
+# 2. In IntelliJ, right-click on the plugin folder
+# 3. Select "Build & Deploy VSD Plugin"
+# 4. Restart the VSD backend:
+cd core
+mvn spring-boot:run
+
+# 5. Open browser and verify changes
 ```
 
 ### How to Register Custom Components for Indexing
