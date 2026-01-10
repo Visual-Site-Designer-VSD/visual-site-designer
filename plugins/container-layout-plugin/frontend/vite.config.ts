@@ -2,6 +2,9 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
+// Root frontend directory (shared node_modules)
+const rootFrontend = resolve(__dirname, '../../../frontend');
+
 export default defineConfig({
   plugins: [react()],
   build: {
@@ -38,5 +41,11 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, 'src'),
     },
+    // Resolve modules from root frontend's node_modules first, then local
+    modules: [
+      resolve(rootFrontend, 'node_modules'),
+      resolve(__dirname, 'node_modules'),
+      'node_modules',
+    ],
   },
 });

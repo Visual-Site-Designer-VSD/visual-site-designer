@@ -2,6 +2,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
+// Root frontend directory (shared node_modules)
+const rootFrontend = resolve(__dirname, '../../../frontend');
 // Path to generated-types directory for cross-plugin imports
 const generatedTypesDir = resolve(__dirname, '../../../generated-types');
 
@@ -46,5 +48,11 @@ export default defineConfig({
       '@vsd/label-component-plugin': resolve(generatedTypesDir, 'plugins/label-component-plugin/index.ts'),
       '@vsd/textbox-component-plugin': resolve(generatedTypesDir, 'plugins/textbox-component-plugin/index.ts'),
     },
+    // Resolve modules from root frontend's node_modules first, then local
+    modules: [
+      resolve(rootFrontend, 'node_modules'),
+      resolve(__dirname, 'node_modules'),
+      'node_modules',
+    ],
   },
 });
