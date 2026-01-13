@@ -169,6 +169,40 @@ The right sidebar allows component customization with four tabs:
 | **Static HTML** | Self-contained HTML/CSS/JS files |
 | **Spring Boot + Thymeleaf** | Server-side rendered application |
 
+### Component Resizing
+
+Components can be resized in the builder using resize handles. The resizing behavior follows these rules:
+
+#### Dimension Priority
+
+Component dimensions are determined in this priority order:
+
+1. **Props (Properties Panel)** - Explicit width/height set by user
+2. **Stored Size (from resize)** - Dimensions saved after resize operation
+3. **Default** - Component-specific defaults (e.g., `100%` for children, `auto` for root)
+
+#### Image Component Sizing
+
+Image components have special sizing behavior:
+
+| Context | Width | Height |
+|---------|-------|--------|
+| Root level (no parent) | `auto` | `100%` |
+| Inside container | `100%` | `100%` |
+| After resize | Stored pixel value | Stored pixel value |
+
+**Note:** The `'auto'` value is treated as "not set" and falls back to defaults. This ensures images fill their parent containers properly.
+
+#### Layout Container Sizing
+
+Layout containers (Container, Scrollable Container) use:
+
+- **Width**: `100%` by default, respects resized values
+- **Height**: `auto` (grows with content) or explicit pixel value after resize
+- **Min-height**: `100px` to ensure visibility
+
+For detailed technical information, see [DIMENSION_SYNC_RULES.md](frontend/src/components/builder/DIMENSION_SYNC_RULES.md).
+
 ---
 
 ## Chapter 4: Plugin Development Overview
