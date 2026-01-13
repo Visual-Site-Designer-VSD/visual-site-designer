@@ -271,7 +271,7 @@
 }
 
 /* The resizable-component for Image should not be constrained */
-.draggable-component.child-component[data-component-id^="Image-"] .resizable-component {
-  width: auto;
-  max-width: none;
-}
+/*.draggable-component.child-component[data-component-id^="Image-"] .resizable-component {*/
+/*  width: auto;*/
+/*  max-width: none;*/
+/*}*/

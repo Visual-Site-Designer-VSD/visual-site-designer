@@ -350,15 +350,15 @@
   width: 100%;
 }
 
-.children-container.grid-layout > .draggable-component .resizable-component {
-  width: 100% !important; /* Override inline width on resizable wrapper too */
-  max-width: 100% !important;
-}
+/*.children-container.grid-layout > .draggable-component .resizable-component {*/
+/*  width: 100% !important; !* Override inline width on resizable wrapper too *!*/
+/*  max-width: 100% !important;*/
+/*}*/
 
-.children-container.grid-layout > .draggable-component .resizable-component.child-component {
-  width: 100% !important;
-  max-width: 100% !important;
-}
+/*.children-container.grid-layout > .draggable-component .resizable-component.child-component {*/
+/*  width: 100% !important;*/
+/*  max-width: 100% !important;*/
+/*}*/
 
 /* For flex-row layouts, children should use their stored widths as flex-basis */
 .children-container.flex-row-layout {
