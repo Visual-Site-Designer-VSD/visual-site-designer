@@ -121,7 +121,7 @@ public class ImageComponentPlugin implements UIComponentPlugin {
     private Map<String, String> buildDefaultStyles() {
         Map<String, String> styles = new HashMap<>();
         styles.put("width", "100%");
-        styles.put("height", "auto");
+        styles.put("height", "100%");
         return styles;
     }
 

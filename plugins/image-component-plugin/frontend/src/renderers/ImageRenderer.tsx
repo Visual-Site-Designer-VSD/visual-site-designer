@@ -42,14 +42,12 @@ const ImageRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
 
   // Container sizing logic - priority order:
   // 1. Props width/height (from Properties panel) - highest priority
-  // 2. Stored dimensions (from resize)
+  // 2. Stored dimensions (from resize) - but ignore 'auto' as it means "not set"
   // 3. Parent-aware defaults (100% for children, auto for root)
-  const effectiveWidth = propsWidth || storedWidth || (hasParent ? '100%' : 'auto');
-  const effectiveHeight = propsHeight || storedHeight || 'auto';
+  const effectiveWidth = propsWidth || (storedWidth && storedWidth !== 'auto' ? storedWidth : null) || (hasParent ? '100%' : 'auto');
 
   const containerStyles: React.CSSProperties = {
     width: effectiveWidth,
-    height: effectiveHeight,
     // Only apply maxWidth for root-level Images to prevent page overflow
     // Child Images should be resizable beyond parent bounds (container will expand)
     maxWidth: hasParent ? undefined : '100%',
@@ -57,6 +55,7 @@ const ImageRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
     overflow: 'hidden',
     boxSizing: 'border-box',
     ...(component.styles as React.CSSProperties),
+    height: '100%',
   };
 
   // When height is not explicitly set (auto), use aspect ratio to determine height
