@@ -10,7 +10,6 @@ Dockerfile
 
 # Documentation
 README.md
-DEPLOYMENT.md
 *.md
 
 # IDE
@@ -37,10 +36,6 @@ data/
 logs/
 *.log
 
-# Certificates and configs
-certbot/
-nginx/
-init-letsencrypt.sh
 
 # Environment
 .env
