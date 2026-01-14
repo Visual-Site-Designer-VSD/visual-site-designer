@@ -73,7 +73,15 @@ export const ResizableComponent: React.FC<ResizableComponentProps> = ({
 
     // If no children container, this might be a leaf component (Label, Button, etc.)
     // Measure the actual content height to prevent resizing below content
+    // Exception: Image components should be freely resizable - they don't have text content
     if (!childrenContainer) {
+      // Check if this is an Image component - Images should be freely resizable
+      const isImageComponent = component.componentId.startsWith('Image');
+      if (isImageComponent) {
+        // Images can be resized freely - use default minimums only
+        return { childMinWidth: minWidth, childMinHeight: minHeight };
+      }
+
       const resizableContent = componentRef.current.querySelector('.resizable-content');
       if (resizableContent) {
         // Get the scroll height which represents the actual content size
