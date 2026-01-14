@@ -59,17 +59,32 @@ export const ResizableComponent: React.FC<ResizableComponentProps> = ({
     return isNaN(parsed) ? 0 : parsed;
   };
 
-  // Calculate minimum size based on children's dimensions
-  // Returns { minWidth, minHeight } that the parent cannot shrink below
-  // Only considers children with explicit pixel widths, not percentage-based widths
+  // Calculate minimum size based on children's dimensions or content height
+  // Returns { minWidth, minHeight } that the component cannot shrink below
+  // For layout components: considers children with explicit pixel widths
+  // For leaf components (Label, Button, etc.): measures actual content height
   const getMinSizeFromChildren = (): { childMinWidth: number; childMinHeight: number } => {
     if (!componentRef.current) {
       return { childMinWidth: minWidth, childMinHeight: minHeight };
     }
 
-    // Find all direct child components inside this container
+    // Find all direct child components inside this container (for layout components)
     const childrenContainer = componentRef.current.querySelector('.children-container');
+
+    // If no children container, this might be a leaf component (Label, Button, etc.)
+    // Measure the actual content height to prevent resizing below content
     if (!childrenContainer) {
+      const resizableContent = componentRef.current.querySelector('.resizable-content');
+      if (resizableContent) {
+        // Get the scroll height which represents the actual content size
+        const contentScrollHeight = resizableContent.scrollHeight;
+        const contentScrollWidth = resizableContent.scrollWidth;
+
+        return {
+          childMinWidth: Math.max(minWidth, contentScrollWidth),
+          childMinHeight: Math.max(minHeight, contentScrollHeight)
+        };
+      }
       return { childMinWidth: minWidth, childMinHeight: minHeight };
     }
 
