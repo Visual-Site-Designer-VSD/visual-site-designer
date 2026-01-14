@@ -339,26 +339,32 @@
 .children-container.grid-layout > .draggable-component {
   width: 100% !important; /* Override inline width to fill grid cell */
   max-width: 100% !important; /* Ensure it doesn't exceed grid cell */
+  min-width: 0 !important; /* CRITICAL: Allow grid items to shrink below content width */
 }
 
 .children-container.grid-layout > .draggable-component.child-component {
   width: 100% !important; /* Also target child-component class explicitly */
   max-width: 100% !important;
+  min-width: 0 !important; /* Allow shrinking below content */
 }
 
 .children-container.grid-layout > .draggable-component > .component-content {
   width: 100%;
+  min-width: 0; /* Allow shrinking */
 }
 
-/*.children-container.grid-layout > .draggable-component .resizable-component {*/
-/*  width: 100% !important; !* Override inline width on resizable wrapper too *!*/
-/*  max-width: 100% !important;*/
-/*}*/
+/* Propagate width constraints through the entire wrapper chain for grid layouts */
+.children-container.grid-layout > .draggable-component .resizable-component {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
 
-/*.children-container.grid-layout > .draggable-component .resizable-component.child-component {*/
-/*  width: 100% !important;*/
-/*  max-width: 100% !important;*/
-/*}*/
+.children-container.grid-layout > .draggable-component .resizable-content {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
 
 /* For flex-row layouts, children should use their stored widths as flex-basis */
 .children-container.flex-row-layout {
