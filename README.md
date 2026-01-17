@@ -29,9 +29,10 @@ A visual drag-and-drop website builder platform with a plugin-based architecture
 **Reference**
 
 - [Chapter 9: Architecture](#chapter-9-architecture)
-- [Chapter 10: API Reference](#chapter-10-api-reference)
-- [Chapter 11: Testing](#chapter-11-testing)
-- [Chapter 12: Troubleshooting](#chapter-12-troubleshooting)
+- [Chapter 10: Site Runtime Library](#chapter-10-site-runtime-library)
+- [Chapter 11: API Reference](#chapter-11-api-reference)
+- [Chapter 12: Testing](#chapter-12-testing)
+- [Chapter 13: Troubleshooting](#chapter-13-troubleshooting)
 
 ---
 
@@ -1369,9 +1370,241 @@ classDiagram
 
 ---
 
-## Chapter 10: API Reference
+## Chapter 10: Site Runtime Library
 
-### Authentication
+The **Site Runtime Library** (`site-runtime`) is a standalone runtime library that gets bundled with exported sites. When you export a site from VSD CMS, this library provides the runtime functionality for the exported site to work independently without needing the full VSD CMS platform.
+
+### Purpose
+
+When you build a site in VSD CMS and export it, the exported application needs:
+
+- Data fetching from APIs, databases, or static sources
+- Template rendering for server-side rendering (SSR)
+- Caching for performance
+- Authentication/authorization
+
+The site-runtime module provides all of these capabilities as a lightweight, configurable library.
+
+### Architecture
+
+```mermaid
+graph TD
+    subgraph Exported["📦 Exported Site"]
+        A[Spring Boot App]
+        B[site-runtime.jar]
+        C[Page Templates]
+        D[Static Assets]
+    end
+
+    subgraph Runtime["🔧 Site Runtime"]
+        E[DataFetcher Registry]
+        F[Template Engine]
+        G[Cache Provider]
+        H[Security Config]
+    end
+
+    subgraph Sources["🌐 Data Sources"]
+        I[REST APIs]
+        J[SQL Database]
+        K[MongoDB]
+        L[Static Data]
+    end
+
+    A --> B
+    B --> E
+    B --> F
+    B --> G
+    B --> H
+    E --> I
+    E --> J
+    E --> K
+    E --> L
+```
+
+### Data Fetching
+
+The runtime supports multiple data source types through a pluggable `DataFetcher` interface:
+
+| Type | Description | Use Case |
+|------|-------------|----------|
+| `API` | Fetch from REST APIs | External services, microservices |
+| `DATABASE` | Direct database queries | JPA (SQL) or MongoDB |
+| `STATIC` | Hardcoded data | Configuration, constants |
+| `CONTEXT` | Request context data | User info, session data |
+
+#### DataFetcher Interface
+
+```java
+public interface DataFetcher {
+    Object fetch(DataSourceConfig config, Map<String, String> params);
+    boolean supports(DataSourceType type);
+}
+```
+
+#### Available Implementations
+
+| Fetcher | Data Source | Description |
+|---------|-------------|-------------|
+| `RestApiDataFetcher` | REST APIs | HTTP GET/POST with headers, auth |
+| `JpaDataFetcher` | SQL Databases | JPA/Hibernate queries |
+| `MongoDataFetcher` | MongoDB | MongoDB queries |
+| `StaticDataFetcher` | Static Data | Returns configured static data |
+| `ContextDataFetcher` | Request Context | User session, request attributes |
+
+### Configuration Properties
+
+Configure the runtime in your exported site's `application.properties`:
+
+#### API Gateway
+
+```properties
+# API configuration
+site.runtime.api.gateway-url=http://api.example.com
+site.runtime.api.timeout-ms=30000
+site.runtime.api.max-retries=3
+```
+
+#### Database
+
+```properties
+# Database type: none, jpa, mongodb
+site.runtime.database.type=jpa
+site.runtime.database.url=jdbc:postgresql://localhost:5432/mydb
+site.runtime.database.username=user
+site.runtime.database.password=secret
+```
+
+#### Caching
+
+```properties
+# Cache type: memory, redis
+site.runtime.cache.type=memory
+site.runtime.cache.default-ttl-ms=60000
+
+# Redis configuration (if cache.type=redis)
+site.runtime.cache.redis-host=localhost
+site.runtime.cache.redis-port=6379
+```
+
+#### Authentication
+
+```properties
+# Auth type: none, basic, oauth2, jwt, social, sso
+site.runtime.auth.type=oauth2
+site.runtime.auth.session-timeout-minutes=30
+site.runtime.auth.login-success-url=/
+site.runtime.auth.logout-success-url=/
+```
+
+### Authentication Options
+
+#### Social Login (Google, GitHub, Facebook)
+
+```properties
+site.runtime.auth.type=social
+
+# Google
+site.runtime.auth.social.google.enabled=true
+site.runtime.auth.social.google.client-id=your-google-client-id
+site.runtime.auth.social.google.client-secret=your-google-client-secret
+
+# GitHub
+site.runtime.auth.social.github.enabled=true
+site.runtime.auth.social.github.client-id=your-github-client-id
+site.runtime.auth.social.github.client-secret=your-github-client-secret
+
+# Facebook
+site.runtime.auth.social.facebook.enabled=true
+site.runtime.auth.social.facebook.client-id=your-facebook-client-id
+site.runtime.auth.social.facebook.client-secret=your-facebook-client-secret
+```
+
+#### Enterprise SSO (Okta, Keycloak, Azure AD)
+
+```properties
+site.runtime.auth.type=sso
+
+# Provider: okta, keycloak, azure, custom
+site.runtime.auth.sso.provider=okta
+site.runtime.auth.sso.client-id=your-client-id
+site.runtime.auth.sso.client-secret=your-client-secret
+site.runtime.auth.sso.scopes=openid,profile,email
+
+# Okta specific
+site.runtime.auth.sso.okta-domain=dev-12345.okta.com
+
+# Keycloak specific
+site.runtime.auth.sso.realm=myrealm
+site.runtime.auth.sso.auth-server-url=https://keycloak.example.com
+
+# Azure AD specific
+site.runtime.auth.sso.tenant-id=your-tenant-id
+```
+
+#### Custom OIDC Provider
+
+```properties
+site.runtime.auth.type=sso
+site.runtime.auth.sso.provider=custom
+site.runtime.auth.sso.issuer-uri=https://idp.example.com
+site.runtime.auth.sso.client-id=your-client-id
+site.runtime.auth.sso.client-secret=your-client-secret
+site.runtime.auth.sso.authorization-uri=https://idp.example.com/authorize
+site.runtime.auth.sso.token-uri=https://idp.example.com/token
+site.runtime.auth.sso.user-info-uri=https://idp.example.com/userinfo
+site.runtime.auth.sso.jwk-set-uri=https://idp.example.com/.well-known/jwks.json
+```
+
+### Using in Exported Sites
+
+When you export a site from VSD CMS, the exported Spring Boot application includes `site-runtime` as a dependency:
+
+```xml
+<dependency>
+    <groupId>dev.mainul35</groupId>
+    <artifactId>site-runtime</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+</dependency>
+```
+
+The runtime auto-configures based on your `application.properties`. You can customize:
+
+1. **Data Sources** - Configure which APIs or databases to connect to
+2. **Caching** - Choose in-memory or Redis caching
+3. **Authentication** - Enable social login or enterprise SSO
+4. **Template Rendering** - Thymeleaf templates for SSR
+
+### Site Runtime Module Structure
+
+```text
+site-runtime/
+├── pom.xml
+└── src/main/java/dev/mainul35/siteruntime/
+    ├── config/
+    │   ├── SiteRuntimeProperties.java      # Configuration properties
+    │   ├── SiteRuntimeAutoConfiguration.java
+    │   └── SecurityAutoConfiguration.java
+    ├── data/
+    │   ├── DataFetcher.java                # Interface
+    │   ├── DataSourceType.java             # Enum: API, STATIC, CONTEXT, DATABASE
+    │   ├── DataSourceConfig.java           # Configuration model
+    │   ├── DataSourceRegistry.java         # Registry of data sources
+    │   ├── RestApiDataFetcher.java         # REST API implementation
+    │   ├── JpaDataFetcher.java             # JPA implementation
+    │   ├── MongoDataFetcher.java           # MongoDB implementation
+    │   ├── StaticDataFetcher.java          # Static data implementation
+    │   ├── ContextDataFetcher.java         # Context implementation
+    │   └── FieldMappingConfig.java         # Field mapping configuration
+    └── service/
+        ├── PageDataService.java            # Page data aggregation
+        └── InMemoryCacheProvider.java      # In-memory cache
+```
+
+---
+
+## Chapter 11: API Reference
+
+### Auth Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -1485,7 +1718,7 @@ POST /api/auth/login
 
 ---
 
-## Chapter 11: Testing
+## Chapter 12: Testing
 
 ### Backend Testing
 
@@ -1610,7 +1843,7 @@ mvn test -pl core,flashcard-cms-plugin-sdk
 
 ---
 
-## Chapter 12: Troubleshooting
+## Chapter 13: Troubleshooting
 
 ### Port Already in Use
 

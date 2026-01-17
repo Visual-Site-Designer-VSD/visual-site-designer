@@ -3,13 +3,14 @@
 .gitignore
 .gitattributes
 
-# Docker
+# Docker files (not needed inside build)
 docker-compose*.yml
 Dockerfile
 .dockerignore
 
 # Documentation
 README.md
+docs/
 *.md
 
 # IDE
@@ -19,30 +20,29 @@ README.md
 *.ipr
 *.iws
 
-# Node
-node_modules
-frontend/node_modules
+# Node - exclude all node_modules directories everywhere
+**/node_modules
+
+# Frontend build outputs (will be rebuilt in Docker)
 frontend/.next
 frontend/build
 frontend/dist
 
-# Maven
-target/
-!core/target/*.jar
-!plugins/*/target/*.jar
+# Maven target directories (will be rebuilt in Docker)
+**/target
 
 # Data and logs
 data/
 logs/
 *.log
 
-
-# Environment
+# Environment files
 .env
 .env.local
 .env.*.local
+.env.example
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
 
@@ -56,5 +56,11 @@ Thumbs.db
 coverage/
 .nyc_output/
 
-# Runtime plugin directory
+# Runtime plugin directory (used for hot-reload in dev)
 plugins-runtime/
+
+# Nginx config (deployment specific)
+nginx/
+
+# Shell scripts (deployment specific)
+*.sh

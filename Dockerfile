@@ -2,13 +2,15 @@
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /app
 
-# Copy parent POM and core module first for better layer caching
+# Copy parent POM first
 COPY pom.xml .
-COPY core/pom.xml ./core/
-COPY core/src ./core/src
-COPY frontend ./frontend
 
-# Copy all plugin modules
+# Copy all Maven modules (required for multi-module build)
+COPY vsd-cms-bom ./vsd-cms-bom
+COPY flashcard-cms-plugin-sdk ./flashcard-cms-plugin-sdk
+COPY site-runtime ./site-runtime
+COPY core ./core
+COPY frontend ./frontend
 COPY plugins ./plugins
 
 # Build the entire project (core + all plugins)
