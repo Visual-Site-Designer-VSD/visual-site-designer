@@ -56,20 +56,16 @@
         </dependency>
 
         <!-- OAuth2 Client (for Google, Okta, Keycloak, OIDC login) -->
-        <!-- Uncomment when you have OAuth2 credentials configured in application.properties
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-oauth2-client</artifactId>
         </dependency>
-        -->
 
-        <!-- OAuth2 Resource Server (for JWT validation) -->
-        <!-- Uncomment when you have OAuth2 credentials configured in application.properties
+        <!-- OAuth2 Resource Server (for JWT validation from VSD Auth Server) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
         </dependency>
-        -->
 
         <!-- JJWT (JSON Web Token library) -->
         <dependency>
