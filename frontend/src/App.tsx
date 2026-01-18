@@ -5,6 +5,7 @@ import './App.css';
 // Pages
 import { BuilderPage } from './pages/BuilderPage';
 import { LoginPage } from './pages/LoginPage';
+import { OAuth2CallbackPage } from './pages/OAuth2CallbackPage';
 
 // Auth components
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
@@ -29,6 +30,7 @@ function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />
 
         {/* Protected Builder Routes - Full Screen */}
         <Route
