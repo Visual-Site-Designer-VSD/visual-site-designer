@@ -26,13 +26,17 @@ A visual drag-and-drop website builder platform with a plugin-based architecture
 
 - [Chapter 8: VSD IntelliJ Plugin](#chapter-8-vsd-intellij-plugin)
 
+**Authentication**
+
+- [Chapter 9: Authentication](#chapter-9-authentication)
+
 **Reference**
 
-- [Chapter 9: Architecture](#chapter-9-architecture)
-- [Chapter 10: Site Runtime Library](#chapter-10-site-runtime-library)
-- [Chapter 11: API Reference](#chapter-11-api-reference)
-- [Chapter 12: Testing](#chapter-12-testing)
-- [Chapter 13: Troubleshooting](#chapter-13-troubleshooting)
+- [Chapter 10: Architecture](#chapter-10-architecture)
+- [Chapter 11: Site Runtime Library](#chapter-11-site-runtime-library)
+- [Chapter 12: API Reference](#chapter-12-api-reference)
+- [Chapter 13: Testing](#chapter-13-testing)
+- [Chapter 14: Troubleshooting](#chapter-14-troubleshooting)
 
 ---
 
@@ -1174,7 +1178,174 @@ generated-types/
 
 ---
 
-## Chapter 9: Architecture
+## Chapter 9: Authentication
+
+VSD CMS supports multiple authentication methods including local credentials and Single Sign-On (SSO) with VSD Auth Server.
+
+### Authentication Modes
+
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| **Local Authentication** | Username/password with JWT tokens (HS256) | Standalone deployment |
+| **VSD Auth Server SSO** | OAuth2 login with centralized auth server (RS256) | Multi-application SSO |
+| **Dual Mode** | Both local and SSO enabled simultaneously | Migration, flexibility |
+
+### Local Authentication
+
+Default authentication using username/password credentials stored in the CMS database.
+
+**Login Request:**
+
+```json
+POST /api/auth/login
+{
+  "usernameOrEmail": "admin",
+  "password": "admin123"
+}
+```
+
+**Response:**
+
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+  "refreshToken": "eyJhbGciOiJIUzI1NiIs...",
+  "expiresIn": 3600,
+  "user": {
+    "id": 1,
+    "username": "admin",
+    "email": "admin@localhost",
+    "roles": ["ADMIN"]
+  }
+}
+```
+
+### VSD Auth Server SSO
+
+For centralized authentication across multiple VSD applications, enable OAuth2 SSO with VSD Auth Server.
+
+#### SSO Configuration
+
+Enable SSO in `application.properties`:
+
+```properties
+# Enable VSD Auth Server integration
+app.auth-server.enabled=true
+app.auth-server.jwk-set-uri=http://localhost:9000/oauth2/jwks
+
+# OAuth2 Client Configuration
+spring.security.oauth2.client.registration.vsd-auth.client-id=vsd-cms
+spring.security.oauth2.client.registration.vsd-auth.client-secret=your-secret
+spring.security.oauth2.client.registration.vsd-auth.scope=openid,profile,email
+spring.security.oauth2.client.registration.vsd-auth.authorization-grant-type=authorization_code
+spring.security.oauth2.client.registration.vsd-auth.redirect-uri={baseUrl}/login/oauth2/code/{registrationId}
+
+spring.security.oauth2.client.provider.vsd-auth.issuer-uri=http://localhost:9000
+spring.security.oauth2.client.provider.vsd-auth.authorization-uri=http://localhost:9000/oauth2/authorize
+spring.security.oauth2.client.provider.vsd-auth.token-uri=http://localhost:9000/oauth2/token
+spring.security.oauth2.client.provider.vsd-auth.user-info-uri=http://localhost:9000/userinfo
+spring.security.oauth2.client.provider.vsd-auth.jwk-set-uri=http://localhost:9000/oauth2/jwks
+```
+
+#### SSO Login Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CMS as VSD CMS
+    participant Auth as VSD Auth Server
+
+    User->>CMS: Click "Sign in with VSD Auth Server"
+    CMS->>Auth: Redirect to /oauth2/authorize
+    Auth->>User: Show login page
+    User->>Auth: Enter credentials
+    Auth->>CMS: Redirect with authorization code
+    CMS->>Auth: Exchange code for tokens
+    Auth->>CMS: Return access token + user info
+    CMS->>CMS: Create/link local CMS user
+    CMS->>CMS: Generate local JWT token
+    CMS->>User: Redirect to frontend with token
+```
+
+#### Dual Authentication Mode
+
+When both local and SSO are enabled, the system automatically detects the token type:
+
+- **HS256 tokens** → Processed by local JWT filter
+- **RS256 tokens** → Delegated to OAuth2 Resource Server
+
+This allows users to log in with either method without configuration changes.
+
+### Role Management
+
+VSD CMS uses the `RoleName` enum for type-safe role management:
+
+```java
+public enum RoleName {
+    ADMIN,      // Full system access
+    DESIGNER,   // Site design permissions
+    EDITOR,     // Content editing permissions
+    VIEWER,     // Read-only access
+    USER,       // Default registered user
+    ANONYMOUS;  // Unauthenticated access
+}
+```
+
+#### Role Mapping from Auth Server
+
+When users log in via SSO, their auth server roles are mapped to CMS roles:
+
+| Auth Server Role | CMS Role |
+|------------------|----------|
+| `ROLE_ADMIN` or `ROLE_CMS_ADMIN` | `ADMIN` |
+| `ROLE_EDITOR` or `ROLE_CMS_EDITOR` | `EDITOR` |
+| `ROLE_VIEWER` or `ROLE_CMS_VIEWER` | `VIEWER` |
+| `ROLE_DESIGNER` or `ROLE_CMS_DESIGNER` | `DESIGNER` |
+| (default) | `USER` |
+
+### User Status
+
+User accounts have a status managed by the `UserStatus` enum:
+
+```java
+public enum UserStatus {
+    PENDING,    // Awaiting admin approval
+    APPROVED,   // Active account
+    REJECTED    // Access denied
+}
+```
+
+- **Local registration** → Status is `PENDING` until admin approves
+- **SSO login** → Status is automatically `APPROVED`
+
+### Security Configuration
+
+Role-based access control is configured in `CmsSecurityConfig`:
+
+```java
+// Admin endpoints - require ADMIN role
+auth.requestMatchers("/api/admin/**").hasRole(RoleName.ADMIN.name())
+
+// User management endpoints
+.requestMatchers("/api/users/pending").hasRole(RoleName.ADMIN.name())
+.requestMatchers("/api/users/*/approve", "/api/users/*/reject").hasRole(RoleName.ADMIN.name())
+
+// Protected API endpoints - require authentication
+.requestMatchers("/api/**").authenticated()
+```
+
+### Frontend Login Page
+
+The login page displays both authentication options when SSO is enabled:
+
+- **Username/Password form** - For local authentication
+- **"Sign in with VSD Auth Server" button** - For SSO authentication
+
+After successful SSO login, the frontend receives the token via the `/oauth2/callback` route.
+
+---
+
+## Chapter 10: Architecture
 
 ### System Overview
 
@@ -1370,7 +1541,7 @@ classDiagram
 
 ---
 
-## Chapter 10: Site Runtime Library
+## Chapter 11: Site Runtime Library
 
 The **Site Runtime Library** (`site-runtime`) is a standalone runtime library that gets bundled with exported sites. When you export a site from VSD CMS, this library provides the runtime functionality for the exported site to work independently without needing the full VSD CMS platform.
 
@@ -1602,7 +1773,7 @@ site-runtime/
 
 ---
 
-## Chapter 11: API Reference
+## Chapter 12: API Reference
 
 ### Auth Endpoints
 
@@ -1718,7 +1889,7 @@ POST /api/auth/login
 
 ---
 
-## Chapter 12: Testing
+## Chapter 13: Testing
 
 ### Backend Testing
 
@@ -1843,7 +2014,7 @@ mvn test -pl core,flashcard-cms-plugin-sdk
 
 ---
 
-## Chapter 13: Troubleshooting
+## Chapter 14: Troubleshooting
 
 ### Port Already in Use
 
