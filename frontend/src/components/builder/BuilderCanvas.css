@@ -238,7 +238,7 @@
   min-height: 100px; /* Ensure minimum visibility */
   /* Use auto height to allow container to grow with children content */
   /* height: 100% was causing children to overflow instead of container expanding */
-  height: auto;
+  /*height: auto;*/
   overflow: visible; /* Allow resize handles to show outside bounds */
   /* For flex-row layouts, ensure layout placeholders don't collapse */
   min-width: 150px;
@@ -315,6 +315,7 @@
   /* NOTE: align-items is set via inline styles from getLayoutStyles() */
   /* Do NOT set align-items here - it would be overridden by inline styles anyway */
   width: 100%;
+    height: 85%;
   box-sizing: border-box;
 }
 

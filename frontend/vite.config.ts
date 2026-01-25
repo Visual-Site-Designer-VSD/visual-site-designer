@@ -29,6 +29,25 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
         secure: false,
+      },
+      '/oauth2/authorization': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/login/oauth2': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false,
+        // Configure to pass through redirects to the browser
+        configure: (proxy) => {
+          proxy.on('proxyRes', (proxyRes, req, res) => {
+            // Log redirect responses for debugging
+            if (proxyRes.statusCode && proxyRes.statusCode >= 300 && proxyRes.statusCode < 400) {
+              console.log('[Vite Proxy] Redirect detected:', proxyRes.statusCode, proxyRes.headers.location);
+            }
+          });
+        },
       }
     }
   },
