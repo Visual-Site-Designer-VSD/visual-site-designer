@@ -35,7 +35,9 @@ public class JwtService {
 
     public String generateAccessToken(CmsUser user) {
         Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", user.getId());
         claims.put("email", user.getEmail());
+        claims.put("fullName", user.getFullName());
         claims.put("roles", user.getRoles().stream()
                 .map(role -> role.getRoleName())
                 .collect(Collectors.toSet()));
@@ -46,6 +48,7 @@ public class JwtService {
 
     public String generateAccessToken(UserDetails userDetails, Long userId, String email, Set<String> roles) {
         Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", userId);
         claims.put("email", email);
         claims.put("roles", roles);
         claims.put("type", "access");

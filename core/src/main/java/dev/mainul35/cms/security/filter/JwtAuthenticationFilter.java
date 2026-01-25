@@ -84,9 +84,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Set<String> roles = jwtService.extractRoles(jwt);
 
                 if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    // Create authorities from roles
+                    // Create authorities from roles - handle unknown roles gracefully
                     var authorities = roles.stream()
-                            .map(role -> new SimpleGrantedAuthority(RoleName.valueOf(role).withRolePrefix()))
+                            .map(role -> {
+                                try {
+                                    return new SimpleGrantedAuthority(RoleName.valueOf(role).withRolePrefix());
+                                } catch (IllegalArgumentException e) {
+                                    // Unknown role, use raw role name with ROLE_ prefix
+                                    log.warn("Unknown role in token: {}, using as-is", role);
+                                    return new SimpleGrantedAuthority("ROLE_" + role);
+                                }
+                            })
                             .collect(Collectors.toList());
 
                     // Create authentication token
