@@ -4,6 +4,9 @@ import { Site, Page } from '../types/site';
 import { siteService } from '../services/siteService';
 import { pageService } from '../services/pageService';
 
+// Module-level flag to prevent multiple rehydration initializations
+let hasInitialized = false;
+
 /**
  * Page Tree Node for hierarchical page display
  */
@@ -152,6 +155,11 @@ export const useSiteManagerStore = create<SiteManagerState>()(
 
       // Load all sites for the current user
       loadSites: async () => {
+        // Prevent concurrent loads
+        if (get().isLoadingSites) {
+          console.log('[siteManagerStore] loadSites skipped - already loading');
+          return;
+        }
         console.log('[siteManagerStore] loadSites called');
         set({ isLoadingSites: true, error: null });
         try {
@@ -552,6 +560,13 @@ export const useSiteManagerStore = create<SiteManagerState>()(
         if (state && Array.isArray(state.expandedPageIds)) {
           state.expandedPageIds = new Set(state.expandedPageIds as unknown as number[]);
         }
+
+        // Prevent multiple initializations (can happen with HMR or multiple store subscriptions)
+        if (hasInitialized) {
+          console.log('[siteManagerStore] Already initialized, skipping rehydration init');
+          return;
+        }
+        hasInitialized = true;
 
         // Schedule initialization after rehydration completes
         // This loads sites from backend and restores the selected site

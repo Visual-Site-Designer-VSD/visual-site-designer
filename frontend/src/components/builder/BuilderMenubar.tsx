@@ -62,13 +62,19 @@ export const BuilderMenubar: React.FC<BuilderMenubarProps> = ({
   const pageTree = siteManager.pageTree || [];
   const { selectSite, loadSites, isLoadingSites } = siteManager;
 
-  // Load sites on mount if not already loaded
+  // Track if we've already tried to load sites this session
+  const hasAttemptedLoadRef = React.useRef(false);
+
+  // Load sites on mount - only once
+  // The store's onRehydrate already loads sites, so this is a fallback
   useEffect(() => {
-    if (sites.length === 0 && !isLoadingSites) {
+    if (!hasAttemptedLoadRef.current && sites.length === 0 && !isLoadingSites) {
+      hasAttemptedLoadRef.current = true;
       console.log('[BuilderMenubar] Loading sites on mount');
       loadSites();
     }
-  }, [sites.length, isLoadingSites, loadSites]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Handlers
   const handleCopy = () => {
