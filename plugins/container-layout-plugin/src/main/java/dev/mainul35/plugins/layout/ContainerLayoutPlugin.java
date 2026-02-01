@@ -146,6 +146,7 @@ public class ContainerLayoutPlugin implements UIComponentPlugin {
         props.put(PROP_ALIGN_ITEMS, DEFAULT_ALIGN_ITEMS);
         props.put(PROP_JUSTIFY_CONTENT, DEFAULT_JUSTIFY_CONTENT);
         props.put("allowOverflow", false);
+        props.put("heightMode", "resizable");
         return props;
     }
 
@@ -249,6 +250,16 @@ public class ContainerLayoutPlugin implements UIComponentPlugin {
                 .label("Allow Overflow")
                 .defaultValue(false)
                 .helpText("Allow content to overflow container")
+                .build());
+
+        props.add(PropDefinition.builder()
+                .name("heightMode")
+                .type(PropDefinition.PropType.SELECT)
+                .label("Height Mode")
+                .defaultValue("resizable")
+                .options(List.of("fill", "resizable", "wrap"))
+                .required(false)
+                .helpText("Height behavior: fill (100% of parent), resizable (fixed pixel height), wrap (auto based on content)")
                 .build());
 
         return props;

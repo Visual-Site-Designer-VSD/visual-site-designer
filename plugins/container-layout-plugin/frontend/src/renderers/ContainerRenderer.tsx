@@ -1,5 +1,62 @@
 import React from 'react';
-import type { RendererProps } from '../types';
+import type { RendererProps, ComponentInstance } from '../types';
+
+// Access global RendererRegistry exposed by the main app
+interface RendererRegistry {
+  get: (componentId: string, pluginId?: string) => React.FC<RendererProps> | null;
+}
+
+const getGlobalRendererRegistry = (): RendererRegistry | null => {
+  return (globalThis as unknown as { RendererRegistry?: RendererRegistry }).RendererRegistry || null;
+};
+
+/**
+ * ChildRenderer - Renders a child component using the global RendererRegistry
+ * Plugins are expected to be preloaded by MultiPagePreview before rendering
+ */
+interface ChildRendererProps {
+  child: ComponentInstance;
+  isEditMode: boolean;
+  childSizeStyles: React.CSSProperties;
+}
+
+const ChildRenderer: React.FC<ChildRendererProps> = ({ child, isEditMode, childSizeStyles }) => {
+  const registry = getGlobalRendererRegistry();
+  const ChildRendererComponent = registry?.get(child.componentId, child.pluginId);
+
+  // Debug logging for nested children
+  console.log(`[ContainerChildRenderer] Rendering child:`, {
+    componentId: child.componentId,
+    pluginId: child.pluginId,
+    hasRenderer: !!ChildRendererComponent,
+    instanceId: child.instanceId,
+  });
+
+  if (ChildRendererComponent) {
+    return (
+      <div style={{ width: '100%', ...childSizeStyles }}>
+        <ChildRendererComponent component={child} isEditMode={isEditMode} />
+      </div>
+    );
+  }
+
+  // Fallback for unknown components (plugins should be preloaded by MultiPagePreview)
+  console.warn(`[ContainerChildRenderer] No renderer found for ${child.componentId} (plugin: ${child.pluginId})`);
+  const childBg = child.styles?.backgroundColor || child.styles?.background;
+  return (
+    <div
+      style={{
+        width: '100%',
+        minHeight: '50px',
+        ...childSizeStyles,
+        ...(childBg ? { backgroundColor: childBg as string } : {}),
+        ...child.styles as React.CSSProperties,
+      }}
+    >
+      {child.componentId}
+    </div>
+  );
+};
 
 /**
  * ContainerRenderer - Renders a container layout component
@@ -8,6 +65,9 @@ import type { RendererProps } from '../types';
  * File naming convention: {ComponentName}Renderer.tsx
  * The component name "Container" is derived from filename "ContainerRenderer.tsx"
  */
+// Height mode options for container
+type HeightMode = 'fill' | 'resizable' | 'wrap';
+
 const ContainerRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
   // Extract props with defaults
   // Note: layoutMode is the primary prop set by the UI, layoutType is legacy/fallback
@@ -20,6 +80,9 @@ const ContainerRenderer: React.FC<RendererProps> = ({ component, isEditMode }) =
     // Default to true to allow children to grow naturally in flex-column layouts
     // This prevents children from being clipped when they overflow
     allowOverflow = true,
+    // Height mode: 'fill' (100%), 'resizable' (use size.height), 'wrap' (auto/content-based)
+    // Default to 'resizable' to preserve backwards compatibility
+    heightMode = 'resizable' as HeightMode,
   } = component.props;
 
   // Use layoutMode if set, otherwise fall back to layoutType, then default
@@ -123,6 +186,44 @@ const ContainerRenderer: React.FC<RendererProps> = ({ component, isEditMode }) =
     return { backgroundColor: backgroundColor || '#ffffff' };
   };
 
+  // Determine height styles based on heightMode prop
+  // - 'fill': Use 100% height to fill parent
+  // - 'resizable': Use the size.height value (pixel-based, user can resize)
+  // - 'wrap': Auto height based on content
+  const sizeHeight = component.size?.height;
+
+  // Check if size.height indicates fill (100% or percentage string)
+  const sizeIndicatesFill = sizeHeight === '100%' as unknown as number ||
+    (typeof sizeHeight === 'string' && (sizeHeight as string).includes('%'));
+
+  // Determine effective height mode - if size indicates fill, use fill mode
+  const effectiveHeightMode: HeightMode = sizeIndicatesFill ? 'fill' : (heightMode as HeightMode);
+
+  // Calculate height and minHeight based on mode
+  const getHeightStyles = (): { height?: string; minHeight?: string } => {
+    switch (effectiveHeightMode) {
+      case 'fill':
+        // Fill parent height - use 100%
+        return { height: '100%', minHeight: undefined };
+      case 'wrap':
+        // Wrap content - auto height with minimum
+        return { height: 'auto', minHeight: '50px' };
+      case 'resizable':
+      default:
+        // Resizable - use the size.height if set, otherwise minHeight
+        if (sizeHeight && typeof sizeHeight === 'number' && sizeHeight > 0) {
+          return { height: `${sizeHeight}px`, minHeight: undefined };
+        }
+        if (sizeHeight && typeof sizeHeight === 'string') {
+          return { height: sizeHeight, minHeight: undefined };
+        }
+        // Default to minHeight if no size specified
+        return { height: undefined, minHeight: '100px' };
+    }
+  };
+
+  const heightStyles = getHeightStyles();
+
   // Base container styles
   const containerStyles: React.CSSProperties = {
     ...getLayoutStyles(),
@@ -134,7 +235,8 @@ const ContainerRenderer: React.FC<RendererProps> = ({ component, isEditMode }) =
     ...getBackgroundStyle(),
     borderRadius: component.styles.borderRadius || '8px',
     boxShadow: component.styles.boxShadow || '0 1px 3px rgba(0,0,0,0.1)',
-    minHeight: '100px',
+    // Apply height based on heightMode
+    ...heightStyles,
     // Apply additional styles from component (excluding background to avoid override)
     ...Object.fromEntries(
       Object.entries(component.styles as React.CSSProperties).filter(
@@ -143,8 +245,58 @@ const ContainerRenderer: React.FC<RendererProps> = ({ component, isEditMode }) =
     ),
   };
 
+  // Helper to get child component's size styles
+  const getChildSizeStyles = (child: ComponentInstance): React.CSSProperties => {
+    const sizeStyles: React.CSSProperties = {};
+
+    // Apply width from size if it's a valid pixel/percentage value
+    if (child.size?.width) {
+      const width = child.size.width;
+      if (typeof width === 'string') {
+        sizeStyles.width = width;
+      } else if (typeof width === 'number' && width > 0) {
+        sizeStyles.width = `${width}px`;
+      }
+    }
+
+    // Apply height from size if it's a valid pixel/percentage value (not 'auto')
+    if (child.size?.height) {
+      const height = child.size.height;
+      if (typeof height === 'string' && height !== 'auto') {
+        sizeStyles.height = height;
+      } else if (typeof height === 'number' && height > 0) {
+        sizeStyles.height = `${height}px`;
+      }
+    }
+
+    return sizeStyles;
+  };
+
+  // Render children using ChildRenderer
+  const renderChildren = () => {
+    if (!component.children || component.children.length === 0) {
+      console.log(`[ContainerRenderer] No children for container ${component.instanceId}`);
+      return null;
+    }
+
+    console.log(`[ContainerRenderer] Rendering ${component.children.length} children for container ${component.instanceId}:`,
+      component.children.map(c => ({ id: c.instanceId, componentId: c.componentId, pluginId: c.pluginId }))
+    );
+
+    return component.children.map((child: ComponentInstance) => {
+      const childSizeStyles = getChildSizeStyles(child);
+      return (
+        <ChildRenderer
+          key={child.instanceId}
+          child={child}
+          isEditMode={isEditMode}
+          childSizeStyles={childSizeStyles}
+        />
+      );
+    });
+  };
+
   // In edit mode, we don't render children here - BuilderCanvas handles that
-  // This renderer is mainly for preview mode
   if (isEditMode) {
     return (
       <div style={containerStyles} className="container-renderer edit-mode">
@@ -153,11 +305,10 @@ const ContainerRenderer: React.FC<RendererProps> = ({ component, isEditMode }) =
     );
   }
 
-  // Preview mode - render a clean container
-  // Note: Children are passed through the component tree, not directly here
+  // Preview mode - render container with children
   return (
     <div style={containerStyles} className="container-renderer preview-mode">
-      {/* Children are rendered by the parent component */}
+      {renderChildren()}
     </div>
   );
 };
