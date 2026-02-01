@@ -1,0 +1,21 @@
+{
+  "name": "@dynamic-site-builder/page-layout-plugin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Frontend bundle for page-layout-plugin - structured page layout with header, footer, sidebars, and center content",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "build:watch": "vite build --watch",
+    "preview": "vite preview"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0"
+  }
+}
