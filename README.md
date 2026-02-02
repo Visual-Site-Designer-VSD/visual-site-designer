@@ -14,6 +14,7 @@ A visual drag-and-drop website builder platform with a plugin-based architecture
 **Using the Builder**
 
 - [Chapter 3: Builder Features](#chapter-3-builder-features)
+  - [Container Height Modes](#container-component-height-modes)
 
 **Plugin Development**
 
@@ -207,6 +208,95 @@ Layout containers (Container, Scrollable Container) use:
 - **Min-height**: `100px` to ensure visibility
 
 For detailed technical information, see [DIMENSION_SYNC_RULES.md](frontend/src/components/builder/DIMENSION_SYNC_RULES.md).
+
+### Container Component Height Modes
+
+The Container component provides three height modes that control how the container behaves vertically. This is configured via the **Height Mode** property in the Properties panel.
+
+#### Height Mode Options
+
+| Mode | Height Behavior | Overflow Behavior | Use Case |
+|------|-----------------|-------------------|----------|
+| **wrap** | Auto-expands with content | Visible (allows expansion) | Content should always be fully visible |
+| **fill** | 100% of parent height | Auto (scrolls on overflow) | Fill a slot in PageLayout or parent container |
+| **resizable** | User-defined pixel height | Auto (scrolls on overflow) | Fixed height with scrollable content |
+
+#### Wrap Mode Behavior
+
+When **Height Mode** is set to `wrap`:
+
+1. Container **always** automatically expands to fit all children
+2. Height is always `auto` - ignores any stored resize values
+3. Overflow is always `visible` - content is never clipped
+
+```
+Wrap Mode
+┌──────────────────┐
+│ Child 1          │
+│ Child 2          │
+│ Child 3          │  Container grows
+│ Child 4          │  to fit all
+│ Child 5          │  children
+│ Child 6          │
+└──────────────────┘
+Height: auto (always expands)
+Overflow: visible
+```
+
+**Note:** If you need a fixed height with scrolling, use `resizable` mode instead.
+
+#### Fill Mode Behavior
+
+When **Height Mode** is set to `fill`:
+
+1. Container takes 100% of parent height
+2. Content scrolls when it exceeds the container height
+3. Useful for sidebar panels, fixed-height regions
+
+```
+Parent Container (400px)
+┌─────────────────────────┐
+│ Container (fill mode)   │
+│ ┌─────────────────────┐ │
+│ │ Child 1             │ │
+│ │ Child 2             │ │
+│ │ Child 3  ▼scroll    │ │
+│ └─────────────────────┘ │
+└─────────────────────────┘
+Height: 100% of parent
+```
+
+#### Resizable Mode Behavior
+
+When **Height Mode** is set to `resizable` (default):
+
+1. Uses the stored height from resize operations
+2. If no resize yet, uses default height
+3. Content scrolls when it exceeds the container height
+
+#### Priority Order for Height
+
+The container height is determined by this priority:
+
+1. **Properties Panel height** - Explicit height set via Properties panel
+2. **Stored resize height** - Pixel height saved from drag-resize operation
+3. **Height Mode** - wrap (auto), fill (100%), or resizable (stored/default)
+
+#### Overflow Handling
+
+| Scenario | Overflow | Behavior |
+|----------|----------|----------|
+| `wrap` mode, no resize | `visible` | Container expands with content |
+| `wrap` mode, after resize | `auto` | Content scrolls if overflow |
+| `fill` mode | `auto` | Content scrolls if overflow |
+| `resizable` mode | `auto` | Content scrolls if overflow |
+
+#### Best Practices
+
+1. **Use `wrap` for dynamic content**: When the container should grow to show all children
+2. **Use `fill` for layout slots**: When container should fill a PageLayout region
+3. **Use `resizable` for fixed sections**: When you want a specific height with scrolling
+4. **Manual resize overrides wrap**: Drag to shrink a `wrap` container if you need fixed height
 
 ---
 
