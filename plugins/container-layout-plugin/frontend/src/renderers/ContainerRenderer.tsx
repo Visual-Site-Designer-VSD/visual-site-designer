@@ -77,11 +77,13 @@ const ContainerRenderer: React.FC<RendererProps> = ({ component, isEditMode }) =
     padding = '20px',
     maxWidth = '1200px',
     centerContent = true,
-    // Default to true to allow children to grow naturally in flex-column layouts
-    // This prevents children from being clipped when they overflow
+    // DEPRECATED: allowOverflow is no longer used - overflow is now controlled by heightMode
+    // Kept for backwards compatibility with saved components
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     allowOverflow = true,
     // Height mode: 'fill' (100%), 'resizable' (use size.height), 'wrap' (auto/content-based)
     // Default to 'resizable' to preserve backwards compatibility
+    // Overflow behavior: wrap=visible, fill/resizable=auto (scrollbar on overflow)
     heightMode = 'resizable' as HeightMode,
   } = component.props;
 
@@ -222,6 +224,18 @@ const ContainerRenderer: React.FC<RendererProps> = ({ component, isEditMode }) =
     }
   };
 
+  // Get overflow based on heightMode
+  // - 'wrap': visible (allows container to expand with content)
+  // - 'fill'/'resizable': auto (enables scrollbar when content overflows)
+  const getOverflowStyle = (): 'visible' | 'auto' | 'hidden' => {
+    if (effectiveHeightMode === 'wrap') {
+      return 'visible';
+    }
+    // For fill and resizable modes, use auto to enable scrolling
+    // This takes precedence over allowOverflow when height is constrained
+    return 'auto';
+  };
+
   const heightStyles = getHeightStyles();
 
   // Base container styles
@@ -231,16 +245,19 @@ const ContainerRenderer: React.FC<RendererProps> = ({ component, isEditMode }) =
     padding: padding as string,
     maxWidth: maxWidth !== 'none' ? (maxWidth as string) : undefined,
     margin: centerContent ? '0 auto' : undefined,
-    overflow: allowOverflow ? 'visible' : 'hidden',
+    // Overflow is determined by heightMode:
+    // - wrap: visible (expand with content)
+    // - fill/resizable: auto (scroll when content overflows)
+    overflow: getOverflowStyle(),
     ...getBackgroundStyle(),
     borderRadius: component.styles.borderRadius || '8px',
     boxShadow: component.styles.boxShadow || '0 1px 3px rgba(0,0,0,0.1)',
     // Apply height based on heightMode
     ...heightStyles,
-    // Apply additional styles from component (excluding background to avoid override)
+    // Apply additional styles from component (excluding properties we control)
     ...Object.fromEntries(
       Object.entries(component.styles as React.CSSProperties).filter(
-        ([key]) => key !== 'background' && key !== 'backgroundColor'
+        ([key]) => !['background', 'backgroundColor', 'overflow'].includes(key)
       )
     ),
   };

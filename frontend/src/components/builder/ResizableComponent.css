@@ -4,6 +4,9 @@
   /* Ensure component sizes to fit its content */
   display: flex;
   flex-direction: column;
+  /* CRITICAL: Allow resize handles to show outside bounds */
+  /* Handles are positioned with negative offsets like -5px */
+  overflow: visible;
 }
 
 /* Auto-height containers for layouts */

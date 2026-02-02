@@ -640,9 +640,15 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect,
       // Check if slots are visible at current breakpoint
       const isHeaderVisible = slotVisibility.header;
       const isFooterVisible = slotVisibility.footer;
-      const isLeftVisible = slotVisibility.left;
-      const isRightVisible = slotVisibility.right;
       const isCenterVisible = slotVisibility.center;
+      const isRightVisible = slotVisibility.right;
+
+      // For left sidebar, consider mobileSidebarBehavior - if it's 'overlay' or 'stacked',
+      // the sidebar is still accessible (just displayed differently), so don't treat it as hidden
+      const mobileSidebarBehavior = component.props?.mobileSidebarBehavior || 'hidden';
+      const isMobileBreakpoint = activeBreakpoint === 'mobile';
+      const isLeftVisible = slotVisibility.left ||
+        (isMobileBreakpoint && (mobileSidebarBehavior === 'overlay' || mobileSidebarBehavior === 'stacked'));
 
       // Common styles for regions - overflow hidden to constrain children within slot boundaries
       const regionStyle: React.CSSProperties = {
@@ -891,10 +897,38 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect,
 
       // In preview mode, render clean layout without builder chrome
       if (!isEditMode) {
-        // For height, only apply explicit pixel/percentage values, not 'auto'
-        const previewHeight = component.size.height && component.size.height !== 'auto'
-          ? component.size.height
-          : undefined;
+        // Get heightMode prop for containers (affects height and overflow behavior)
+        const previewHeightMode = component.props?.heightMode as string | undefined;
+
+        // Calculate height based on heightMode
+        // Priority: explicit props height > heightMode > stored size
+        const propsHeight = component.props?.height as string | undefined;
+        let previewHeight: string | undefined;
+
+        if (propsHeight) {
+          // Explicit height from Properties panel
+          previewHeight = propsHeight;
+        } else if (previewHeightMode === 'wrap') {
+          // Wrap mode: auto height to expand with content
+          previewHeight = 'auto';
+        } else if (previewHeightMode === 'fill') {
+          // Fill mode: 100% of parent height
+          previewHeight = '100%';
+        } else if (component.size.height && component.size.height !== 'auto') {
+          // Resizable mode or explicit stored height
+          previewHeight = component.size.height;
+        }
+        // If no height determined, leave undefined (natural sizing)
+
+        // Get overflow based on heightMode
+        // wrap = visible (expand with content), fill/resizable = auto (scroll on overflow)
+        const getPreviewOverflow = (): React.CSSProperties => {
+          if (previewHeightMode === 'wrap') {
+            return { overflow: 'visible' as const };
+          }
+          // For fill and resizable modes, enable scrolling when content overflows
+          return { overflow: 'auto' as const };
+        };
 
         // Apply maxWidth and centering if specified in props
         const maxWidth = component.props?.maxWidth;
@@ -918,9 +952,9 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect,
         const justifyContent = component.props?.justifyContent;
         const flexWrap = component.styles?.flexWrap as React.CSSProperties['flexWrap'];
 
-        // Extract styles excluding width and maxWidth - these should be controlled by props, not stored value
+        // Extract styles excluding width, maxWidth, and overflow - these should be controlled by props/heightMode
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { width: _ignoredWidth, maxWidth: _ignoredMaxWidth, ...stylesWithoutWidth } = component.styles || {};
+        const { width: _ignoredWidth, maxWidth: _ignoredMaxWidth, overflow: _ignoredOverflow, ...stylesWithoutWidth } = component.styles || {};
 
         return (
           <div
@@ -939,6 +973,7 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect,
               marginRight: centerContent ? 'auto' : undefined,
               gap: previewGap,
               padding: previewPadding,
+              ...getPreviewOverflow(),
             }}
           >
             {hasChildren && component.children!.map(child => {
@@ -1022,18 +1057,32 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect,
       const editJustifyContent = component.props?.justifyContent;
       const editFlexWrap = component.styles?.flexWrap as React.CSSProperties['flexWrap'];
 
-      // Get overflow styles for scrollable containers
+      // Get heightMode prop for containers (affects overflow behavior)
+      const heightMode = component.props?.heightMode as string | undefined;
+
+      // Get overflow styles based on scrollable type and heightMode
       const getScrollOverflow = () => {
-        if (!isScrollable) return { overflow: 'visible' };
-        switch (scrollDirection) {
-          case 'horizontal':
-            return { overflowX: 'auto' as const, overflowY: 'hidden' as const };
-          case 'both':
-            return { overflowX: 'auto' as const, overflowY: 'auto' as const };
-          case 'vertical':
-          default:
-            return { overflowX: 'hidden' as const, overflowY: 'auto' as const };
+        if (isScrollable) {
+          // Scrollable containers always use their scroll direction
+          switch (scrollDirection) {
+            case 'horizontal':
+              return { overflowX: 'auto' as const, overflowY: 'hidden' as const };
+            case 'both':
+              return { overflowX: 'auto' as const, overflowY: 'auto' as const };
+            case 'vertical':
+            default:
+              return { overflowX: 'hidden' as const, overflowY: 'auto' as const };
+          }
         }
+
+        // For regular containers, overflow depends on heightMode:
+        // - 'wrap': visible (allows container to expand with content)
+        // - 'fill'/'resizable': auto (allows scrolling when content overflows)
+        if (heightMode === 'wrap') {
+          return { overflow: 'visible' as const };
+        }
+        // Default to auto - enables scrolling when content overflows
+        return { overflow: 'auto' as const };
       };
 
       return (

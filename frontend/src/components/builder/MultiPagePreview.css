@@ -3,7 +3,9 @@
 .multi-page-preview {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  /* Use min-height instead of fixed height to allow page to expand beyond viewport */
+  /* When content has wrap mode, page should grow and browser scrollbar handles scrolling */
+  min-height: 100vh;
   background: #f5f5f5;
 }
 
@@ -144,29 +146,37 @@
 
 /* Preview Content */
 .preview-content {
-  flex: 1;
-  overflow: auto; /* Allow scrolling so footer is accessible */
+  /* Use flex: 1 0 auto instead of flex: 1 */
+  /* - flex-grow: 1 = fills available space when content is smaller than viewport */
+  /* - flex-shrink: 0 = does NOT shrink below content size (allows expansion) */
+  /* - flex-basis: auto = starts at content size */
+  /* This allows content to grow beyond viewport height */
+  flex: 1 0 auto;
+  /* Allow content to expand naturally and use browser scrollbar */
+  /* When page content has wrap mode, entire page should scroll via browser */
+  overflow: visible;
   background: white;
   display: flex;
   flex-direction: column;
-  /* Ensure height is constrained so children can scroll */
-  min-height: 0;
 }
 
 .preview-content .builder-canvas {
-  /* Use min-height instead of height so content can expand naturally */
-  min-height: 100%;
-  /* Ensure page-layout-container uses available height not 100vh */
+  /* Use flex to allow canvas to expand with content */
+  flex: 1 0 auto;
 }
 
-/* Override page-layout-container height to use 100% instead of 100vh in preview */
+/* Let PageLayoutRenderer control height dynamically based on heightMode */
+/* Don't override with !important - let inline styles from React control behavior */
 .preview-content .page-layout-container {
-  height: 100% !important;
-  min-height: 100% !important;
+  /* Height and min-height are set inline by PageLayoutRenderer based on heightMode */
+  /* This allows wrap mode containers to expand and use browser scrollbar */
+  /* Use flex to allow expansion when wrap mode is used */
+  flex: 1 0 auto;
 }
 
 .preview-navigation-interceptor {
-  height: 100%;
+  /* Use flex to allow content to expand beyond viewport */
+  flex: 1 0 auto;
   display: flex;
   flex-direction: column;
 }

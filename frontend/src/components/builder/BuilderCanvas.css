@@ -25,11 +25,15 @@
   /* Use flex to allow page-layout-container to fill the space */
   display: flex !important;
   flex-direction: column;
-  /* Fill available height from parent - critical for scroll to work */
-  height: 100%;
-  min-height: 0;
-  /* Don't scroll here - let page-layout-container handle its own scrolling for sticky headers to work */
-  overflow: hidden;
+  /* Use flex: 1 0 auto to allow content to expand beyond viewport */
+  /* - flex-grow: 1 = fills available space when content is smaller */
+  /* - flex-shrink: 0 = does NOT shrink, allows expansion beyond viewport */
+  /* - flex-basis: auto = starts at content size */
+  flex: 1 0 auto;
+  /* Allow content to expand naturally - PageLayoutRenderer handles scroll context internally */
+  /* For wrap mode: overflow visible allows page to grow, browser scrollbar handles scrolling */
+  /* For fill/resizable modes: PageLayoutRenderer creates its own scroll context with overflow: auto */
+  overflow: visible;
 }
 
 .builder-canvas.drag-over {
@@ -310,16 +314,18 @@
   border-radius: 6px;
   min-height: 40px;
   /* Layout styles (display, flex-direction, grid-template-columns) are applied inline based on layoutType prop */
-  /* Use flex: 0 1 auto to allow container to shrink and grow with content, not expand to fill parent */
-  /* Previously flex: 1 was causing children-container to expand beyond its content */
-  flex: 0 1 auto;
+  /* Use flex: 1 1 auto to fill available space while still allowing content to expand parent */
+  flex: 1 1 auto;
   position: relative;
-  /* Allow resize handles to show - they have negative offsets */
+  /* Default to visible - inline styles override based on heightMode */
+  /* wrap mode: visible (allows container to expand) */
+  /* fill/resizable modes: auto (allows scrolling) */
   overflow: visible;
   /* NOTE: align-items is set via inline styles from getLayoutStyles() */
   /* Do NOT set align-items here - it would be overridden by inline styles anyway */
   width: 100%;
-    height: 85%;
+  /* Don't set explicit height - let parent container control height via inline styles */
+  /* Children-container should fill parent but not constrain it */
   box-sizing: border-box;
 }
 
@@ -424,11 +430,20 @@
 
 .page-layout-region {
   transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+/* Only show pointer cursor and hover effects in edit mode */
+.page-layout-container.edit-mode .page-layout-region {
   cursor: pointer;
 }
 
-.page-layout-region:hover {
+.page-layout-container.edit-mode .page-layout-region:hover {
   background: rgba(0, 123, 255, 0.05);
+}
+
+/* Preview mode: slots are passive containers, no pointer cursor */
+.page-layout-container.preview-mode .page-layout-region {
+  cursor: default;
 }
 
 /* Hidden slot styles for responsive breakpoints */
@@ -486,13 +501,15 @@
   overflow: hidden;
 }
 
-/* Nested layout containers should fill their parent by default */
+/* Nested layout containers - don't set explicit height here to allow resize to work */
+/* Height is controlled by inline styles from ResizableComponent based on component.size */
+/* For auto-height behavior, set the Container's heightMode prop to 'wrap' */
 .child-component .layout-placeholder {
   width: 100%;
-  /* Layout containers can fill parent height when parent has explicit height */
-  height: 100%;
+  /* Don't set height here - let inline styles from resize control it */
+  /* Use min-height for minimum size */
+  min-height: 100px;
   max-width: 100%;
-  max-height: 100%;
   /* Allow resize handles to show */
   overflow: visible;
 }
@@ -510,8 +527,7 @@
   /* Remove max-height constraint to allow flex-column containers to grow with content */
   /* The previous calc(100% - 40px) was preventing containers from expanding */
   max-height: none;
-  /* Allow resize handles of child components to be visible */
-  /* Each child's .resizable-content handles its own content clipping */
+  /* Default to visible - inline styles override based on heightMode */
   overflow: visible;
 }
 
@@ -610,8 +626,10 @@
   /* All styling (gap, padding, width, background, etc.) comes from inline styles */
   /* Note: border is not reset here - it's controlled by component.styles */
   box-sizing: border-box;
-  /* Allow content to wrap and fit within container */
-  overflow: visible;
+  /* Overflow is controlled by inline styles based on heightMode:
+     - wrap mode: overflow visible (expand with content)
+     - fill/resizable modes: overflow auto (scrollbar when content overflows)
+     Do NOT set overflow here - let inline styles control it */
 }
 
 /* Repeater items should wrap content properly */

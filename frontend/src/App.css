@@ -18,3 +18,11 @@ body {
   height: 100vh;
   overflow: hidden;
 }
+
+/* In multi-page preview mode, allow page to expand beyond viewport */
+/* This enables the browser scrollbar to handle scrolling for wrap mode content */
+#root:has(.multi-page-preview) {
+  height: auto;
+  min-height: 100vh;
+  overflow: visible;
+}

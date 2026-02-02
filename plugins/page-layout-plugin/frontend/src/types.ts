@@ -80,6 +80,14 @@ export interface ResponsiveConfig {
 }
 
 /**
+ * Mobile sidebar behavior options
+ * - 'hidden': Sidebar is completely hidden on mobile (default)
+ * - 'stacked': Sidebar appears above center content, stacked vertically
+ * - 'overlay': Android-style slide-out drawer that can be toggled with hamburger menu
+ */
+export type MobileSidebarBehavior = 'hidden' | 'stacked' | 'overlay';
+
+/**
  * Page Layout specific props
  */
 export interface PageLayoutProps {
@@ -95,6 +103,7 @@ export interface PageLayoutProps {
   sidebarRatio?: string;  // e.g., '30-70' for 30% left, 70% center
   availableSlots?: PageLayoutSlot[];
   responsive?: ResponsiveConfig;  // Responsive settings per breakpoint
+  mobileSidebarBehavior?: MobileSidebarBehavior;  // How sidebar behaves on mobile
 }
 
 /**

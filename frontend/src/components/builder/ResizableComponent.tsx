@@ -52,6 +52,9 @@ export const ResizableComponent: React.FC<ResizableComponentProps> = ({
   // Show resize handles when in edit mode (they appear on hover via CSS)
   const canResize = isEditMode;
 
+  // Check if component is a layout container - needed early for getMinSizeFromChildren
+  const isLayoutComponent = capabilityService.isContainer(component);
+
   const parseSize = (size: string): number => {
     // Convert size string (e.g., "200px", "50%", "auto") to pixels
     if (size === 'auto' || size === 'inherit') return 0;
@@ -61,7 +64,7 @@ export const ResizableComponent: React.FC<ResizableComponentProps> = ({
 
   // Calculate minimum size based on children's dimensions or content height
   // Returns { minWidth, minHeight } that the component cannot shrink below
-  // For layout components: considers children with explicit pixel widths
+  // For layout containers (Container, etc.): use default minimums to allow free resizing
   // For leaf components (Label, Button, etc.): measures actual content height
   const getMinSizeFromChildren = (): { childMinWidth: number; childMinHeight: number } => {
     if (!componentRef.current) {
@@ -71,76 +74,35 @@ export const ResizableComponent: React.FC<ResizableComponentProps> = ({
     // Find all direct child components inside this container (for layout components)
     const childrenContainer = componentRef.current.querySelector('.children-container');
 
-    // If no children container, this might be a leaf component (Label, Button, etc.)
-    // Measure the actual content height to prevent resizing below content
+    // Layout containers (Container, etc.) should be freely resizable
+    // Children will clip/scroll when container is smaller than content
+    // This allows users to shrink containers and use overflow handling
+    if (childrenContainer || isLayoutComponent) {
+      // Layout containers use default minimums only - allow free resizing
+      return { childMinWidth: minWidth, childMinHeight: minHeight };
+    }
+
+    // If no children container and not a layout component, this is a leaf component
+    // (Label, Button, etc.) - measure actual content height to prevent clipping text
     // Exception: Image components should be freely resizable - they don't have text content
-    if (!childrenContainer) {
-      // Check if this is an Image component - Images should be freely resizable
-      const isImageComponent = component.componentId.startsWith('Image');
-      if (isImageComponent) {
-        // Images can be resized freely - use default minimums only
-        return { childMinWidth: minWidth, childMinHeight: minHeight };
-      }
-
-      const resizableContent = componentRef.current.querySelector('.resizable-content');
-      if (resizableContent) {
-        // Get the scroll height which represents the actual content size
-        const contentScrollHeight = resizableContent.scrollHeight;
-        const contentScrollWidth = resizableContent.scrollWidth;
-
-        return {
-          childMinWidth: Math.max(minWidth, contentScrollWidth),
-          childMinHeight: Math.max(minHeight, contentScrollHeight)
-        };
-      }
+    const isImageComponent = component.componentId.startsWith('Image');
+    if (isImageComponent) {
+      // Images can be resized freely - use default minimums only
       return { childMinWidth: minWidth, childMinHeight: minHeight };
     }
 
-    const parentRect = componentRef.current.getBoundingClientRect();
-    const children = childrenContainer.querySelectorAll(':scope > .draggable-component');
+    const resizableContent = componentRef.current.querySelector('.resizable-content');
+    if (resizableContent) {
+      // Get the scroll height which represents the actual content size
+      const contentScrollHeight = resizableContent.scrollHeight;
+      const contentScrollWidth = resizableContent.scrollWidth;
 
-    if (children.length === 0) {
-      return { childMinWidth: minWidth, childMinHeight: minHeight };
+      return {
+        childMinWidth: Math.max(minWidth, contentScrollWidth),
+        childMinHeight: Math.max(minHeight, contentScrollHeight)
+      };
     }
-
-    let maxChildWidth = 0;
-    let maxChildHeight = 0;
-
-    children.forEach((child) => {
-      const childEl = child as HTMLElement;
-      const childRect = childEl.getBoundingClientRect();
-
-      // Only consider children with explicit pixel widths for min width calculation
-      // Children with 100% or auto width should flow with their parent
-      const computedWidth = window.getComputedStyle(childEl).width;
-      const hasExplicitPixelWidth = computedWidth.endsWith('px') &&
-        !childEl.style.width?.includes('%') &&
-        childEl.style.width !== '100%' &&
-        childEl.style.width !== 'auto';
-
-      if (hasExplicitPixelWidth) {
-        maxChildWidth = Math.max(maxChildWidth, childRect.width);
-      }
-
-      // For height, consider the actual content height
-      // but only if the child has explicit height (not auto)
-      const computedHeight = window.getComputedStyle(childEl).height;
-      const hasExplicitPixelHeight = computedHeight.endsWith('px') &&
-        childEl.style.height !== 'auto';
-
-      if (hasExplicitPixelHeight) {
-        const childBottom = childRect.bottom - parentRect.top;
-        maxChildHeight = Math.max(maxChildHeight, childBottom);
-      }
-    });
-
-    // Add buffer for padding/margins
-    const buffer = 20;
-
-    return {
-      childMinWidth: Math.max(minWidth, maxChildWidth > 0 ? maxChildWidth + buffer : minWidth),
-      childMinHeight: Math.max(minHeight, maxChildHeight > 0 ? maxChildHeight + buffer : minHeight)
-    };
+    return { childMinWidth: minWidth, childMinHeight: minHeight };
   };
 
   const handleResizeStart = (e: React.MouseEvent, handle: ResizeHandle) => {
@@ -387,8 +349,7 @@ export const ResizableComponent: React.FC<ResizableComponentProps> = ({
   // Use capability service to check if component should auto-height
   const hasExplicitHeight = component.size.height && component.size.height !== 'auto';
   const shouldAutoHeight = capabilityService.shouldAutoHeight(component) && !hasExplicitHeight;
-  // Check if component is a layout container
-  const isLayoutComponent = capabilityService.isContainer(component);
+  // Note: isLayoutComponent is defined earlier in the component (before getMinSizeFromChildren)
   // Check if component is a data container (like Repeater) - has data source capability
   const isDataContainerComponent = capabilityService.hasDataSource(component);
 
@@ -419,12 +380,23 @@ export const ResizableComponent: React.FC<ResizableComponentProps> = ({
         childWidth = (component.size.width === 'auto' || !component.size.width) ? '100%' : component.size.width;
       }
 
-      // Same logic for height
+      // Same logic for height - consider heightMode prop for containers
       let childHeight: string | undefined;
+      const heightMode = component.props?.heightMode as string | undefined;
+
       if (propsHeight) {
         // Explicit height from Properties panel - always respect this
         childHeight = propsHeight;
+      } else if (heightMode === 'wrap') {
+        // Wrap mode: ALWAYS use auto height to expand with content
+        // This ensures wrap mode containers always auto-expand
+        // If user needs fixed height, they should use 'resizable' mode
+        childHeight = 'auto';
+      } else if (heightMode === 'fill') {
+        // Fill mode: 100% of parent height
+        childHeight = '100%';
       } else {
+        // Resizable mode (default) or data containers: use stored size or auto
         // Data containers nested as children should use auto height to wrap their children
         // Layout containers (Container) nested as children should also use auto height to allow children to expand
         const shouldChildAutoHeight = isDataContainerComponent || (isLayoutComponent && !hasExplicitHeight);
@@ -452,12 +424,38 @@ export const ResizableComponent: React.FC<ResizableComponentProps> = ({
     }
 
     // Root-level components: apply explicit dimensions
-    // Priority: props (Properties panel) > size (from resize)
+    // Priority: props (Properties panel) > heightMode > stored size
+    const heightMode = component.props?.heightMode as string | undefined;
+
+    // Determine height based on heightMode for layout containers
+    let rootHeight: string | undefined;
+    if (propsHeight) {
+      // Explicit height from Properties panel - always respect this
+      rootHeight = propsHeight;
+    } else if (heightMode === 'wrap') {
+      // Wrap mode: ALWAYS use auto height to expand with content
+      // This ensures wrap mode containers always auto-expand
+      // If user needs fixed height, they should use 'resizable' mode
+      rootHeight = 'auto';
+    } else if (heightMode === 'fill') {
+      // Fill mode: 100% of parent height
+      rootHeight = '100%';
+    } else if (shouldAutoHeight) {
+      // Auto-height components (from capability service)
+      rootHeight = 'auto';
+    } else {
+      // Resizable mode: use stored size
+      rootHeight = component.size.height;
+    }
+
+    // Use auto minHeight for wrap mode or auto-height components
+    const useAutoMinHeight = shouldAutoHeight || heightMode === 'wrap';
+
     return {
       width: propsWidth || component.size.width,
       // Note: Don't apply maxWidth inline - it prevents resize from working
-      height: propsHeight || (shouldAutoHeight ? 'auto' : component.size.height),
-      minHeight: shouldAutoHeight ? '40px' : undefined,
+      height: rootHeight,
+      minHeight: useAutoMinHeight ? '40px' : undefined,
       position: 'relative',
       boxSizing: 'border-box',
     };
