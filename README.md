@@ -15,6 +15,8 @@ A visual drag-and-drop website builder platform with a plugin-based architecture
 
 - [Chapter 3: Builder Features](#chapter-3-builder-features)
   - [Container Height Modes](#container-component-height-modes)
+  - [Container Height Modes in PageLayout Slots](#container-height-modes-in-pagelayout-slots)
+  - [Standalone Preview Window](#standalone-preview-window)
 
 **Plugin Development**
 
@@ -297,6 +299,195 @@ The container height is determined by this priority:
 2. **Use `fill` for layout slots**: When container should fill a PageLayout region
 3. **Use `resizable` for fixed sections**: When you want a specific height with scrolling
 4. **Manual resize overrides wrap**: Drag to shrink a `wrap` container if you need fixed height
+
+### Container Height Modes in PageLayout Slots
+
+When placing Container components inside PageLayout slots (header, footer, left, right, center), special CSS handling ensures proper height behavior.
+
+#### Height Behavior by Mode in Slots
+
+| Height Mode | Slot Wrapper Height | Container Height | Overflow |
+|-------------|---------------------|------------------|----------|
+| **wrap** | Not set (auto) | Not set (auto) | visible |
+| **fill** | 100% | 100% | auto (scrollable) |
+| **resizable** | 100% | Stored pixel value | auto (scrollable) |
+
+#### Technical Implementation
+
+The PageLayout renderer applies these rules for proper height behavior:
+
+1. **SlotChildRenderer** - Wraps each child in a slot
+   - For `wrap` mode: No height set on wrapper, allowing content to determine size
+   - For `fill` mode: Sets `height: 100%` on wrapper to fill the slot
+
+2. **Header Slot (Sticky Layout)**
+   - Uses `alignItems: 'flex-start'` instead of `stretch` to prevent vertical stretching
+   - Children determine their own height based on content
+   - Prevents extra background space when using `wrap` mode containers
+
+3. **ContainerRenderer**
+   - `wrap` mode returns `height: undefined` (not 'auto'), letting CSS handle natural sizing
+   - Excludes `height` and `minHeight` from component styles spread to respect heightMode logic
+   - Child wrappers use `height: 'auto'` to ensure proper content sizing
+
+#### Example: Navbar in Header Slot
+
+```
+PageLayout
+├── Header Slot (alignItems: flex-start)
+│   └── SlotChildRenderer (no height for wrap mode)
+│       └── Container (heightMode: wrap)
+│           └── Navbar (content-sized)
+```
+
+When a Container with `heightMode: 'wrap'` is placed in the header:
+1. The header slot doesn't stretch children vertically
+2. The slot wrapper doesn't set any height
+3. The container has no explicit height, sizes to content
+4. The navbar displays without extra background space
+
+### Standalone Preview Window
+
+VSD provides a standalone preview window feature that opens your page in a separate browser tab with live hot-reload capability. Changes made in the builder are immediately reflected in the preview window.
+
+#### Opening the Preview Window
+
+1. Click the **"Open Preview Window"** button in the builder toolbar
+2. A new browser window opens at `/preview` (or `/preview/:siteId/:pageId`)
+3. The preview window displays a "Live" connection indicator when connected
+
+#### Architecture
+
+```mermaid
+graph LR
+    subgraph Builder["Builder Window"]
+        B1[BuilderPage]
+        B2[previewBroadcast]
+    end
+
+    subgraph Preview["Preview Window"]
+        P1[StandalonePreviewPage]
+        P2[previewBroadcast]
+        P3[BuilderCanvas]
+    end
+
+    subgraph API["BroadcastChannel API"]
+        BC[vsd-preview-channel]
+    end
+
+    B1 --> B2
+    B2 --> BC
+    BC --> P2
+    P2 --> P1
+    P1 --> P3
+```
+
+#### Communication Protocol
+
+The preview window uses the **BroadcastChannel API** for real-time cross-window communication with a **localStorage fallback** for browsers that don't support BroadcastChannel.
+
+**Message Types:**
+
+| Message Type | Direction | Description |
+|--------------|-----------|-------------|
+| `PAGE_UPDATE` | Builder → Preview | Page content has been updated |
+| `PAGE_NAVIGATE` | Builder → Preview | Navigate to a different page |
+| `PAGES_LIST` | Builder → Preview | List of all pages has been updated |
+| `PREVIEW_READY` | Preview → Builder | Preview window is ready to receive updates |
+| `BUILDER_PING` | Builder → Preview | Ping to check if preview is alive |
+| `PREVIEW_PONG` | Preview → Builder | Response to ping |
+| `CLOSE_PREVIEW` | Builder → Preview | Close the preview window |
+
+#### Preview Service API
+
+```typescript
+import { previewBroadcast, openPreviewWindow } from '../services/previewBroadcastService';
+
+// Open a new preview window
+const previewWindow = openPreviewWindow(siteId, pageId);
+
+// Send page update to preview
+previewBroadcast.sendPageUpdate(pageDefinition, pageMeta);
+
+// Send navigation request
+previewBroadcast.sendNavigate('/about');
+
+// Send pages list
+previewBroadcast.sendPagesList(pages, currentPageId, siteId);
+
+// Check if preview is alive
+const isAlive = await previewBroadcast.pingPreview();
+
+// Listen for events (in preview window)
+previewBroadcast.on('PAGE_UPDATE', (payload) => {
+  const { page, pageMeta } = payload;
+  // Handle page update
+});
+```
+
+#### Preview Window Features
+
+| Feature | Description |
+|---------|-------------|
+| **Live Connection Indicator** | Shows "Live" (green) or "Disconnected" (red) status |
+| **Last Update Timestamp** | Displays when the last update was received |
+| **Navigation Controls** | Back/Forward buttons for navigation history |
+| **Address Bar** | Shows current preview path (e.g., `preview:///about`) |
+| **Page Selector** | Dropdown to switch between pages |
+| **Plugin Preloading** | Automatically loads required plugins before rendering |
+
+#### Network Deployment Considerations
+
+The Standalone Preview Window feature works well in production environments, including those behind proxies like Cloudflare Tunnel. Here's why:
+
+1. **BroadcastChannel is Browser-Local**
+   - Communication happens entirely within the browser
+   - No network requests between builder and preview windows
+   - Works as long as both windows are on the same origin
+
+2. **No WebSocket or Server-Sent Events Required**
+   - Unlike WebSocket-based solutions, no server-side infrastructure needed
+   - No proxy configuration required for the preview feature
+
+3. **Same-Origin Requirement**
+   - Both windows must be on the same origin (protocol + domain + port)
+   - Works correctly when accessed via Cloudflare Tunnel since both windows share the tunnel URL
+
+4. **localStorage Fallback**
+   - If BroadcastChannel is unavailable, falls back to localStorage events
+   - localStorage events also work within same-origin context
+
+**Potential Considerations:**
+- If your deployment uses multiple origins (e.g., builder on `app.example.com`, preview on `preview.example.com`), the BroadcastChannel won't work across origins. Keep both on the same origin.
+- CSP (Content Security Policy) headers don't typically affect BroadcastChannel, but verify your policy allows the required scripts.
+
+#### Route Configuration
+
+The preview routes are configured in `App.tsx`:
+
+```tsx
+// Standalone Preview Routes
+<Route path="/preview" element={<StandalonePreviewPage />} />
+<Route path="/preview/:siteId" element={<StandalonePreviewPage />} />
+<Route path="/preview/:siteId/:pageId" element={<StandalonePreviewPage />} />
+```
+
+#### State Management
+
+The preview window uses `multiPagePreviewStore` (Zustand) for state management:
+
+```typescript
+const {
+  isActive,           // Preview mode active
+  pages,              // List of all pages
+  currentPreviewPath, // Current page path
+  previewPage,        // Current page definition
+  navigateToPage,     // Navigate to a page
+  loadPageDefinition, // Cache a page definition
+  goBack,             // Navigate back
+  goForward,          // Navigate forward
+} = useMultiPagePreviewStore();
+```
 
 ---
 
@@ -2177,6 +2368,36 @@ resolve: {
   }
 }
 ```
+
+### Preview Window Issues
+
+#### Preview Window Shows "Disconnected"
+
+1. Ensure both builder and preview are on the same origin (same domain, port, protocol)
+2. Check browser console for BroadcastChannel errors
+3. Try refreshing the preview window
+
+#### Preview Not Receiving Updates
+
+1. Verify the builder is sending updates (check console for `[PreviewBroadcast]` logs)
+2. Ensure the preview window was opened via the "Open Preview Window" button (not manually navigating to `/preview`)
+3. Check if localStorage fallback is being used (older browsers)
+
+#### Container Height Issues in Preview
+
+If containers show extra background space in preview mode:
+
+1. Verify the container's `heightMode` is set correctly:
+   - Use `wrap` for content that should auto-size
+   - Use `fill` for containers that should fill their parent
+2. Check if the parent slot (header, footer, etc.) has correct flex alignment
+3. For header slots with `wrap` mode containers, ensure `alignItems: 'flex-start'` is set (default behavior)
+
+#### Preview Window Not Opening
+
+1. Check if popup blockers are preventing the window from opening
+2. Ensure the `/preview` route is configured in `App.tsx`
+3. Verify the `openPreviewWindow()` function is being called
 
 ---
 
