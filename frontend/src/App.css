@@ -19,10 +19,9 @@ body {
   overflow: hidden;
 }
 
-/* In multi-page preview mode, allow page to expand beyond viewport */
-/* This enables the browser scrollbar to handle scrolling for wrap mode content */
+/* In multi-page preview mode, the preview takes full viewport */
+/* Scrolling happens inside .preview-content, not on body */
 #root:has(.multi-page-preview) {
-  height: auto;
-  min-height: 100vh;
-  overflow: visible;
+  height: 100vh;
+  overflow: hidden;
 }

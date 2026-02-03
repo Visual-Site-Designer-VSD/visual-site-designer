@@ -14,6 +14,7 @@ import { MultiPagePreview } from '../components/builder/MultiPagePreview';
 import { ExportModal } from '../components/builder/ExportModal';
 import { ClipboardProvider } from '../components/clipboard';
 import { pageService } from '../services/pageService';
+import { previewBroadcast, openPreviewWindow } from '../services/previewBroadcastService';
 import { PageDefinition } from '../types/builder';
 import { Page } from '../types/site';
 import './BuilderPage.css';
@@ -40,6 +41,8 @@ export const BuilderPage: React.FC = () => {
   const [currentPageMeta, setCurrentPageMeta] = useState<Page | null>(null);
   const [sitePages, setSitePages] = useState<Page[]>([]);
   const [isMultiPagePreview, setIsMultiPagePreview] = useState(false);
+  const [previewWindow, setPreviewWindow] = useState<Window | null>(null);
+  const [isPreviewWindowOpen, setIsPreviewWindowOpen] = useState(false);
 
   // UI Preferences from store
   const uiPreferences = useUIPreferencesStore();
@@ -81,6 +84,51 @@ export const BuilderPage: React.FC = () => {
       setSaveStatus('unsaved');
     }
   }, [currentPage]);
+
+  // Broadcast page updates to preview window (hot reload)
+  useEffect(() => {
+    if (currentPage && currentPageMeta && isPreviewWindowOpen) {
+      // Broadcast update to preview window
+      previewBroadcast.sendPageUpdate(currentPage, currentPageMeta);
+    }
+  }, [currentPage, currentPageMeta, isPreviewWindowOpen]);
+
+  // Check if preview window is still open
+  useEffect(() => {
+    if (!previewWindow) return;
+
+    const checkWindow = setInterval(() => {
+      if (previewWindow.closed) {
+        setPreviewWindow(null);
+        setIsPreviewWindowOpen(false);
+        clearInterval(checkWindow);
+      }
+    }, 1000);
+
+    return () => clearInterval(checkWindow);
+  }, [previewWindow]);
+
+  // Listen for preview window ready
+  useEffect(() => {
+    const handlePreviewReady = () => {
+      console.log('[BuilderPage] Preview window ready, sending initial data');
+      // Send pages list to preview
+      if (sitePages.length > 0) {
+        previewBroadcast.sendPagesList(
+          sitePages,
+          currentPageMeta?.id,
+          siteId ? parseInt(siteId) : undefined
+        );
+      }
+      // Send current page
+      if (currentPage && currentPageMeta) {
+        previewBroadcast.sendPageUpdate(currentPage, currentPageMeta);
+      }
+    };
+
+    previewBroadcast.on('PREVIEW_READY', handlePreviewReady);
+    return () => previewBroadcast.off('PREVIEW_READY', handlePreviewReady);
+  }, [currentPage, currentPageMeta, sitePages, siteId]);
 
   // handleSave must be defined before keyboard shortcuts useEffect
   const handleSave = useCallback(async () => {
@@ -133,13 +181,15 @@ export const BuilderPage: React.FC = () => {
         if (!currentPageMeta) {
           const pageKeys = Object.keys(savedPages);
           const pageIndex = pageKeys.indexOf(pageKey);
+          // Use '/' for home page, otherwise '/slug'
+          const routePath = pageKey.toLowerCase() === 'home' ? '/' : `/${pageKey}`;
           setCurrentPageMeta({
             id: Date.now(),
             siteId: 0,
             pageName: currentPage.pageName,
             pageSlug: pageKey,
             pageType: 'standard',
-            routePath: `/${pageKey}`,
+            routePath: routePath,
             displayOrder: pageIndex,
             isPublished: false,
             createdAt: new Date().toISOString(),
@@ -159,6 +209,58 @@ export const BuilderPage: React.FC = () => {
       setIsSaving(false);
     }
   }, [currentPage, siteId, pageId, currentPageMeta, saveSnapshot]);
+
+  // Load pages for preview - defined before keyboard shortcuts that use it
+  const loadPagesForPreview = useCallback(async () => {
+    // Use URL siteId or fall back to store's currentSiteId
+    const effectiveSiteId = siteId ? Number.parseInt(siteId) : siteManager.currentSiteId;
+
+    if (effectiveSiteId) {
+      try {
+        const pages = await pageService.getAllPages(effectiveSiteId);
+        setSitePages(pages);
+      } catch (err) {
+        console.error('Failed to load pages for preview:', err);
+      }
+    } else {
+      // Demo mode - load from localStorage
+      const savedPages = JSON.parse(localStorage.getItem('builder_saved_pages') || '{}');
+      const demoPages: Page[] = Object.entries(savedPages).map(([key, val]: [string, any], index) => ({
+        id: index + 1,
+        siteId: 0,
+        pageName: val.pageName || key,
+        pageSlug: key,
+        pageType: val.pageType || 'standard',
+        routePath: key === 'home' ? '/' : `/${key}`,
+        displayOrder: index,
+        isPublished: false,
+        createdAt: val.savedAt || new Date().toISOString(),
+        updatedAt: val.savedAt || new Date().toISOString(),
+      }));
+      setSitePages(demoPages);
+    }
+  }, [siteId, siteManager.currentSiteId]);
+
+  // Open preview in a new window with hot reload support
+  const handlePreviewInNewWindow = useCallback(async () => {
+    // Load pages first
+    await loadPagesForPreview();
+
+    // Open the preview window
+    const effectiveSiteId = siteId ? parseInt(siteId) : undefined;
+    const effectivePageId = pageId ? parseInt(pageId) : undefined;
+    const newWindow = openPreviewWindow(effectiveSiteId, effectivePageId);
+
+    if (newWindow) {
+      setPreviewWindow(newWindow);
+      setIsPreviewWindowOpen(true);
+
+      // The preview window will request data when ready via PREVIEW_READY message
+      console.log('[BuilderPage] Preview window opened');
+    } else {
+      alert('Failed to open preview window. Please check your popup blocker settings.');
+    }
+  }, [siteId, pageId, loadPagesForPreview]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -191,6 +293,12 @@ export const BuilderPage: React.FC = () => {
         setShowCSSEditor(!showCSSEditor);
       }
 
+      // Ctrl+Shift+P / Cmd+Shift+P - Preview in New Window
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        handlePreviewInNewWindow();
+      }
+
       // Escape - Close panels
       if (e.key === 'Escape') {
         setShowCSSEditor(false);
@@ -199,7 +307,7 @@ export const BuilderPage: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [canUndo, canRedo, showCSSEditor, handleSave, undo, redo]);
+  }, [canUndo, canRedo, showCSSEditor, handleSave, undo, redo, handlePreviewInNewWindow]);
 
 
   const loadPage = async (siteId: number, pageId: number) => {
@@ -264,13 +372,15 @@ export const BuilderPage: React.FC = () => {
       // Set page metadata for multi-page preview
       const pageKeys = Object.keys(savedPages);
       const pageIndex = pageKeys.indexOf(lastSavedKey);
+      // Use '/' for home page, otherwise '/slug'
+      const routePath = lastSavedKey.toLowerCase() === 'home' ? '/' : `/${lastSavedKey}`;
       setCurrentPageMeta({
         id: pageIndex + 1,
         siteId: 0,
         pageName: savedPage.pageName || lastSavedKey,
         pageSlug: lastSavedKey,
         pageType: savedPage.pageType || 'standard',
-        routePath: `/${lastSavedKey}`,
+        routePath: routePath,
         displayOrder: pageIndex,
         isPublished: false,
         createdAt: savedPage.savedAt || new Date().toISOString(),
@@ -356,36 +466,6 @@ export const BuilderPage: React.FC = () => {
     }
   };
 
-  const loadPagesForPreview = async () => {
-    // Use URL siteId or fall back to store's currentSiteId
-    const effectiveSiteId = siteId ? Number.parseInt(siteId) : siteManager.currentSiteId;
-
-    if (effectiveSiteId) {
-      try {
-        const pages = await pageService.getAllPages(effectiveSiteId);
-        setSitePages(pages);
-      } catch (err) {
-        console.error('Failed to load pages for preview:', err);
-      }
-    } else {
-      // Demo mode - load from localStorage
-      const savedPages = JSON.parse(localStorage.getItem('builder_saved_pages') || '{}');
-      const demoPages: Page[] = Object.entries(savedPages).map(([key, val]: [string, any], index) => ({
-        id: index + 1,
-        siteId: 0,
-        pageName: val.pageName || key,
-        pageSlug: key,
-        pageType: val.pageType || 'standard',
-        routePath: key === 'home' ? '/' : `/${key}`,
-        displayOrder: index,
-        isPublished: false,
-        createdAt: val.savedAt || new Date().toISOString(),
-        updatedAt: val.savedAt || new Date().toISOString(),
-      }));
-      setSitePages(demoPages);
-    }
-  };
-
   const handleExitMultiPagePreview = () => {
     // Import the preview store to get the original editing page
     import('../stores/multiPagePreviewStore').then(({ useMultiPagePreviewStore }) => {
@@ -429,13 +509,15 @@ export const BuilderPage: React.FC = () => {
 
     // Update page metadata
     const pageSlug = pageDefinition.pageName.replace(/\s+/g, '-').toLowerCase();
+    // Use '/' for home page, otherwise '/slug'
+    const routePath = pageSlug === 'home' ? '/' : `/${pageSlug}`;
     setCurrentPageMeta({
       id: Date.now(),
       siteId: siteId ? Number.parseInt(siteId) : 0,
       pageName: pageDefinition.pageName,
       pageSlug: pageSlug,
       pageType: 'standard',
-      routePath: `/${pageSlug}`,
+      routePath: routePath,
       displayOrder: 0,
       isPublished: false,
       createdAt: new Date().toISOString(),
@@ -587,6 +669,8 @@ export const BuilderPage: React.FC = () => {
           onSave={handleSave}
           onPublish={handlePublish}
           onPreview={handlePreview}
+          onPreviewNewWindow={handlePreviewInNewWindow}
+          isPreviewWindowOpen={isPreviewWindowOpen}
           onExport={() => setShowExportModal(true)}
           onImport={handleImport}
           onShowCSSEditor={() => setShowCSSEditor(!showCSSEditor)}

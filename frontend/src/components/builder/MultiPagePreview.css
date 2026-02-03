@@ -1,15 +1,19 @@
 /* Multi-Page Preview Styles */
+/* Layout: Fixed viewport height with toolbar at top, content in middle (scrollable), indicator at bottom */
+/* The scroll happens INSIDE .preview-content, keeping toolbar/indicator outside scroll area */
 
 .multi-page-preview {
   display: flex;
   flex-direction: column;
-  /* Use min-height instead of fixed height to allow page to expand beyond viewport */
-  /* When content has wrap mode, page should grow and browser scrollbar handles scrolling */
-  min-height: 100vh;
+  /* Fixed viewport height - content scrolls within */
+  height: 100vh;
+  /* Prevent body scroll - all scrolling happens in .preview-content */
+  overflow: hidden;
   background: #f5f5f5;
 }
 
-/* Preview Toolbar */
+/* Preview Toolbar - Fixed height at top, NOT fixed position */
+/* Stays outside the scroll area because it's a flex item before the scrollable content */
 .preview-toolbar {
   display: flex;
   align-items: center;
@@ -18,6 +22,9 @@
   background: #2c3e50;
   border-bottom: 1px solid #1a252f;
   flex-shrink: 0;
+  height: 48px;
+  box-sizing: border-box;
+  z-index: 100;
 }
 
 .preview-toolbar-left,
@@ -144,41 +151,89 @@
   background: #c0392b;
 }
 
-/* Preview Content */
+/* Preview Content - This is the SCROLLABLE area */
+/* Scrollbar appears here, between toolbar and indicator */
 .preview-content {
-  /* Use flex: 1 0 auto instead of flex: 1 */
-  /* - flex-grow: 1 = fills available space when content is smaller than viewport */
-  /* - flex-shrink: 0 = does NOT shrink below content size (allows expansion) */
-  /* - flex-basis: auto = starts at content size */
-  /* This allows content to grow beyond viewport height */
-  flex: 1 0 auto;
-  /* Allow content to expand naturally and use browser scrollbar */
-  /* When page content has wrap mode, entire page should scroll via browser */
-  overflow: visible;
+  /* Fill remaining space between toolbar and indicator */
+  flex: 1;
+  /* This is the scroll container - scrollbar appears inside this element */
+  /* The scrollbar will NOT cover the toolbar or indicator */
+  overflow-y: auto;
+  overflow-x: hidden;
   background: white;
-  display: flex;
-  flex-direction: column;
+  /* Use block display instead of flex - flex can constrain child heights */
+  display: block;
+  /* Minimum height of 0 allows flex item to shrink and enable scrolling */
+  min-height: 0;
+  /* Position relative for any absolute children */
+  position: relative;
 }
 
+/* Override BuilderCanvas.css styles for preview content */
+/* Use !important to ensure these take effect over .builder-canvas.preview-mode */
 .preview-content .builder-canvas {
-  /* Use flex to allow canvas to expand with content */
-  flex: 1 0 auto;
+  /* Don't constrain height - allow content to expand to natural size */
+  /* This lets the scroll container show the full content height */
+  flex: none !important;
+  /* Keep display: flex for proper child layout, but override the flex constraint */
+  /* Remove min-height constraint that was for edit mode */
+  min-height: 0 !important;
 }
 
-/* Let PageLayoutRenderer control height dynamically based on heightMode */
-/* Don't override with !important - let inline styles from React control behavior */
+/* Let PageLayoutRenderer control height and overflow dynamically based on heightMode */
+/* NOTE: Do NOT override overflow here - inline styles control it:
+   - wrap mode: overflow: visible (page expands with content, browser scrollbar)
+   - fill mode: overflow: auto (slots scroll independently) */
 .preview-content .page-layout-container {
   /* Height and min-height are set inline by PageLayoutRenderer based on heightMode */
-  /* This allows wrap mode containers to expand and use browser scrollbar */
-  /* Use flex to allow expansion when wrap mode is used */
-  flex: 1 0 auto;
+  /* Don't use flex: 1 as it constrains height to container in wrap mode */
+  flex: none !important;
+  /* min-height: 0 allows shrinking in flex context */
+  min-height: 0 !important;
 }
 
-.preview-navigation-interceptor {
-  /* Use flex to allow content to expand beyond viewport */
-  flex: 1 0 auto;
-  display: flex;
-  flex-direction: column;
+/* NOTE: Do NOT override .page-layout-middle min-height here!
+   The inline styles set minHeight based on heightMode:
+   - wrap mode: undefined (allows expansion)
+   - fill mode: 0 (allows shrinking for scrolling behavior)
+   Using !important here would break fill mode. */
+
+/* NOTE: Do NOT override .page-layout-region overflow here!
+   The inline styles in PageLayoutRenderer set overflow based on heightMode:
+   - wrap mode: overflow: visible (slot expands with content)
+   - fill mode: overflow: auto (slot scrolls when content exceeds height)
+   Using !important here would break fill mode scrolling. */
+
+/* Override any flex constraints on wrapper elements */
+/* NOTE: Do NOT include .container-renderer here - it needs height based on heightMode:
+   - wrap mode: height auto (expands with content)
+   - fill mode: height 100% (fills parent so content can scroll) */
+.preview-content .preview-component-wrapper,
+.preview-content .layout-preview,
+.preview-content .layout-child-wrapper {
+  /* Don't constrain height - let content determine size */
+  flex: none !important;
+  height: auto !important;
+  max-height: none !important;
+}
+
+/* NOTE: For fill mode (2-scrollbar solution), we allow inline styles to control overflow:
+   - Slots with fill mode children get overflow: auto (scrollbar when content exceeds)
+   - Slots with wrap mode children get overflow: visible (content expands naturally)
+   The PageLayoutRenderer sets these inline styles based on heightMode. */
+
+/* Ensure the page layout footer stays in place */
+.preview-content .page-layout-footer {
+  /* Ensure footer doesn't shrink */
+  flex-shrink: 0 !important;
+}
+
+/* Preview navigation interceptor - don't constrain height */
+.preview-content .preview-navigation-interceptor {
+  /* Don't constrain height - allow content to expand naturally */
+  /* The scroll container will show scrollbar based on actual content height */
+  flex: none !important;
+  /* Keep the display from the original style, just remove flex constraints */
 }
 
 /* Loading State */
@@ -251,7 +306,8 @@
   background: #2980b9;
 }
 
-/* Page Indicator */
+/* Page Indicator - Fixed height at bottom, NOT fixed position */
+/* Stays outside the scroll area because it's a flex item after the scrollable content */
 .preview-page-indicator {
   display: flex;
   align-items: center;
@@ -261,6 +317,10 @@
   background: #ecf0f1;
   border-top: 1px solid #bdc3c7;
   font-size: 12px;
+  height: 36px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  z-index: 100;
 }
 
 .current-page-name {

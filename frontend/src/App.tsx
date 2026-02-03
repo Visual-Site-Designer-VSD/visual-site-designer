@@ -5,6 +5,7 @@ import './App.css';
 import { BuilderPage } from './pages/BuilderPage';
 import { LoginPage } from './pages/LoginPage';
 import { OAuth2CallbackPage } from './pages/OAuth2CallbackPage';
+import { StandalonePreviewPage } from './pages/StandalonePreviewPage';
 
 // Auth components
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
@@ -38,6 +39,11 @@ function App() {
         {/* Public Routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />
+
+        {/* Standalone Preview Routes - Opens in separate window */}
+        <Route path="/preview" element={<StandalonePreviewPage />} />
+        <Route path="/preview/:siteId" element={<StandalonePreviewPage />} />
+        <Route path="/preview/:siteId/:pageId" element={<StandalonePreviewPage />} />
 
         {/* Protected Builder Routes - Full Screen */}
         <Route
