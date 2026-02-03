@@ -81,16 +81,10 @@ const SlotChildRenderer: React.FC<SlotChildRendererProps> = ({
   const ChildRenderer = registry?.get(child.componentId, child.pluginId);
 
   if (ChildRenderer) {
-    // Determine effective heightMode:
-    // - Auto-height slots (header/footer): always 'wrap' (content determines height)
-    // - Other slots (left/center/right): respect child's heightMode if set, otherwise 'fill'
-    const childHeightMode = child.props?.heightMode as string | undefined;
-    const effectiveHeightMode = isAutoHeightSlot
-      ? 'wrap'
-      : (childHeightMode || 'fill');
-
-    // Determine height based on effective heightMode
-    const effectiveHeight = effectiveHeightMode === 'wrap' ? 'auto' : '100%';
+    // Respect the heightMode from child props for proper fill/wrap behavior
+    // - wrap: no explicit height, let content determine size naturally
+    // - fill: height 100%, fills parent container (enables slot scrollbar)
+    const childHeightMode = child.props?.heightMode || 'wrap';
 
     const modifiedChild: ComponentInstance = {
       ...child,
@@ -98,24 +92,24 @@ const SlotChildRenderer: React.FC<SlotChildRendererProps> = ({
         ...child.props,
         maxWidth: 'none',
         centerContent: false,
-        // Use the effective heightMode (respects user's setting for non-auto-height slots)
-        heightMode: effectiveHeightMode,
+        heightMode: childHeightMode,
       },
       size: {
         ...child.size,
         width: '100%' as unknown as number,
-        height: effectiveHeight as unknown as number,
+        // Don't set height - let child component handle its own height based on heightMode
       },
     };
 
+    // For wrap mode, don't set any height - let content determine size
+    // For fill mode, use 100% to fill parent
+    const wrapperStyle: React.CSSProperties = {
+      width: '100%',
+      ...(childHeightMode === 'fill' ? { height: '100%' } : {}),
+    };
+
     return (
-      <div
-        style={{
-          width: '100%',
-          // Match wrapper height to effectiveHeightMode
-          height: effectiveHeight,
-        }}
-      >
+      <div style={wrapperStyle}>
         <ChildRenderer
           component={modifiedChild}
           isEditMode={isEditMode}
@@ -128,12 +122,9 @@ const SlotChildRenderer: React.FC<SlotChildRendererProps> = ({
   const pluginName = child.pluginId || 'unknown';
   const componentName = child.componentId || 'Component';
 
-  // Use same heightMode logic as above for error fallback
-  const childHeightMode = child.props?.heightMode as string | undefined;
-  const effectiveHeightMode = isAutoHeightSlot
-    ? 'wrap'
-    : (childHeightMode || 'fill');
-  const effectiveHeight = effectiveHeightMode === 'wrap' ? 'auto' : '100%';
+  // Respect the heightMode from child props
+  const childHeightMode = child.props?.heightMode || 'wrap';
+  const effectiveHeight = childHeightMode === 'fill' ? '100%' : 'auto';
 
   return (
     <div
@@ -141,7 +132,7 @@ const SlotChildRenderer: React.FC<SlotChildRendererProps> = ({
       style={{
         width: '100%',
         height: effectiveHeight,
-        minHeight: effectiveHeightMode === 'wrap' ? '120px' : (childSizeStyles.height || '100px'),
+        minHeight: '120px',
         position: 'relative',
         backgroundColor: '#fee2e2',
         border: '3px solid #dc2626',
@@ -222,11 +213,22 @@ const PageLayoutRenderer: React.FC<PageLayoutRendererProps> = ({
   const {
     gap = '4px',
     fullHeight = true,
-    stickyHeader = false,
-    stickyFooter = false,
+    stickyHeader = false,  // Legacy prop
+    stickyFooter = false,  // Legacy prop
+    headerStickyMode,  // New: 'none' | 'fixed' | 'sticky'
+    footerStickyMode,  // New: 'none' | 'fixed' | 'sticky'
+    headerMaxHeight,   // New: if set, header becomes scrollable
+    footerMaxHeight,   // New: if set, footer becomes scrollable
     sidebarRatio = '30-70',
     mobileSidebarBehavior = 'hidden' as MobileSidebarBehavior,
   } = props;
+
+  // Determine effective sticky mode (new props take precedence over legacy)
+  // - 'none': scrolls with content
+  // - 'fixed': always visible (header at top, footer at bottom)
+  // - 'sticky': CSS sticky (scrolls then sticks)
+  const effectiveHeaderMode = headerStickyMode || (stickyHeader ? 'fixed' : 'none');
+  const effectiveFooterMode = footerStickyMode || (stickyFooter ? 'fixed' : 'none');
 
   const {
     backgroundColor = '#f8f9fa',
@@ -245,6 +247,7 @@ const PageLayoutRenderer: React.FC<PageLayoutRendererProps> = ({
   // Helper to determine slot overflow based on children's heightMode
   // If any child has heightMode: 'wrap', the slot should use overflow: visible
   // to allow the child to expand and push content down (no scrollbar on slot)
+  // For fill mode, use overflow: auto so content scrolls within the slot
   const getSlotOverflow = (slot: PageLayoutSlot): 'auto' | 'visible' => {
     const children = slottedChildren[slot];
     if (children.length === 0) return 'auto';
@@ -704,10 +707,17 @@ const PageLayoutRenderer: React.FC<PageLayoutRendererProps> = ({
     return cssRules.join('\n\n');
   };
 
+  // Check if any slot has wrap mode for grid row calculation
+  const anyMiddleSlotHasWrapMode =
+    getSlotOverflow('left') === 'visible' ||
+    getSlotOverflow('center') === 'visible' ||
+    getSlotOverflow('right') === 'visible';
+
   // Build grid template based on which regions have content
+  // When any middle slot has wrap mode, use 'auto' instead of '1fr' to allow expansion
   const gridTemplateRows = [
     hasHeader ? 'auto' : '',
-    '1fr',
+    anyMiddleSlotHasWrapMode ? 'auto' : '1fr',
     hasFooter ? 'auto' : '',
   ].filter(Boolean).join(' ');
 
@@ -743,13 +753,19 @@ const PageLayoutRenderer: React.FC<PageLayoutRendererProps> = ({
     const colEnd = colStart + 1;
     const totalCols = (hasLeft ? 1 : 0) + 1 + (hasRight ? 1 : 0);
 
+    // Check if the slot has children with wrap mode - if so, don't force minHeight
+    const headerHasWrapChild = getSlotOverflow('header') === 'visible';
+    const footerHasWrapChild = getSlotOverflow('footer') === 'visible';
+
     switch (slot) {
       case 'header':
         return {
           ...baseStyle,
           gridRow: '1 / 2',
           gridColumn: `1 / ${totalCols + 1}`,
-          minHeight: '60px',
+          // Only apply minHeight if children don't have wrap mode
+          // When children have heightMode: 'wrap', header should fit content exactly
+          minHeight: headerHasWrapChild ? undefined : '60px',
           position: stickyHeader ? 'sticky' : undefined,
           top: stickyHeader ? 0 : undefined,
           zIndex: stickyHeader ? 100 : undefined,
@@ -759,7 +775,8 @@ const PageLayoutRenderer: React.FC<PageLayoutRendererProps> = ({
           ...baseStyle,
           gridRow: `${hasHeader ? 3 : 2} / ${hasHeader ? 4 : 3}`,
           gridColumn: `1 / ${totalCols + 1}`,
-          minHeight: '50px',
+          // Only apply minHeight if children don't have wrap mode
+          minHeight: footerHasWrapChild ? undefined : '50px',
           position: stickyFooter ? 'sticky' : undefined,
           bottom: stickyFooter ? 0 : undefined,
           zIndex: stickyFooter ? 100 : undefined,
@@ -769,12 +786,18 @@ const PageLayoutRenderer: React.FC<PageLayoutRendererProps> = ({
           ...baseStyle,
           gridRow: `${rowStart} / ${rowEnd}`,
           gridColumn: '1 / 2',
+          // Height depends on child's heightMode:
+          // - wrap: auto (slot expands with content)
+          // - fill: 100% (slot fills grid cell so children can fill it)
+          height: getSlotOverflow('left') === 'visible' ? 'auto' : '100%',
         };
       case 'right':
         return {
           ...baseStyle,
           gridRow: `${rowStart} / ${rowEnd}`,
           gridColumn: `${colEnd} / ${colEnd + 1}`,
+          // Height depends on child's heightMode
+          height: getSlotOverflow('right') === 'visible' ? 'auto' : '100%',
         };
       case 'center':
       default:
@@ -783,6 +806,8 @@ const PageLayoutRenderer: React.FC<PageLayoutRendererProps> = ({
           gridRow: `${rowStart} / ${rowEnd}`,
           gridColumn: `${colStart} / ${colEnd}`,
           flex: 1,
+          // Height depends on child's heightMode
+          height: getSlotOverflow('center') === 'visible' ? 'auto' : '100%',
         };
     }
   };
@@ -790,8 +815,15 @@ const PageLayoutRenderer: React.FC<PageLayoutRendererProps> = ({
   // Generate responsive CSS
   const responsiveCSS = generateResponsiveCSS();
 
-  // When sticky header/footer is enabled, use sticky positioning within a scroll container
-  if (stickyHeader || stickyFooter) {
+  // Handle sticky modes: 'none', 'fixed', 'sticky'
+  // - 'none': No special layout, scrolls with content (use standard grid layout)
+  // - 'fixed': Header/footer always visible, middle content scrolls
+  // - 'sticky': CSS position: sticky - scrolls then sticks
+  const hasAnyStickyMode = effectiveHeaderMode !== 'none' || effectiveFooterMode !== 'none';
+  const hasFixedMode = effectiveHeaderMode === 'fixed' || effectiveFooterMode === 'fixed';
+  const hasStickyMode = effectiveHeaderMode === 'sticky' || effectiveFooterMode === 'sticky';
+
+  if (hasAnyStickyMode) {
     // Grid columns for middle section - use 1fr for full width when no sidebars
     // When left sidebar exists but not right, center should take remaining space (1fr)
     // When both sidebars exist, use percentage-based layout
@@ -813,19 +845,19 @@ const PageLayoutRenderer: React.FC<PageLayoutRendererProps> = ({
     const toggleOverlaySidebar = () => setIsOverlaySidebarOpen(!isOverlaySidebarOpen);
     const closeOverlaySidebar = () => setIsOverlaySidebarOpen(false);
 
-    // Check if center slot has wrap mode children - if so, allow page to expand naturally
-    // When center has wrap mode, the page should use the browser's scrollbar, not a nested one
+    // Check if ANY slot has wrap mode children - if so, allow page to expand naturally
+    // When any slot has wrap mode, the page should use the browser's scrollbar, not nested ones
+    const leftHasWrapMode = getSlotOverflow('left') === 'visible';
     const centerHasWrapMode = getSlotOverflow('center') === 'visible';
+    const rightHasWrapMode = getSlotOverflow('right') === 'visible';
+    const anySlotHasWrapMode = leftHasWrapMode || centerHasWrapMode || rightHasWrapMode;
 
-    // When center has wrap mode:
-    // - Don't constrain height to 100vh (let page expand naturally)
-    // - Use overflow: visible (let browser handle scrolling)
-    // When center doesn't have wrap mode:
-    // - Use 100vh height for sticky header/footer behavior
-    // - Use overflow: auto (enable scrollbar within container)
-    const containerHeight = centerHasWrapMode ? 'auto' : (fullHeight ? '100vh' : 'auto');
-    const containerOverflow = centerHasWrapMode ? 'visible' : 'auto';
-    const containerMinHeight = centerHasWrapMode ? (fullHeight ? '100vh' : undefined) : (fullHeight ? '100vh' : undefined);
+    // Determine layout strategy:
+    // - 'fixed' mode: Header/footer outside scroll container (middle scrolls)
+    // - 'sticky' mode: Everything inside scroll container, use CSS position: sticky
+    // When wrap mode children exist, sticky behavior is limited
+    const useFixedLayout = !anySlotHasWrapMode && hasFixedMode;
+    const useStickyLayout = !anySlotHasWrapMode && hasStickyMode && !hasFixedMode;
 
     return (
       <>
@@ -841,31 +873,41 @@ const PageLayoutRenderer: React.FC<PageLayoutRendererProps> = ({
             flexDirection: 'column',
             backgroundColor,
             width: '100%',
-            // When center has wrap mode, allow natural page expansion for browser scrollbar
-            // Otherwise use 100vh for sticky header/footer scroll container behavior
-            height: containerHeight,
-            minHeight: containerMinHeight,
-            overflow: containerOverflow,
+            // Layout height and overflow depends on mode:
+            // - fixed: 100vh with hidden overflow (middle scrolls)
+            // - sticky: 100vh with auto overflow (whole container scrolls, elements stick)
+            // - wrap mode: auto height with visible overflow
+            height: useFixedLayout ? '100vh' : (useStickyLayout ? '100vh' : (anySlotHasWrapMode ? 'auto' : (fullHeight ? '100vh' : 'auto'))),
+            minHeight: fullHeight ? '100vh' : undefined,
+            // Fixed mode: outer container doesn't scroll (middle does)
+            // Sticky mode: outer container scrolls (elements stick within)
+            overflow: useFixedLayout ? 'hidden' : (useStickyLayout ? 'auto' : (anySlotHasWrapMode ? 'visible' : 'auto')),
             position: 'relative',
           }}
           data-component-type="PageLayout"
         >
-          {/* Sticky Header - uses position sticky within scrollable parent */}
+          {/* Header region - behavior depends on sticky mode */}
           {hasHeader && (
             <div
               className="page-layout-region page-layout-header"
               style={{
-                position: stickyHeader ? 'sticky' : 'relative',
-                top: stickyHeader ? 0 : undefined,
-                zIndex: stickyHeader ? 100 : undefined,
+                // Fixed mode: header is outside scroll area (no position needed)
+                // Sticky mode: header uses CSS sticky
+                position: useStickyLayout && effectiveHeaderMode === 'sticky' ? 'sticky' : 'relative',
+                top: useStickyLayout && effectiveHeaderMode === 'sticky' ? 0 : undefined,
+                zIndex: effectiveHeaderMode !== 'none' ? 100 : undefined,
                 width: '100%',
                 flexShrink: 0,
-                // Don't set backgroundColor - let the header content's background show through
-                // Use flex to allow children to fill height
+                // Use flex for layout - don't stretch children vertically, let them size to content
                 display: 'flex',
                 flexDirection: 'row',
-                alignItems: 'stretch', // Stretch children to fill header height
-                minHeight: 0, // Allow content to determine height
+                alignItems: 'flex-start',
+                minHeight: 0,
+                // Max height and scrollable header support
+                maxHeight: headerMaxHeight ? `${headerMaxHeight}px` : undefined,
+                overflowY: headerMaxHeight ? 'auto' : undefined,
+                // Background for sticky to cover content below
+                backgroundColor: useStickyLayout && effectiveHeaderMode === 'sticky' ? backgroundColor : undefined,
               }}
               data-slot="header"
             >
@@ -927,14 +969,14 @@ const PageLayoutRenderer: React.FC<PageLayoutRendererProps> = ({
                   }} />
                 </button>
               )}
-              {/* Header content wrapper - fills full header area */}
+              {/* Header content wrapper - fills full width, height determined by content */}
               <div style={{
                 flex: 1,
                 display: 'flex',
                 flexDirection: 'column',
                 minHeight: 0,
-                // Ensure children fill full height
-                alignItems: 'stretch',
+                // Don't stretch children - let them determine their own size
+                alignItems: 'stretch', // This stretches horizontally in column layout, which is correct
               }}>
                 {renderSlotChildren('header')}
               </div>
@@ -998,23 +1040,25 @@ const PageLayoutRenderer: React.FC<PageLayoutRendererProps> = ({
             </button>
           )}
 
-          {/* Middle content area with sidebar grid */}
+          {/* Middle content area with sidebar grid
+              - Fixed mode: This is the scroll container (overflow: auto)
+              - Sticky mode: No special overflow (outer container scrolls)
+          */}
           <div
             className="page-layout-middle"
             style={{
               display: hasLeft || hasRight ? 'grid' : 'flex',
               gridTemplateColumns: hasLeft || hasRight ? middleGridColumns : undefined,
               flexDirection: hasLeft || hasRight ? undefined : 'column',
-              // When center has wrap mode, use flex: 1 0 auto to allow expansion beyond viewport
-              // Otherwise use flex: 1 for normal fill behavior
-              flex: centerHasWrapMode ? '1 0 auto' : 1,
-              // When center has wrap mode, don't constrain height - allow expansion
-              // Otherwise use minHeight: 0 to enable scrolling within fixed container
-              minHeight: centerHasWrapMode ? undefined : 0,
+              // flex: 1 makes this fill the remaining space between header and footer
+              // minHeight: 0 allows it to shrink and enables scrolling
+              flex: anySlotHasWrapMode ? '1 0 auto' : 1,
+              minHeight: anySlotHasWrapMode ? undefined : 0,
               width: '100%',
-              position: 'relative', // For overlay sidebar positioning
-              // When center has wrap mode, allow content to expand
-              overflow: centerHasWrapMode ? 'visible' : undefined,
+              position: 'relative',
+              // Fixed mode: middle scrolls (outer is hidden)
+              // Sticky mode: outer scrolls (middle has no overflow)
+              overflow: useFixedLayout ? 'auto' : (anySlotHasWrapMode ? 'visible' : undefined),
             }}
           >
             {/* Overlay backdrop for mobile sidebar - inside middle area */}
@@ -1034,6 +1078,10 @@ const PageLayoutRenderer: React.FC<PageLayoutRendererProps> = ({
                   flexDirection: 'column',
                   width: '100%', // Fill the grid cell
                   minWidth: 0, // Prevent overflow in grid
+                  // Height depends on child's heightMode:
+                  // - wrap: auto (slot expands with content)
+                  // - fill: 100% (slot fills grid cell so children can fill it)
+                  height: leftHasWrapMode ? 'auto' : '100%',
                   // Overflow depends on child's heightMode:
                   // - wrap: visible (slot expands with child, no scrollbar)
                   // - fill/resizable: auto (scrollbar when content overflows)
@@ -1052,9 +1100,13 @@ const PageLayoutRenderer: React.FC<PageLayoutRendererProps> = ({
                 flexDirection: 'column',
                 width: '100%',
                 minWidth: 0, // Prevent overflow in grid
+                // Height depends on child's heightMode:
+                // - wrap: auto (slot expands with content)
+                // - fill: 100% (slot fills grid cell so children can fill it)
+                height: centerHasWrapMode ? 'auto' : '100%',
                 // When in flex layout (no sidebars) and wrap mode, use flex: 1 0 auto to expand
                 // In grid layout, flex has no effect
-                flex: centerHasWrapMode && !(hasLeft || hasRight) ? '1 0 auto' : undefined,
+                flex: anySlotHasWrapMode && !(hasLeft || hasRight) ? '1 0 auto' : undefined,
                 // Overflow depends on child's heightMode
                 overflow: getSlotOverflow('center'),
               }}
@@ -1071,6 +1123,10 @@ const PageLayoutRenderer: React.FC<PageLayoutRendererProps> = ({
                   flexDirection: 'column',
                   width: '100%', // Fill the grid cell
                   minWidth: 0, // Prevent overflow in grid
+                  // Height depends on child's heightMode:
+                  // - wrap: auto (slot expands with content)
+                  // - fill: 100% (slot fills grid cell so children can fill it)
+                  height: rightHasWrapMode ? 'auto' : '100%',
                   // Overflow depends on child's heightMode
                   overflow: getSlotOverflow('right'),
                 }}
@@ -1081,22 +1137,28 @@ const PageLayoutRenderer: React.FC<PageLayoutRendererProps> = ({
             )}
           </div>
 
-          {/* Sticky Footer */}
+          {/* Footer region - behavior depends on sticky mode
+              - Fixed mode: footer is outside scroll area (always visible at bottom)
+              - Sticky mode: footer uses CSS sticky (sticks when scrolling up)
+          */}
           {hasFooter && (
             <div
               className="page-layout-region page-layout-footer"
               style={{
-                position: stickyFooter ? 'sticky' : 'relative',
-                bottom: stickyFooter ? 0 : undefined,
-                zIndex: stickyFooter ? 100 : undefined,
+                // Fixed mode: footer is outside scroll area (no position needed)
+                // Sticky mode: footer uses CSS sticky
+                position: useStickyLayout && effectiveFooterMode === 'sticky' ? 'sticky' : 'relative',
+                bottom: useStickyLayout && effectiveFooterMode === 'sticky' ? 0 : undefined,
+                zIndex: effectiveFooterMode !== 'none' ? 100 : undefined,
                 width: '100%',
                 flexShrink: 0,
-                backgroundColor: backgroundColor, // Ensure footer has background
-                // Use flex to allow children to fill height
+                // Background for sticky to cover content above
+                backgroundColor: backgroundColor,
                 display: 'flex',
                 flexDirection: 'column',
-                // DEBUG: Add min-height to ensure footer is visible
-                minHeight: '60px',
+                // Max height and scrollable footer support
+                maxHeight: footerMaxHeight ? `${footerMaxHeight}px` : undefined,
+                overflowY: footerMaxHeight ? 'auto' : undefined,
               }}
               data-slot="footer"
             >
@@ -1109,8 +1171,11 @@ const PageLayoutRenderer: React.FC<PageLayoutRendererProps> = ({
   }
 
   // Standard grid layout (no sticky elements)
-  // Check if center slot has wrap mode children - if so, allow page to expand naturally
+  // Check if ANY slot has wrap mode children - if so, allow page to expand naturally
+  const standardLeftHasWrapMode = getSlotOverflow('left') === 'visible';
   const standardCenterHasWrapMode = getSlotOverflow('center') === 'visible';
+  const standardRightHasWrapMode = getSlotOverflow('right') === 'visible';
+  const standardAnySlotHasWrapMode = standardLeftHasWrapMode || standardCenterHasWrapMode || standardRightHasWrapMode;
 
   return (
     <>
@@ -1128,12 +1193,12 @@ const PageLayoutRenderer: React.FC<PageLayoutRendererProps> = ({
           gridTemplateColumns,
           gap: '0',
           backgroundColor,
-          // When center has wrap mode, use auto height to allow natural page expansion
+          // When any slot has wrap mode, use auto height to allow natural page expansion
           // Otherwise use minHeight for full viewport behavior
-          minHeight: standardCenterHasWrapMode ? undefined : (fullHeight ? '100vh' : undefined),
+          minHeight: standardAnySlotHasWrapMode ? undefined : (fullHeight ? '100vh' : undefined),
           width: '100%',
-          // When center has wrap mode, allow content to expand (browser handles scrolling)
-          overflow: standardCenterHasWrapMode ? 'visible' : undefined,
+          // When any slot has wrap mode, allow content to expand (browser handles scrolling)
+          overflow: standardAnySlotHasWrapMode ? 'visible' : undefined,
         }}
         data-component-type="PageLayout"
       >

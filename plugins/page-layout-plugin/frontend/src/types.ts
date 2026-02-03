@@ -88,6 +88,14 @@ export interface ResponsiveConfig {
 export type MobileSidebarBehavior = 'hidden' | 'stacked' | 'overlay';
 
 /**
+ * Sticky mode options for header and footer
+ * - 'none': No sticky behavior, scrolls with content
+ * - 'fixed': Always visible (header at top, footer at bottom) - content scrolls independently
+ * - 'sticky': CSS sticky - scrolls with content until reaching viewport edge, then sticks
+ */
+export type StickyMode = 'none' | 'fixed' | 'sticky';
+
+/**
  * Page Layout specific props
  */
 export interface PageLayoutProps {
@@ -98,8 +106,12 @@ export interface PageLayoutProps {
   gap?: string;
   padding?: string;
   fullHeight?: boolean;
-  stickyHeader?: boolean;
-  stickyFooter?: boolean;
+  stickyHeader?: boolean;  // Legacy: kept for backward compatibility
+  stickyFooter?: boolean;  // Legacy: kept for backward compatibility
+  headerStickyMode?: StickyMode;  // More granular control: 'none' | 'fixed' | 'sticky'
+  footerStickyMode?: StickyMode;  // More granular control: 'none' | 'fixed' | 'sticky'
+  headerMaxHeight?: number;  // If set, header becomes scrollable when exceeds this height (in pixels)
+  footerMaxHeight?: number;  // If set, footer becomes scrollable when exceeds this height (in pixels)
   sidebarRatio?: string;  // e.g., '30-70' for 30% left, 70% center
   availableSlots?: PageLayoutSlot[];
   responsive?: ResponsiveConfig;  // Responsive settings per breakpoint

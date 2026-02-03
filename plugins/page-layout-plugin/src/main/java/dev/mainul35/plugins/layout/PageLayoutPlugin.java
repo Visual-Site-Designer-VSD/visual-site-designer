@@ -62,9 +62,14 @@ public class PageLayoutPlugin implements UIComponentPlugin {
     private static final String PROP_FULL_HEIGHT = "fullHeight";
     private static final String PROP_STICKY_HEADER = "stickyHeader";
     private static final String PROP_STICKY_FOOTER = "stickyFooter";
+    private static final String PROP_HEADER_STICKY_MODE = "headerStickyMode";
+    private static final String PROP_FOOTER_STICKY_MODE = "footerStickyMode";
+    private static final String PROP_HEADER_MAX_HEIGHT = "headerMaxHeight";
+    private static final String PROP_FOOTER_MAX_HEIGHT = "footerMaxHeight";
 
     // Default values
     private static final String DEFAULT_GAP = "4px";
+    private static final String DEFAULT_STICKY_MODE = "none";
 
     private ComponentManifest manifest;
 
@@ -149,8 +154,10 @@ public class PageLayoutPlugin implements UIComponentPlugin {
         props.put(PROP_GAP, DEFAULT_GAP);
         props.put(PROP_SIDEBAR_RATIO, "30-70");  // 30% left, 70% center
         props.put(PROP_FULL_HEIGHT, true);
-        props.put(PROP_STICKY_HEADER, false);
-        props.put(PROP_STICKY_FOOTER, false);
+        props.put(PROP_STICKY_HEADER, false);  // Legacy, kept for backward compatibility
+        props.put(PROP_STICKY_FOOTER, false);  // Legacy, kept for backward compatibility
+        props.put(PROP_HEADER_STICKY_MODE, DEFAULT_STICKY_MODE);  // 'none' | 'fixed' | 'sticky'
+        props.put(PROP_FOOTER_STICKY_MODE, DEFAULT_STICKY_MODE);  // 'none' | 'fixed' | 'sticky'
         // Available slots - for UI reference
         props.put("availableSlots", AVAILABLE_SLOTS);
         return props;
@@ -196,17 +203,53 @@ public class PageLayoutPlugin implements UIComponentPlugin {
         props.add(PropDefinition.builder()
                 .name(PROP_STICKY_HEADER)
                 .type(PropDefinition.PropType.BOOLEAN)
-                .label("Sticky Header")
+                .label("Sticky Header (Legacy)")
                 .defaultValue(false)
-                .helpText("Keep header fixed at top when scrolling (preview mode)")
+                .helpText("Legacy option - use Header Sticky Mode instead for more control")
                 .build());
 
         props.add(PropDefinition.builder()
                 .name(PROP_STICKY_FOOTER)
                 .type(PropDefinition.PropType.BOOLEAN)
-                .label("Sticky Footer")
+                .label("Sticky Footer (Legacy)")
                 .defaultValue(false)
-                .helpText("Keep footer fixed at bottom when scrolling (preview mode)")
+                .helpText("Legacy option - use Footer Sticky Mode instead for more control")
+                .build());
+
+        props.add(PropDefinition.builder()
+                .name(PROP_HEADER_STICKY_MODE)
+                .type(PropDefinition.PropType.SELECT)
+                .label("Header Sticky Mode")
+                .defaultValue(DEFAULT_STICKY_MODE)
+                .options(List.of("none", "fixed", "sticky"))
+                .required(false)
+                .helpText("none: scrolls with content | fixed: always visible at top | sticky: scrolls then sticks at top")
+                .build());
+
+        props.add(PropDefinition.builder()
+                .name(PROP_FOOTER_STICKY_MODE)
+                .type(PropDefinition.PropType.SELECT)
+                .label("Footer Sticky Mode")
+                .defaultValue(DEFAULT_STICKY_MODE)
+                .options(List.of("none", "fixed", "sticky"))
+                .required(false)
+                .helpText("none: at end of content | fixed: always visible at bottom | sticky: sticks when scrolling up")
+                .build());
+
+        props.add(PropDefinition.builder()
+                .name(PROP_HEADER_MAX_HEIGHT)
+                .type(PropDefinition.PropType.NUMBER)
+                .label("Header Max Height (px)")
+                .required(false)
+                .helpText("If set, header becomes scrollable when content exceeds this height")
+                .build());
+
+        props.add(PropDefinition.builder()
+                .name(PROP_FOOTER_MAX_HEIGHT)
+                .type(PropDefinition.PropType.NUMBER)
+                .label("Footer Max Height (px)")
+                .required(false)
+                .helpText("If set, footer becomes scrollable when content exceeds this height")
                 .build());
 
         return props;

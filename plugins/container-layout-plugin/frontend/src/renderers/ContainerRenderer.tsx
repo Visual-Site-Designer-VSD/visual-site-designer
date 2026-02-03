@@ -33,8 +33,11 @@ const ChildRenderer: React.FC<ChildRendererProps> = ({ child, isEditMode, childS
   });
 
   if (ChildRendererComponent) {
+    // Don't apply height from childSizeStyles - let children determine their own height
+    // This ensures wrap mode containers work correctly
+    const { height: _ignoredHeight, ...sizeStylesWithoutHeight } = childSizeStyles;
     return (
-      <div style={{ width: '100%', ...childSizeStyles }}>
+      <div style={{ width: '100%', height: 'auto', ...sizeStylesWithoutHeight }}>
         <ChildRendererComponent component={child} isEditMode={isEditMode} />
       </div>
     );
@@ -43,12 +46,14 @@ const ChildRenderer: React.FC<ChildRendererProps> = ({ child, isEditMode, childS
   // Fallback for unknown components (plugins should be preloaded by MultiPagePreview)
   console.warn(`[ContainerChildRenderer] No renderer found for ${child.componentId} (plugin: ${child.pluginId})`);
   const childBg = child.styles?.backgroundColor || child.styles?.background;
+  // Don't apply height from childSizeStyles - let children determine their own height
+  const { height: _fallbackIgnoredHeight, ...fallbackSizeStylesWithoutHeight } = childSizeStyles;
   return (
     <div
       style={{
         width: '100%',
-        minHeight: '50px',
-        ...childSizeStyles,
+        height: 'auto',
+        ...fallbackSizeStylesWithoutHeight,
         ...(childBg ? { backgroundColor: childBg as string } : {}),
         ...child.styles as React.CSSProperties,
       }}
@@ -208,8 +213,9 @@ const ContainerRenderer: React.FC<RendererProps> = ({ component, isEditMode }) =
         // Fill parent height - use 100%
         return { height: '100%', minHeight: undefined };
       case 'wrap':
-        // Wrap content - auto height with minimum
-        return { height: 'auto', minHeight: '50px' };
+        // Wrap content - don't set explicit height, let content determine size naturally
+        // Not setting height at all (undefined) allows the container to shrink-wrap its content
+        return { height: undefined, minHeight: undefined };
       case 'resizable':
       default:
         // Resizable - use the size.height if set, otherwise minHeight
@@ -255,9 +261,10 @@ const ContainerRenderer: React.FC<RendererProps> = ({ component, isEditMode }) =
     // Apply height based on heightMode
     ...heightStyles,
     // Apply additional styles from component (excluding properties we control)
+    // Exclude height/minHeight so heightMode logic is respected
     ...Object.fromEntries(
       Object.entries(component.styles as React.CSSProperties).filter(
-        ([key]) => !['background', 'backgroundColor', 'overflow'].includes(key)
+        ([key]) => !['background', 'backgroundColor', 'overflow', 'height', 'minHeight'].includes(key)
       )
     ),
   };
