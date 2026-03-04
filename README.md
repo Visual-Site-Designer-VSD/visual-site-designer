@@ -766,7 +766,6 @@ public class MyComponentPlugin implements UIComponentPlugin {
                 .configurableProps(buildConfigurableProps())
                 .configurableStyles(buildConfigurableStyles())
                 .sizeConstraints(buildSizeConstraints())
-                .canHaveChildren(false)
                 .capabilities(ComponentCapabilities.builder()
                         .isResizable(true)
                         .supportsTemplateBindings(true)
@@ -1395,15 +1394,12 @@ ComponentManifest.builder()
     .configurableProps(propsList)
     .configurableStyles(stylesList)
     .sizeConstraints(constraints)
-    .canHaveChildren(false)
     .capabilities(ComponentCapabilities.builder()
         .isResizable(true)
         .supportsTemplateBindings(true)
         .build())
     .build();
 ```
-
-> **Note**: The `canHaveChildren` field on `ComponentManifest` is deprecated. Use `ComponentCapabilities.canHaveChildren` via the `capabilities` field instead. The legacy field is retained for backward compatibility.
 
 #### ComponentCapabilities
 

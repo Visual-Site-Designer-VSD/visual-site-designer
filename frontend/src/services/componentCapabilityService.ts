@@ -139,16 +139,6 @@ class ComponentCapabilityService {
       };
     }
 
-    // Fall back to legacy canHaveChildren field
-    if (manifest?.canHaveChildren !== undefined) {
-      return {
-        ...DEFAULT_CAPABILITIES,
-        ...categoryDefaults,
-        canHaveChildren: manifest.canHaveChildren,
-        isContainer: manifest.canHaveChildren,
-      };
-    }
-
     // Use category-based defaults
     return {
       ...DEFAULT_CAPABILITIES,

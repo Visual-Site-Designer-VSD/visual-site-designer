@@ -131,7 +131,6 @@ public class ContainerLayoutPlugin implements UIComponentPlugin {
                 .configurableProps(buildConfigurableProps())
                 .configurableStyles(buildConfigurableStyles())
                 .sizeConstraints(buildSizeConstraints())
-                .canHaveChildren(true)
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(true)
                         .isContainer(true)

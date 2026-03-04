@@ -255,16 +255,8 @@ public abstract class AbstractUIComponentPlugin implements UIComponentPlugin {
     }
 
     /**
-     * Override to specify if component can have children.
-     * Default: false
-     */
-    protected boolean canHaveChildren() {
-        return false;
-    }
-
-    /**
      * Override to specify allowed child component types.
-     * Default: empty (all types allowed if canHaveChildren is true)
+     * Default: empty (all types allowed if capabilities.canHaveChildren is true)
      */
     protected List<String> getAllowedChildTypes() {
         return Collections.emptyList();
@@ -449,7 +441,6 @@ public abstract class AbstractUIComponentPlugin implements UIComponentPlugin {
                 .configurableProps(defineProps())
                 .configurableStyles(defineStyles())
                 .sizeConstraints(buildSizeConstraints())
-                .canHaveChildren(canHaveChildren())
                 .allowedChildTypes(getAllowedChildTypes())
                 .build();
     }

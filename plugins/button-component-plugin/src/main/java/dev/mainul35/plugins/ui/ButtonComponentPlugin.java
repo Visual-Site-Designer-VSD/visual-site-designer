@@ -133,7 +133,6 @@ public class ButtonComponentPlugin implements UIComponentPlugin {
                 .configurableProps(buildConfigurableProps())
                 .configurableStyles(buildConfigurableStyles())
                 .sizeConstraints(buildSizeConstraints())
-                .canHaveChildren(false)
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(false)
                         .isContainer(false)

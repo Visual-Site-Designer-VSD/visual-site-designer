@@ -24,7 +24,6 @@ interface FormData {
   category: string;
   icon: string;
   description: string;
-  canHaveChildren: boolean;
   defaultWidth: string;
   defaultHeight: string;
   minWidth: string;
@@ -43,7 +42,6 @@ const DEFAULT_FORM_DATA: FormData = {
   category: 'ui',
   icon: '',
   description: '',
-  canHaveChildren: false,
   defaultWidth: '200px',
   defaultHeight: 'auto',
   minWidth: '',
@@ -113,7 +111,6 @@ export const ManifestEditorModal: React.FC<ManifestEditorModalProps> = ({
       category: formData.category,
       icon: formData.icon.trim() || undefined,
       description: formData.description.trim() || undefined,
-      canHaveChildren: formData.canHaveChildren,
       sizeConstraints: {
         defaultWidth: formData.defaultWidth || undefined,
         defaultHeight: formData.defaultHeight || undefined,
@@ -135,7 +132,6 @@ export const ManifestEditorModal: React.FC<ManifestEditorModalProps> = ({
       category: manifest.category || 'ui',
       icon: manifest.icon || '',
       description: manifest.description || '',
-      canHaveChildren: manifest.canHaveChildren || false,
       defaultWidth: manifest.sizeConstraints?.defaultWidth || '200px',
       defaultHeight: manifest.sizeConstraints?.defaultHeight || 'auto',
       minWidth: manifest.sizeConstraints?.minWidth || '',
@@ -376,16 +372,6 @@ export const ManifestEditorModal: React.FC<ManifestEditorModalProps> = ({
                 <label className="mem-checkbox-label">
                   <input
                     type="checkbox"
-                    checked={formData.canHaveChildren}
-                    onChange={(e) => handleFormChange('canHaveChildren', e.target.checked)}
-                    disabled={isSubmitting}
-                  />
-                  <span>Can have children (container component)</span>
-                </label>
-
-                <label className="mem-checkbox-label">
-                  <input
-                    type="checkbox"
                     checked={formData.resizable}
                     onChange={(e) => handleFormChange('resizable', e.target.checked)}
                     disabled={isSubmitting}
@@ -487,7 +473,6 @@ export const ManifestEditorModal: React.FC<ManifestEditorModalProps> = ({
   "category": "ui",
   "icon": "🎨",
   "description": "A custom component",
-  "canHaveChildren": false,
   "sizeConstraints": {
     "defaultWidth": "200px",
     "defaultHeight": "auto",

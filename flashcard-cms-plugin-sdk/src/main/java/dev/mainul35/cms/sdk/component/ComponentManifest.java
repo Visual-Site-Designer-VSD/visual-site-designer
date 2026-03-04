@@ -89,12 +89,6 @@ public class ComponentManifest {
     private String pluginVersion;
 
     /**
-     * Whether component can have child components.
-     * @deprecated Use {@link ComponentCapabilities#isCanHaveChildren()} via {@link #capabilities} instead.
-     */
-    private boolean canHaveChildren;
-
-    /**
      * Allowed child component types (empty means all)
      */
     private List<String> allowedChildTypes;
