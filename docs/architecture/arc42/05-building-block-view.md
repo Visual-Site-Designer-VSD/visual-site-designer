@@ -492,17 +492,17 @@ graph TB
         end
     end
 
-    SDK[Plugin SDK] <-- LABEL
-    SDK <-- BUTTON
-    SDK <-- IMAGE
-    SDK <-- CONTAINER
-    SDK <-- SCROLLABLE
-    SDK <-- PAGE_LAYOUT
-    SDK <-- HROW
-    SDK <-- TEXTBOX
-    SDK <-- NEWSLETTER
-    SDK <-- NAVBAR
-    SDK <-- AUTH_COMP
+    LABEL --> SDK[Plugin SDK]
+    BUTTON --> SDK
+    IMAGE --> SDK
+    CONTAINER --> SDK
+    SCROLLABLE --> SDK
+    PAGE_LAYOUT --> SDK
+    HROW --> SDK
+    TEXTBOX --> SDK
+    NEWSLETTER --> SDK
+    NAVBAR --> SDK
+    AUTH_COMP --> SDK
 
     style SDK fill:#f38181,color:#fff
     style LABEL fill:#95e1d3
@@ -638,9 +638,9 @@ graph TB
     CART_CTX -.depends on.-> AUTH_CTX
     ORDER_CTX -.depends on.-> AUTH_CTX
 
-    SDK[Plugin SDK] <-- AUTH_CTX
-    SDK <-- CART_CTX
-    SDK <-- ORDER_CTX
+    AUTH_CTX --> SDK[Plugin SDK]
+    CART_CTX --> SDK
+    ORDER_CTX --> SDK
 
     style AUTH_CTX fill:#a855f7,color:#fff
     style CART_CTX fill:#a855f7,color:#fff
@@ -773,11 +773,11 @@ graph TB
             CACHE[InMemoryCacheProvider]
         end
 
-        DF_IF <|-- REST_DF
-        DF_IF <|-- JPA_DF
-        DF_IF <|-- MONGO_DF
-        DF_IF <|-- STATIC_DF
-        DF_IF <|-- CONTEXT_DF
+        REST_DF -->|implements| DF_IF
+        JPA_DF -->|implements| DF_IF
+        MONGO_DF -->|implements| DF_IF
+        STATIC_DF -->|implements| DF_IF
+        CONTEXT_DF -->|implements| DF_IF
 
         DS_REG --> REST_DF
         DS_REG --> JPA_DF
