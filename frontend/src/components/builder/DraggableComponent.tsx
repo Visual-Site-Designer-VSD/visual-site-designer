@@ -111,6 +111,9 @@ export const DraggableComponent: React.FC<DraggableComponentProps> = ({
       });
     }
 
+    // PageLayout is not draggable — allow selection only
+    if (isPageLayout) return;
+
     // Record starting position for drag detection
     // Don't set isDragging yet - only set it when mouse actually moves
     setDragStartPos({ x: e.clientX, y: e.clientY });
@@ -390,6 +393,9 @@ export const DraggableComponent: React.FC<DraggableComponentProps> = ({
   // Check if this is a child component
   const isChildComponent = !!component.parentId;
 
+  // PageLayout is a full-page structural component — dragging it makes no sense
+  const isPageLayout = component.componentId === 'PageLayout';
+
   return (
     <>
       <div
@@ -419,7 +425,7 @@ export const DraggableComponent: React.FC<DraggableComponentProps> = ({
         </div>
 
         {/* Move Handle (for moving between containers) - always rendered, visibility controlled by CSS */}
-        {canDrag && (
+        {canDrag && !isPageLayout && (
           <div
             className="move-handle"
             title="Drag to move between containers"
