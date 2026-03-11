@@ -36,6 +36,7 @@ This section provides a high-level overview of the fundamental decisions and sol
 |----------|-----------|-----------|
 | **Plugin Discovery** | ClassLoader scanning | Java-native, no external dependencies, isolated execution |
 | **Plugin Format** | JAR with embedded resources | Standard Java packaging, includes code + assets |
+| **Plugin Types** | UIComponentPlugin + ContextProviderPlugin (planned) | UI components for visual elements, Context providers for shared state |
 | **Frontend Bundling** | Vite (IIFE format) | Bundle React components into single file, global exports |
 | **Type Generation** | IntelliJ Plugin | Auto-generate TypeScript types from Java manifests |
 
@@ -73,6 +74,7 @@ graph TB
         P1[UI Plugins]
         P2[Layout Plugins]
         P3[Form Plugins]
+        P4[Context Providers<br/>auth, cart, etc.]
         SDK[Plugin SDK]
     end
 
@@ -92,9 +94,11 @@ graph TB
     PLUGIN_MGR --> P1
     PLUGIN_MGR --> P2
     PLUGIN_MGR --> P3
+    PLUGIN_MGR --> P4
     P1 -.implements.-> SDK
     P2 -.implements.-> SDK
     P3 -.implements.-> SDK
+    P4 -.implements.-> SDK
 
     style UI fill:#4a90e2,color:#fff
     style SDK fill:#f38181,color:#fff

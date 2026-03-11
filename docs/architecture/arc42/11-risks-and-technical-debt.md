@@ -329,6 +329,41 @@ Page content stored as JSONB (PostgreSQL) but TEXT in H2:
 
 ---
 
+### Risk R-09: Context Provider Dependency Complexity (Planned Feature)
+
+**Category**: Architecture
+**Severity**: Medium
+**Likelihood**: Medium
+**Status**: Planned (associated with ADR-008)
+
+#### Description
+The planned Context Provider Plugin architecture introduces dependency management between plugins. Risks include:
+- Circular context dependencies (Context A depends on B depends on A)
+- Missing context at runtime (context plugin uninstalled but consumer still present)
+- Context provider tree depth affecting React rendering performance
+- Version incompatibility between context provider and consumer plugins
+- Ordering issues during startup (context provider not ready when consumer loads)
+
+#### Impact
+- Circular dependencies: Application fails to start
+- Missing context: UI components crash at runtime with unhelpful errors
+- Performance: Deep provider nesting causes unnecessary re-renders
+- Version mismatch: Runtime errors in consumer components
+
+#### Proposed Mitigation Strategies
+
+| Strategy | Priority | Effort | Timeline |
+|----------|----------|--------|----------|
+| **DAG Validation**: Reject circular dependencies at plugin load time | High | Low | With ADR-008 implementation |
+| **Graceful Degradation**: Show placeholder when required context missing | High | Medium | With ADR-008 implementation |
+| **Lazy Context Activation**: Only wrap providers for contexts actually used on page | Medium | Medium | Post-ADR-008 |
+| **Context Versioning**: Semantic version constraints in requiredContexts | Medium | Medium | Future |
+| **Performance Monitoring**: Track React render times with context providers | Low | Low | Post-ADR-008 |
+
+**Residual Risk**: Low (DAG validation and graceful degradation address primary risks)
+
+---
+
 ## 11.3 Risk Matrix
 
 Visual representation of risks by severity and likelihood:
@@ -336,7 +371,7 @@ Visual representation of risks by severity and likelihood:
 | Likelihood ↓ / Severity → | Low | Medium | High |
 |---------------------------|-----|--------|------|
 | **High** | - | R-03 (Performance) | - |
-| **Medium** | R-05 (Browser) | R-02 (Memory Leak)<br/>R-04 (Large Pages) | R-01 (Security) |
+| **Medium** | R-05 (Browser) | R-02 (Memory Leak)<br/>R-04 (Large Pages)<br/>R-09 (Context Deps) | R-01 (Security) |
 | **Low** | R-06 (Migration)<br/>R-08 (JSONB) | R-07 (OAuth2) | - |
 
 **Priority Order** (Risk Score = Severity × Likelihood):
@@ -344,10 +379,11 @@ Visual representation of risks by severity and likelihood:
 2. **R-02**: Memory Leaks (High × Medium = High Priority)
 3. **R-03**: Performance with Many Plugins (Medium × High = Medium Priority)
 4. **R-04**: Memory on Large Pages (Medium × Medium = Medium Priority)
-5. **R-07**: OAuth2 Downtime (Medium × Low = Low Priority)
-6. **R-05**: Browser Compatibility (Low × Medium = Low Priority)
-7. **R-06**: Migration Failures (Medium × Low = Low Priority)
-8. **R-08**: JSONB Compatibility (Low × Low = Very Low Priority)
+5. **R-09**: Context Provider Dependencies (Medium × Medium = Medium Priority)
+6. **R-07**: OAuth2 Downtime (Medium × Low = Low Priority)
+7. **R-05**: Browser Compatibility (Low × Medium = Low Priority)
+8. **R-06**: Migration Failures (Medium × Low = Low Priority)
+9. **R-08**: JSONB Compatibility (Low × Low = Very Low Priority)
 
 ---
 

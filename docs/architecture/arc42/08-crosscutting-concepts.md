@@ -598,6 +598,121 @@ class PluginLoaderService {
 }
 ```
 
+### 8.3.5 Cross-Plugin Shared Context Pattern (Planned)
+
+**Problem**: Feature domains like authentication and e-commerce require shared state across multiple independent UI component plugins. For example, a login form, registration form, and user profile all need access to auth session state. In an e-commerce scenario, product cards, cart widgets, checkout forms, and shipping forms all need access to cart state.
+
+**Solution**: The **Context Provider Plugin** pattern introduces a new plugin type that provides shared state and services without rendering UI.
+
+```mermaid
+graph TB
+    subgraph "Context Layer (Invisible Infrastructure)"
+        AUTH_CTX[auth-context-plugin<br/>AuthProvider + useAuth]
+        CART_CTX[cart-context-plugin<br/>CartProvider + useCart]
+    end
+
+    subgraph "UI Layer (Visible Components)"
+        LOGIN[LoginForm]
+        REGISTER[RegisterForm]
+        PRODUCT[ProductCard]
+        CART[CartWidget]
+    end
+
+    AUTH_CTX -.provides context.-> LOGIN
+    AUTH_CTX -.provides context.-> REGISTER
+    CART_CTX -.provides context.-> PRODUCT
+    CART_CTX -.provides context.-> CART
+    CART_CTX -.depends on.-> AUTH_CTX
+
+    style AUTH_CTX fill:#a855f7,color:#fff
+    style CART_CTX fill:#a855f7,color:#fff
+    style LOGIN fill:#95e1d3
+    style REGISTER fill:#95e1d3
+    style PRODUCT fill:#95e1d3
+    style CART fill:#95e1d3
+```
+
+**Architecture Layers**:
+
+1. **SDK Layer** (`ContextProviderPlugin` interface):
+   - Declares `getContextId()` — unique context name (e.g., `"auth"`, `"cart"`)
+   - Declares `getProviderComponentPath()` — path to React context provider
+   - Declares `getApiEndpoints()` — backend REST endpoints the context exposes
+   - Declares `getRequiredContexts()` — dependencies on other contexts
+
+2. **Backend Layer** (PluginManager + ContextRegistry):
+   - New `ContextRegistry` alongside existing `ComponentRegistry`
+   - Context plugins loaded **before** UI plugins (dependency order)
+   - Validates context dependencies form a DAG (no cycles)
+   - Exposes `GET /api/contexts` for frontend discovery
+
+3. **Frontend Layer** (ContextProviderTree + `usePluginContext` hook):
+   - Fetches active contexts from backend on app startup
+   - Topological sort by dependencies to determine wrapping order
+   - Wraps page component tree with all active context providers
+   - `usePluginContext(contextId)` hook for UI components to consume context
+
+**UI Component → Context Binding**:
+
+UI component manifests declare context dependencies via `requiredContexts`:
+
+```json
+{
+  "componentId": "loginForm",
+  "pluginId": "login-form-plugin",
+  "requiredContexts": ["auth"],
+  "capabilities": {
+    "canHaveChildren": false,
+    "isResizable": true
+  }
+}
+```
+
+The builder validates that required contexts are satisfied before allowing component placement.
+
+**Frontend `usePluginContext` Hook**:
+
+```typescript
+// Any UI component plugin can access any registered context
+function LoginForm(props) {
+  const { user, login, logout, isAuthenticated } = usePluginContext('auth');
+
+  const handleSubmit = async (credentials) => {
+    await login(credentials);
+  };
+
+  return isAuthenticated
+    ? <UserGreeting user={user} onLogout={logout} />
+    : <LoginFormUI onSubmit={handleSubmit} />;
+}
+```
+
+**E-commerce Example** (future):
+
+```
+Installed Plugins:
+├── auth-context-plugin/        (provides: "auth")
+├── cart-context-plugin/        (provides: "cart", requires: "auth")
+├── order-context-plugin/       (provides: "order", requires: "auth")
+├── login-form-plugin/          (requires: "auth")
+├── product-card-plugin/        (requires: "cart")
+├── cart-widget-plugin/         (requires: "cart")
+├── checkout-form-plugin/       (requires: "cart", "auth")
+└── order-history-plugin/       (requires: "order")
+
+Runtime Provider Tree:
+  AuthProvider → CartProvider → OrderProvider → Page Components
+```
+
+**Design Principles**:
+
+| Principle | Application |
+|-----------|-------------|
+| **Separation of Concerns** | State management (context plugins) separated from UI rendering (UI plugins) |
+| **Dependency Inversion** | UI plugins depend on abstract context IDs, not concrete implementations |
+| **Open/Closed** | New feature domains (analytics, notifications) added without core changes |
+| **Single Responsibility** | Each context plugin manages exactly one domain's shared state |
+
 ---
 
 ## 8.4 Error Handling and Logging

@@ -228,6 +228,100 @@ sequenceDiagram
 
 ---
 
+### 6.1.4 Context Provider Plugin Lifecycle (Planned)
+
+This scenario shows how context provider plugins are loaded, registered in the context registry, and made available to UI component plugins.
+
+```mermaid
+sequenceDiagram
+    participant Boot as Spring Boot
+    participant PM as PluginManager
+    participant CL as IsolatedClassLoader
+    participant CtxPlugin as ContextProviderPlugin
+    participant CtxReg as ContextRegistry
+    participant DB as Database
+
+    Boot->>PM: applicationStartup()
+    PM->>PM: scanPluginsDirectory()
+
+    Note over PM: Load Context Providers first (dependency resolution)
+
+    loop For each context-provider plugin JAR
+        PM->>CL: Create IsolatedClassLoader(plugin.jar)
+        CL-->>PM: ClassLoader instance
+
+        PM->>CL: loadClass(mainClass)
+        CL-->>PM: Plugin class (implements ContextProviderPlugin)
+
+        PM->>CtxPlugin: new Instance()
+        CtxPlugin-->>PM: Plugin instance
+
+        PM->>CtxPlugin: onLoad(PluginContext)
+        CtxPlugin->>CtxPlugin: Initialize auth/cart/order services
+        CtxPlugin-->>PM: (void)
+
+        PM->>CtxPlugin: getContextId()
+        CtxPlugin-->>PM: "auth"
+        PM->>CtxPlugin: getRequiredContexts()
+        CtxPlugin-->>PM: [] (no dependencies)
+        PM->>CtxPlugin: getProviderComponentPath()
+        CtxPlugin-->>PM: "AuthProvider.js"
+        PM->>CtxPlugin: getApiEndpoints()
+        CtxPlugin-->>PM: ["/api/ctx/auth/session", "/api/ctx/auth/login", ...]
+
+        Note over PM,CtxReg: Register in Context Registry
+        PM->>CtxReg: registerContext(contextDescriptor)
+        CtxReg->>DB: INSERT INTO cms_context_registry
+        DB-->>CtxReg: Success
+
+        PM->>CtxPlugin: onActivate(PluginContext)
+        CtxPlugin-->>PM: Context provider ready
+    end
+
+    Note over PM: Then load UI Component Plugins
+    PM->>PM: loadUIComponentPlugins()
+    PM->>PM: Validate requiredContexts for each UI plugin
+
+    PM-->>Boot: All plugins loaded
+```
+
+**Context Resolution Flow**:
+
+When the frontend loads, it fetches the list of active context providers and builds a dependency-ordered provider tree:
+
+```mermaid
+sequenceDiagram
+    participant FE as Frontend
+    participant API as Context API
+    participant CtxReg as ContextRegistry
+    participant FE_CTX as ContextProviderTree
+
+    FE->>API: GET /api/contexts
+    API->>CtxReg: getActiveContexts()
+    CtxReg-->>API: [AuthContext, CartContext]
+    API-->>FE: Context descriptors
+
+    FE->>FE_CTX: buildProviderTree(contexts)
+    FE_CTX->>FE_CTX: Topological sort by dependencies
+    FE_CTX->>FE_CTX: Load provider bundles
+    FE_CTX-->>FE: Provider tree ready
+
+    Note over FE: Page render wraps components in provider tree
+    FE->>FE: <AuthProvider><CartProvider><Page/></CartProvider></AuthProvider>
+```
+
+**Key Differences from UI Component Plugins**:
+
+| Aspect | UI Component Plugin | Context Provider Plugin |
+|--------|-------------------|----------------------|
+| **Loading order** | After context providers | First (dependencies for UI plugins) |
+| **Registration target** | ComponentRegistry | ContextRegistry |
+| **Frontend artifact** | Renderer component | Context provider + hook |
+| **Dependency validation** | Checks `requiredContexts` | Checks other contexts |
+| **API exposure** | Via manifest + bundle.js | Via dedicated `/api/ctx/{contextId}/*` endpoints |
+
+---
+
 ## 6.2 Authentication Flows
 
 ### 6.2.1 Local JWT Authentication

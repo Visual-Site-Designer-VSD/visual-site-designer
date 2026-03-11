@@ -33,8 +33,17 @@ A reusable UI element (e.g., Button, Label, Container) that can be placed on a p
 
 ---
 
+#### Component Capabilities
+A set of boolean flags on `ComponentManifest` that describe a component's behavioral properties in the visual builder. Includes: `canHaveChildren`, `isContainer`, `hasDataSource`, `autoHeight`, `isResizable`, `supportsIteration`, `supportsTemplateBindings`.
+
+**Related**: Component, Manifest, Plugin SDK
+
+**See also**: [Section 5.4 - Plugin SDK](05-building-block-view.md#plugin-sdk)
+
+---
+
 #### Component Manifest
-A JSON descriptor that defines a component's properties, styles, and behavior. Plugins provide manifests for each component they register.
+A JSON descriptor that defines a component's properties, styles, capabilities, and behavior. Plugins provide manifests for each component they register.
 
 **Structure**:
 ```json
@@ -74,6 +83,30 @@ A database table and in-memory cache that stores metadata about registered compo
 **Related**: Component, Plugin
 
 **See also**: [Section 8.1 - Domain Model](08-crosscutting-concepts.md#domain-model)
+
+---
+
+#### Context Provider Plugin (Planned)
+A new plugin type (`ContextProviderPlugin`) that provides shared state and services for a feature domain (e.g., authentication, e-commerce cart). Unlike UI Component Plugins, Context Provider Plugins do not render visual components. Instead, they supply a React context provider and backend API endpoints that multiple UI component plugins can consume.
+
+**Key properties**:
+- `contextId`: Unique identifier (e.g., `"auth"`, `"cart"`)
+- `providerComponentPath`: Path to React context provider
+- `apiEndpoints`: Backend REST endpoints the context exposes
+- `requiredContexts`: Dependencies on other context providers
+
+**Related**: Plugin, ContextRegistry, UIComponentPlugin
+
+**See also**: [ADR-008: Context Provider Plugins](09-architecture-decisions.md#adr-008), [Section 5.6 - Context Provider Plugins](05-building-block-view.md)
+
+---
+
+#### ContextRegistry (Planned)
+A registry (analogous to ComponentRegistry) that stores metadata about active context providers. Used by the frontend to discover which shared contexts are available and determine the provider wrapping order based on dependency resolution.
+
+**Related**: Context Provider Plugin, ComponentRegistry
+
+**See also**: [Section 6.1.4 - Context Provider Plugin Lifecycle](06-runtime-view.md)
 
 ---
 
@@ -824,11 +857,15 @@ A lightweight state management library for React. VSD uses Zustand for frontend 
 | **Bundle** | Plugin JAR file with embedded assets |
 | **ClassLoader** | Java class loading mechanism |
 | **Hot Reload** | Runtime plugin reload without restart |
+| **Context Provider** | Plugin providing shared state for a feature domain (planned) |
+| **Context Registry** | Registry of active context providers (planned) |
 | **Isolation** | Separate classloader per plugin |
 | **Manifest** | Component metadata (plugin.yml, component manifest JSON) |
 | **Plugin Context** | Access to Spring beans and services |
 | **Registry** | Database of registered components |
+| **requiredContexts** | Contexts a UI component needs (declared in manifest) |
 | **Sandbox** | Isolated execution environment (not implemented) |
+| **usePluginContext** | React hook to consume a registered context provider (planned) |
 
 ---
 

@@ -2,8 +2,8 @@
 
 **Architecture documentation based on the arc42 template**
 
-Version: 1.0.0
-Date: 2026-03-11
+Version: 1.1.0
+Date: 2026-03-12
 Status: Living Document
 
 ---
@@ -38,11 +38,11 @@ arc42 is a template for software and system architecture documentation and commu
 
 5. [Building Block View](05-building-block-view.md)
    - Level 1: System Overview
-   - Level 2: Modules (Core, Frontend, Plugins, SDK)
+   - Level 2: Modules (Core, Frontend, Plugins, SDK, Context Providers)
    - Level 3: Component Details
 
 6. [Runtime View](06-runtime-view.md)
-   - Plugin Lifecycle
+   - Plugin Lifecycle (UI + Context Provider)
    - Authentication Flow
    - Page Rendering
    - Export Process
@@ -57,7 +57,8 @@ arc42 is a template for software and system architecture documentation and commu
 8. [Cross-cutting Concepts](08-crosscutting-concepts.md)
    - Domain Model
    - Security
-   - Plugin Architecture
+   - Plugin Architecture (UI Components + Context Providers)
+   - Cross-Plugin Shared Context Pattern
    - Error Handling
    - Logging & Monitoring
    - Testing Strategy
@@ -68,6 +69,7 @@ arc42 is a template for software and system architecture documentation and commu
    - ADR-003: Dual Authentication Mode
    - ADR-004: H2 for Development, PostgreSQL for Production
    - ADR-005: Zustand for State Management
+   - ADR-008: Context Provider Plugins for Cross-Plugin Shared State
 
 10. [Quality Requirements](10-quality-requirements.md)
     - Quality Tree

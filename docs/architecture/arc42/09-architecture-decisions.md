@@ -709,6 +709,147 @@ export default defineConfig({
 
 ---
 
+## ADR-008: Context Provider Plugins for Cross-Plugin Shared State
+
+**Date**: 2026-02-27
+**Status**: Proposed
+**Decision Makers**: Architecture Team
+
+### Context
+
+VSD's plugin architecture follows a **1-plugin-1-component** model where each plugin provides exactly one UI component. This works well for independent components (button, label, image) but breaks down for **feature domains** where multiple UI components need shared state:
+
+- **Authentication**: Login form, registration form, user profile, and protected components all need access to auth session state (tokens, user info, login/logout actions).
+- **E-commerce** (future): Product card, cart widget, checkout form, shipping form, and order history all need access to cart state, order state, and user authentication.
+
+Without a shared context mechanism, developers face three undesirable options:
+1. **Monolithic feature plugin** — put all auth UIs in one plugin, violating 1-plugin-1-component
+2. **Duplicate state** — each plugin manages its own copy of auth state, causing inconsistency
+3. **Global window state** — use `window.*` globals, breaking encapsulation and testability
+
+This is not a one-time auth-specific problem — any feature domain with coupled UI surfaces will face the same challenge.
+
+### Decision
+
+Introduce a new plugin type: **Context Provider Plugin** (`ContextProviderPlugin` interface in the SDK).
+
+**Key Design**:
+
+1. **Two plugin types**: `UIComponentPlugin` (existing) provides visual components; `ContextProviderPlugin` (new) provides shared state/services.
+
+2. **Context Provider Plugins**:
+   - Implement `ContextProviderPlugin` interface
+   - Declare a unique `contextId` (e.g., `"auth"`, `"cart"`)
+   - Provide a React context provider component (e.g., `AuthProvider`)
+   - Expose backend API endpoints (e.g., `/api/ctx/auth/session`)
+   - Declare dependencies on other contexts (e.g., cart depends on auth)
+
+3. **UI Component Plugins** consume contexts:
+   - Declare `requiredContexts` in `ComponentManifest` (e.g., `["auth"]`)
+   - Use `usePluginContext(contextId)` hook in their React renderers
+
+4. **Loading order**:
+   - Context providers loaded **before** UI plugins
+   - Dependencies resolved via topological sort (DAG)
+   - Circular dependencies rejected at load time
+
+5. **Frontend runtime**:
+   - All active context providers wrap the page component tree
+   - Provider order matches dependency resolution (outermost = no deps)
+   - `usePluginContext()` hook provides type-safe access to any context
+
+**Plugin Architecture**:
+```
+Context Provider Plugins (no UI)          UI Component Plugins (1 each)
+┌─────────────────────┐                  ┌──────────────┐
+│ auth-context-plugin │◄─── consumes ───│ login-form   │
+│                     │◄─── consumes ───│ register-form│
+│ Provides:           │◄─── consumes ───│ user-profile │
+│  - AuthContext      │                  └──────────────┘
+│  - AuthProvider     │
+│  - useAuth() hook   │
+│  - /api/ctx/auth/*  │
+└─────────────────────┘
+
+┌─────────────────────┐                  ┌──────────────┐
+│ cart-context-plugin │◄─── consumes ───│ product-card │
+│ (depends: auth)     │◄─── consumes ───│ cart-widget  │
+│                     │◄─── consumes ───│ checkout-form│
+│ Provides:           │                  └──────────────┘
+│  - CartContext      │
+│  - CartProvider     │
+│  - useCart() hook   │
+│  - /api/ctx/cart/*  │
+└─────────────────────┘
+```
+
+**Runtime Provider Tree**:
+```tsx
+<AuthProvider>           {/* from auth-context-plugin */}
+  <CartProvider>         {/* from cart-context-plugin */}
+    <Page>
+      <LoginForm />      {/* uses usePluginContext('auth') */}
+      <CartWidget />     {/* uses usePluginContext('cart') */}
+    </Page>
+  </CartProvider>
+</AuthProvider>
+```
+
+### Consequences
+
+**Positive**:
+- Preserves 1-plugin-1-component model for UI plugins
+- General-purpose solution — works for auth, e-commerce, analytics, notifications, or any feature domain
+- No core code changes needed for new feature domains
+- Context dependencies explicit and validated at load time
+- Consistent with existing plugin architecture (JAR, classloader, lifecycle)
+- Frontend uses standard React context pattern (familiar, testable)
+
+**Negative**:
+- Two plugin types to maintain (UI + Context Provider) — increased SDK surface
+- Context dependency resolution adds startup complexity
+- Context provider tree wrapping may affect React rendering performance
+- Plugin developers must understand which type to use for their use case
+- More moving parts for simple deployments that only need basic components
+
+**Risks**:
+- **Context bloat**: Too many contexts wrapping the page tree may degrade rendering performance
+  - *Mitigation*: Lazy context activation (only wrap if consumer components are on the page)
+- **Circular dependencies**: Context A depends on B depends on A
+  - *Mitigation*: DAG validation at load time, reject circular dependencies
+- **Version compatibility**: Context provider API changes may break consumers
+  - *Mitigation*: Semantic versioning for context interfaces, backward compatibility
+- **Testing complexity**: UI components need context providers in test harnesses
+  - *Mitigation*: Provide mock context providers in SDK for testing
+
+### Alternatives Considered
+
+#### Alternative 1: Keep Multi-Component Plugins for Feature Domains
+**Description**: Allow auth plugin to contain 5 components (login, register, profile, etc.) sharing internal state
+- **Pros**: Simple, no new plugin type needed, shared state naturally internal
+- **Cons**: Violates 1-plugin-1-component, cannot independently install/update individual auth UIs, large monolithic JARs
+- **Reason for rejection**: Does not scale to e-commerce (20+ components sharing state), prevents granular plugin management
+
+#### Alternative 2: Global Event Bus
+**Description**: Plugins communicate via a global event bus (`window.vsdEventBus`)
+- **Pros**: Simple, decoupled, no explicit dependencies
+- **Cons**: No shared state (only events), race conditions, no type safety, debugging difficulty
+- **Reason for rejection**: Events are insufficient for shared state (auth session, cart contents); state requires a centralized store
+
+#### Alternative 3: Shared Library Pattern (e.g., auth-commons.jar)
+**Description**: Extract shared state into a common JAR that multiple plugins depend on
+- **Pros**: Standard Java approach, Maven dependency management
+- **Cons**: ClassLoader isolation means each plugin gets its own copy of the shared library (no shared state!), defeats the purpose
+- **Reason for rejection**: ClassLoader isolation — the core architectural feature — makes shared JARs isolated, not shared
+
+#### Alternative 4: Platform-Level Services (e.g., AuthService in Core)
+**Description**: Build auth, cart, etc. as core platform services rather than plugins
+- **Pros**: Simple shared state, no plugin complexity
+- **Cons**: Violates "extend without modifying core" principle, core becomes monolithic, every new domain requires core changes
+- **Reason for rejection**: Contradicts the fundamental plugin-based architecture principle (ADR-001)
+
+---
+
 ## Decision Log Summary
 
 | ADR | Decision | Date | Status |
@@ -720,6 +861,7 @@ export default defineConfig({
 | ADR-005 | Zustand for Frontend State Management | 2025-02-20 | Accepted |
 | ADR-006 | BroadcastChannel API for Real-time Preview | 2025-02-22 | Accepted |
 | ADR-007 | Vite Build Tool for Frontend | 2025-02-08 | Accepted |
+| ADR-008 | Context Provider Plugins for Cross-Plugin Shared State | 2026-02-27 | Proposed |
 
 ---
 
@@ -727,14 +869,14 @@ export default defineConfig({
 
 Potential future architectural decisions:
 
-- **ADR-008**: Plugin Marketplace Architecture
-- **ADR-009**: Multi-tenancy Strategy
-- **ADR-010**: GraphQL API Layer
-- **ADR-011**: Event-Driven Architecture for Plugin Communication
-- **ADR-012**: Caching Strategy (Redis)
-- **ADR-013**: Monitoring and Observability Stack
-- **ADR-014**: Internationalization (i18n) Approach
-- **ADR-015**: Mobile App Strategy (React Native)
+- **ADR-009**: Plugin Marketplace Architecture
+- **ADR-010**: Multi-tenancy Strategy
+- **ADR-011**: GraphQL API Layer
+- **ADR-012**: Event-Driven Architecture for Plugin Communication
+- **ADR-013**: Caching Strategy (Redis)
+- **ADR-014**: Monitoring and Observability Stack
+- **ADR-015**: Internationalization (i18n) Approach
+- **ADR-016**: Mobile App Strategy (React Native)
 
 ---
 

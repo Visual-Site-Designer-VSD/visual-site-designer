@@ -322,7 +322,7 @@ graph TB
 
 ## 5.4 Level 2: Plugin SDK (Whitebox)
 
-The Plugin SDK defines the contract between the core platform and plugins.
+The Plugin SDK defines the contract between the core platform and plugins. It supports two plugin types: **UI Component Plugins** (provide visual components) and **Context Provider Plugins** (provide shared state/services for feature domains).
 
 ```mermaid
 graph TB
@@ -330,15 +330,18 @@ graph TB
         subgraph "Interfaces"
             PLUGIN_IF[Plugin Interface]
             UI_COMP_IF[UIComponentPlugin Interface]
+            CTX_PROV_IF[ContextProviderPlugin Interface]
             DATA_FETCHER_IF[DataFetcher Interface]
         end
 
         subgraph "Data Models"
             MANIFEST[ComponentManifest]
+            CAPABILITIES[ComponentCapabilities]
             PROP_DEF[PropDefinition]
             STYLE_DEF[StyleDefinition]
             SIZE_CONST[SizeConstraints]
             VALIDATION[ValidationResult]
+            CTX_DESC[ContextDescriptor]
         end
 
         subgraph "Annotations"
@@ -350,20 +353,26 @@ graph TB
         end
 
         UI_COMP_IF --|extends| PLUGIN_IF
+        CTX_PROV_IF --|extends| PLUGIN_IF
         UI_COMP_IF --> MANIFEST
+        MANIFEST --> CAPABILITIES
         MANIFEST --> PROP_DEF
         MANIFEST --> STYLE_DEF
         MANIFEST --> SIZE_CONST
         UI_COMP_IF --> VALIDATION
         UI_COMP_IF --> UI_COMP_ANN
         PLUGIN_IF --> PLUGIN_CTX
+        CTX_PROV_IF --> CTX_DESC
     end
 
-    PLUGIN_IMPL[Plugin Implementation] -.implements.-> UI_COMP_IF
+    PLUGIN_IMPL[UI Plugin Implementation] -.implements.-> UI_COMP_IF
+    CTX_PLUGIN_IMPL[Context Plugin Implementation] -.implements.-> CTX_PROV_IF
     CORE[Core Platform] --> PLUGIN_IF
 
     style UI_COMP_IF fill:#f38181,color:#fff
+    style CTX_PROV_IF fill:#a855f7,color:#fff
     style MANIFEST fill:#ffd89b
+    style CTX_DESC fill:#c4b5fd
 ```
 
 ### Contained Building Blocks
@@ -387,6 +396,7 @@ public interface Plugin {
 // UI Component Interface (extends Plugin)
 public interface UIComponentPlugin extends Plugin {
     ComponentManifest getComponentManifest();
+    List<ComponentManifest> getComponentManifests(); // Multi-component support
     String getReactComponentPath();
     byte[] getComponentThumbnail();
     ValidationResult validateProps(Map<String, Object> props);
@@ -398,17 +408,34 @@ public interface UIComponentPlugin extends Plugin {
     default void onPropsUpdated(PluginContext context, String instanceId,
                                Map<String, Object> oldProps, Map<String, Object> newProps);
 }
+
+// Context Provider Interface (extends Plugin) — NEW
+public interface ContextProviderPlugin extends Plugin {
+    // Unique context identifier (e.g., "auth", "cart")
+    String getContextId();
+
+    // React context provider component path (e.g., "AuthProvider.js")
+    String getProviderComponentPath();
+
+    // API endpoints this context exposes
+    List<ApiEndpoint> getApiEndpoints();
+
+    // Dependencies on other contexts (e.g., cart needs auth)
+    default List<String> getRequiredContexts() { return List.of(); }
+}
 ```
 
 #### Data Models
 
 | Class | Purpose |
 |-------|---------|
-| **ComponentManifest** | Complete component metadata (id, name, props, styles, constraints) |
+| **ComponentManifest** | Complete component metadata (id, name, props, styles, capabilities, constraints) |
+| **ComponentCapabilities** | Behavioral flags driving builder behavior (canHaveChildren, isContainer, hasDataSource, autoHeight, isResizable, supportsIteration, supportsTemplateBindings) |
 | **PropDefinition** | Define a configurable property (type, label, options, default, validation) |
 | **StyleDefinition** | Define a configurable CSS style (property, type, category, units) |
 | **SizeConstraints** | Define component sizing rules (resizable, min/max width/height) |
 | **ValidationResult** | Result of prop validation (valid, errors, warnings) |
+| **ContextDescriptor** | Context metadata: contextId, providerComponentPath, apiEndpoints, requiredContexts |
 
 #### Annotations
 
@@ -572,7 +599,153 @@ graph LR
 
 ---
 
-## 5.6 Level 2: Site Runtime (Whitebox)
+## 5.6 Level 2: Context Provider Plugins (Whitebox) — Planned
+
+Context Provider Plugins are a new plugin type that provides **shared state and services** for feature domains. Unlike UI Component Plugins (which render visual components), Context Provider Plugins supply React context providers and backend API endpoints that multiple UI component plugins can consume.
+
+### Architecture Overview
+
+```mermaid
+graph TB
+    subgraph "Context Provider Plugins"
+        subgraph "Auth Domain"
+            AUTH_CTX[auth-context-plugin<br/>Provides: AuthContext]
+        end
+
+        subgraph "E-commerce Domain (Future)"
+            CART_CTX[cart-context-plugin<br/>Provides: CartContext]
+            ORDER_CTX[order-context-plugin<br/>Provides: OrderContext]
+        end
+    end
+
+    subgraph "UI Component Plugins (Consumers)"
+        LOGIN[login-form-plugin]
+        REGISTER[register-form-plugin]
+        PROFILE[user-profile-plugin]
+        PRODUCT[product-card-plugin]
+        CART_WIDGET[cart-widget-plugin]
+        CHECKOUT[checkout-form-plugin]
+    end
+
+    AUTH_CTX <--consumes--- LOGIN
+    AUTH_CTX <--consumes--- REGISTER
+    AUTH_CTX <--consumes--- PROFILE
+
+    CART_CTX <--consumes--- PRODUCT
+    CART_CTX <--consumes--- CART_WIDGET
+    CART_CTX <--consumes--- CHECKOUT
+
+    CART_CTX -.depends on.-> AUTH_CTX
+    ORDER_CTX -.depends on.-> AUTH_CTX
+
+    SDK[Plugin SDK] <-- AUTH_CTX
+    SDK <-- CART_CTX
+    SDK <-- ORDER_CTX
+
+    style AUTH_CTX fill:#a855f7,color:#fff
+    style CART_CTX fill:#a855f7,color:#fff
+    style ORDER_CTX fill:#a855f7,color:#fff
+    style SDK fill:#f38181,color:#fff
+    style LOGIN fill:#95e1d3
+    style PRODUCT fill:#95e1d3
+```
+
+### Context Provider vs UI Component Plugin
+
+| Aspect | UI Component Plugin | Context Provider Plugin |
+|--------|-------------------|----------------------|
+| **Purpose** | Render visual UI on the canvas | Provide shared state/services for a feature domain |
+| **Interface** | `UIComponentPlugin` | `ContextProviderPlugin` |
+| **Frontend output** | React renderer component | React context provider |
+| **Backend output** | ComponentManifest (props, styles) | API endpoints + ContextDescriptor |
+| **Canvas visibility** | Yes (appears in palette) | No (invisible infrastructure) |
+| **Example** | `label-component-plugin` | `auth-context-plugin` |
+
+### Context Provider Plugin Structure
+
+```
+auth-context-plugin/
+├── pom.xml
+├── src/main/
+│   ├── java/dev/mainul35/plugins/context/auth/
+│   │   ├── AuthContextPlugin.java        # implements ContextProviderPlugin
+│   │   ├── AuthController.java           # REST endpoints (/api/ctx/auth/*)
+│   │   └── AuthService.java              # Session, token, user state logic
+│   └── resources/
+│       ├── plugin.yml
+│       └── frontend/
+│           └── provider-bundle.js        # React AuthProvider + useAuth hook
+└── frontend/
+    └── src/
+        ├── AuthProvider.tsx              # React context provider
+        ├── useAuth.ts                    # useAuth() hook
+        └── types.ts                      # AuthState, AuthActions types
+```
+
+### Context Dependency Graph
+
+Context plugins can declare dependencies on other contexts. The runtime resolves the dependency graph to determine provider wrapping order.
+
+```mermaid
+graph LR
+    AUTH[AuthContext] --> CART[CartContext]
+    AUTH --> ORDER[OrderContext]
+    CART --> CHECKOUT_CTX[CheckoutContext]
+    AUTH --> CHECKOUT_CTX
+
+    style AUTH fill:#a855f7,color:#fff
+    style CART fill:#a855f7,color:#fff
+    style ORDER fill:#a855f7,color:#fff
+    style CHECKOUT_CTX fill:#a855f7,color:#fff
+```
+
+**Resolution Order** (inner to outer): `AuthProvider → CartProvider → OrderProvider → CheckoutProvider → Page`
+
+### UI Component Context Dependencies
+
+UI component manifests declare which contexts they require via `requiredContexts`:
+
+```java
+ComponentManifest.builder()
+    .componentId("loginForm")
+    .pluginId("login-form-plugin")
+    .requiredContexts(List.of("auth"))  // Needs AuthContext
+    .capabilities(ComponentCapabilities.builder()
+        .canHaveChildren(false)
+        .build())
+    .build();
+```
+
+The builder verifies that all required contexts are provided by active context plugins before allowing the component to be used.
+
+### Frontend Context Provider Tree
+
+At page render time, the runtime wraps the component tree with all active context providers:
+
+```tsx
+// Automatically assembled by ContextProviderTree
+<AuthProvider>           {/* from auth-context-plugin */}
+  <CartProvider>         {/* from cart-context-plugin */}
+    <Page>
+      <LoginForm />      {/* uses usePluginContext('auth') */}
+      <CartWidget />     {/* uses usePluginContext('cart') */}
+      <ProductCard />    {/* uses usePluginContext('cart') */}
+    </Page>
+  </CartProvider>
+</AuthProvider>
+```
+
+### Planned Context Provider Plugins
+
+| Plugin | Context ID | Provides | Required Contexts | Status |
+|--------|-----------|----------|-------------------|--------|
+| **auth-context-plugin** | `auth` | AuthContext (session, tokens, user info, login/logout) | — | Planned |
+| **cart-context-plugin** | `cart` | CartContext (items, add/remove, totals) | `auth` | Future |
+| **order-context-plugin** | `order` | OrderContext (order history, tracking) | `auth` | Future |
+
+---
+
+## 5.7 Level 2: Site Runtime (Whitebox)
 
 The Site Runtime library provides runtime functionality for exported sites.
 
@@ -657,7 +830,7 @@ graph TB
 
 ---
 
-## 5.7 Level 3: Plugin Lifecycle (Deep Dive)
+## 5.8 Level 3: Plugin Lifecycle (Deep Dive)
 
 This section provides a detailed look at the plugin loading and registration process.
 
@@ -736,7 +909,7 @@ sequenceDiagram
 
 ---
 
-## 5.8 Level 3: Authentication Flow (Deep Dive)
+## 5.9 Level 3: Authentication Flow (Deep Dive)
 
 This section details the authentication system with local and OAuth2 support.
 
@@ -822,7 +995,7 @@ graph LR
 
 ---
 
-## 5.9 Level 3: Export Process (Deep Dive)
+## 5.10 Level 3: Export Process (Deep Dive)
 
 This section details how sites are exported to standalone applications.
 
@@ -892,7 +1065,7 @@ sequenceDiagram
 
 ---
 
-## 5.10 Cross-Cutting Concepts
+## 5.11 Cross-Cutting Concepts
 
 ### Plugin Isolation
 
