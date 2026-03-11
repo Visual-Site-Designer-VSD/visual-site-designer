@@ -345,7 +345,7 @@ graph TB
         end
 
         subgraph "Annotations"
-            UI_COMP_ANN["@UIComponent"]
+            UI_COMP_ANN[UIComponent Annotation]
         end
 
         subgraph "Context"
