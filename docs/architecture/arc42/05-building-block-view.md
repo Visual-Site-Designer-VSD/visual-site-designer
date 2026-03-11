@@ -345,7 +345,7 @@ graph TB
         end
 
         subgraph "Annotations"
-            UI_COMP_ANN[@UIComponent]
+            UI_COMP_ANN["@UIComponent"]
         end
 
         subgraph "Context"
@@ -627,13 +627,13 @@ graph TB
         CHECKOUT[checkout-form-plugin]
     end
 
-    AUTH_CTX <--consumes--- LOGIN
-    AUTH_CTX <--consumes--- REGISTER
-    AUTH_CTX <--consumes--- PROFILE
+    LOGIN -->|consumes| AUTH_CTX
+    REGISTER -->|consumes| AUTH_CTX
+    PROFILE -->|consumes| AUTH_CTX
 
-    CART_CTX <--consumes--- PRODUCT
-    CART_CTX <--consumes--- CART_WIDGET
-    CART_CTX <--consumes--- CHECKOUT
+    PRODUCT -->|consumes| CART_CTX
+    CART_WIDGET -->|consumes| CART_CTX
+    CHECKOUT -->|consumes| CART_CTX
 
     CART_CTX -.depends on.-> AUTH_CTX
     ORDER_CTX -.depends on.-> AUTH_CTX

@@ -236,7 +236,7 @@ graph TB
 
     subgraph "Authorization"
         RBAC[Role-Based Access Control]
-        METHOD_SEC[Method Security<br/>@PreAuthorize]
+        METHOD_SEC["Method Security<br/>@PreAuthorize"]
         ENDPOINT_SEC[Endpoint Security<br/>HttpSecurity config]
     end
 
