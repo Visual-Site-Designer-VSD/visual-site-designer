@@ -1,10 +1,11 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  
+
   // Build configuration
   build: {
     // Output directory - Spring Boot will copy from here
@@ -14,7 +15,16 @@ export default defineConfig({
     // Clear output directory before build
     emptyOutDir: true,
   },
-  
+
+  // Test configuration (Vitest)
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts',
+    css: true,
+    exclude: ['e2e/**', 'node_modules/**'],
+  },
+
   // Development server configuration
   server: {
     port: 5173,
@@ -51,7 +61,7 @@ export default defineConfig({
       }
     }
   },
-  
+
   // Base path for assets
   base: '/',
 })
