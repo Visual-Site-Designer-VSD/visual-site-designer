@@ -109,7 +109,9 @@ graph TB
 | **flashcard-cms-plugin-sdk** | Plugin development interfaces | Spring Boot (provided) |
 | **site-runtime** | Runtime library for exported sites | Spring Boot, data fetchers |
 | **frontend** | Visual builder UI | Core REST API |
-| **plugins/** | Bundled component plugins | vsd-cms-plugin-sdk |
+| **plugins/** | Plugin source code (development) | vsd-cms-plugin-sdk |
+
+**Note**: Plugin source code is in root `plugins/` directory. Built plugin JARs are deployed to `core/plugins/` for runtime loading (configured in `application.properties`).
 
 ---
 

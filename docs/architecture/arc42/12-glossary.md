@@ -620,7 +620,7 @@ A web application that loads a single HTML page and dynamically updates content 
 ---
 
 #### Spring Boot
-A framework for building production-ready Java applications with minimal configuration. VSD backend is built with Spring Boot 4.0.0.
+A framework for building production-ready Java applications with minimal configuration. VSD backend is built with Spring Boot 3.4.1.
 
 **Features**: Auto-configuration, embedded Tomcat, Actuator, Security
 
@@ -782,7 +782,7 @@ A lightweight state management library for React. VSD uses Zustand for frontend 
 | **PostgreSQL** | PostgreSQL | 14+ | Production database |
 | **Maven** | Apache Maven | 3.8+ | Build tool |
 | **Vite** | Vite.js | 6.0.5 | Frontend build tool |
-| **Spring** | Spring Boot | 4.0.0 | Backend framework |
+| **Spring** | Spring Boot | 3.4.1 | Backend framework |
 | **JUnit** | JUnit | 5.x | Unit testing framework |
 
 ---

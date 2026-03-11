@@ -93,8 +93,8 @@ graph TB
 
         subgraph "Security"
             JWT_FILTER[JwtAuthenticationFilter]
-            OAUTH2_HANDLER[OAuth2SuccessHandler]
-            ROLE_MGR[RoleManager]
+            OAUTH2_HANDLER[OAuth2AuthenticationSuccessHandler]
+            SEC_CONFIG[CmsSecurityConfig]
         end
 
         subgraph "Persistence"
@@ -117,7 +117,8 @@ graph TB
 
         AUTH_SVC --> JWT_FILTER
         AUTH_SVC --> OAUTH2_HANDLER
-        AUTH_SVC --> ROLE_MGR
+        SEC_CONFIG --> JWT_FILTER
+        SEC_CONFIG --> OAUTH2_HANDLER
 
         SITE_SVC --> SITE_REPO
         PAGE_SVC --> PAGE_REPO
@@ -178,8 +179,8 @@ graph TB
 | Component | Responsibility |
 |-----------|----------------|
 | **JwtAuthenticationFilter** | Intercept requests, validate JWT tokens (HS256 for local) |
-| **OAuth2SuccessHandler** | Handle OAuth2 login success, create/link users, issue JWT |
-| **RoleManager** | Map external roles to VSD roles (`ADMIN`, `DESIGNER`, `EDITOR`, `VIEWER`, `USER`) |
+| **OAuth2AuthenticationSuccessHandler** | Handle OAuth2 login success, create/link users, issue JWT |
+| **CmsSecurityConfig** | Configure security filter chain, role mapping embedded in OAuth2 success handler |
 
 #### Persistence
 

@@ -136,7 +136,7 @@ Requirements:
 
 ### Decision
 
-**Backend**: Spring Boot 4.0.0 + Java 21
+**Backend**: Spring Boot 3.4.1 + Java 21
 - Spring Boot for REST API, dependency injection, security
 - Java 21 for modern features (records, pattern matching, virtual threads)
 - JPA/Hibernate for database access

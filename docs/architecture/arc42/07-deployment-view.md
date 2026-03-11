@@ -60,7 +60,7 @@ graph TB
 
 | Component | Technology | Port | Purpose |
 |-----------|-----------|------|---------|
-| **Backend** | Spring Boot 4.0.0 | 8080 | Core API, plugin runtime |
+| **Backend** | Spring Boot 3.4.1 | 8080 | Core API, plugin runtime |
 | **Frontend** | Vite 6.0.5 + React 18.3.1 | 5173 | Visual builder UI with HMR |
 | **Database** | H2 (embedded) | - | Development database (file-based) |
 | **IDE Plugin** | IntelliJ Plugin | - | Plugin development tooling |

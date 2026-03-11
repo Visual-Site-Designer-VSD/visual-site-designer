@@ -333,10 +333,9 @@ sequenceDiagram
     participant FE as Frontend
     participant Core as VSD Core
     participant Auth as VSD Auth Server
-    participant OAuth2 as OAuth2SuccessHandler
+    participant OAuth2 as OAuth2AuthenticationSuccessHandler
     participant AS as AuthService
     participant UR as UserRepository
-    participant RM as RoleMapper
     participant JWT as JwtService
     participant DB as Database
 
@@ -376,11 +375,11 @@ sequenceDiagram
         AS->>DB: INSERT INTO users (email, name, status, provider)
     end
 
-    Note over AS,RM: Role Mapping
-    AS->>RM: mapRoles(userInfo.roles)
-    RM->>RM: Map "ROLE_ADMIN" → "ADMIN"
-    RM->>RM: Map "ROLE_CMS_EDITOR" → "EDITOR"
-    RM-->>AS: List<RoleName>
+    Note over OAuth2,AS: Role Mapping (in OAuth2AuthenticationSuccessHandler)
+    OAuth2->>OAuth2: mapRoles(userInfo.roles)
+    OAuth2->>OAuth2: Map "ROLE_ADMIN" → "ADMIN"
+    OAuth2->>OAuth2: Map "ROLE_CMS_EDITOR" → "EDITOR"
+    OAuth2->>AS: Pass mapped roles
 
     AS->>AS: Assign roles to user
     AS->>DB: INSERT INTO user_roles (user_id, role_id)

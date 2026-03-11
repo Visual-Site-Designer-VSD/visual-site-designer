@@ -308,9 +308,12 @@ db/migration/
 # IntelliJ plugin executes:
 cd plugins/my-plugin/frontend && npm run build
 cd plugins/my-plugin && mvn clean package
+# Copy to runtime plugin directory (configured as core/plugins in application.properties)
 cp target/my-plugin-1.0.0.jar ../../core/plugins/
 curl -X POST http://localhost:8080/api/plugins/my-plugin/reload
 ```
+
+**Note**: Plugin source code is located in root `plugins/` directory, but the runtime loads plugins from `core/plugins/` (configured via `app.plugin.directory=core/plugins` in application.properties).
 
 ---
 
