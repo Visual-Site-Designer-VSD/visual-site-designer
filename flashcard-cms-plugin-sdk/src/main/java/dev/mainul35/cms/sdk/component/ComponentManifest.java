@@ -98,6 +98,13 @@ public class ComponentManifest {
      */
     private List<String> allowedChildTypes;
 
+    /**
+     * Context IDs that this component requires (e.g., ["auth"], ["cart", "auth"]).
+     * The builder validates that all required contexts are provided by active
+     * context provider plugins before allowing the component to be used.
+     */
+    private List<String> requiredContexts;
+
     // ===== Export Template Fields =====
 
     /**

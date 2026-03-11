@@ -1,10 +1,13 @@
 package dev.mainul35.cms.plugin.core;
 
+import dev.mainul35.cms.sdk.ContextProviderPlugin;
 import dev.mainul35.cms.sdk.UIComponentPlugin;
 import dev.mainul35.cms.sdk.component.ComponentManifest;
+import dev.mainul35.cms.sdk.context.ContextDescriptor;
 import dev.mainul35.cms.plugin.entity.Plugin;
 import dev.mainul35.cms.plugin.repository.PluginRepository;
 import dev.mainul35.cms.sitebuilder.service.ComponentRegistryService;
+import dev.mainul35.cms.sitebuilder.service.ContextRegistryService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +33,7 @@ public class PluginManager {
 
     private final PluginRepository pluginRepository;
     private final ComponentRegistryService componentRegistryService;
+    private final ContextRegistryService contextRegistryService;
     private final ApplicationContext applicationContext;
     private final PluginContextManager pluginContextManager;
     private final PluginControllerRegistrar pluginControllerRegistrar;
@@ -200,6 +204,11 @@ public class PluginManager {
                 log.info("Registered UI component: {} from plugin: {}",
                         componentManifest.getComponentId(), pluginId);
             }
+
+            // If it's a context provider plugin, register it
+            if (pluginInstance instanceof ContextProviderPlugin) {
+                registerContextProvider(pluginId, (ContextProviderPlugin) pluginInstance, manifest);
+            }
         }
 
         // Register plugin Spring components (controllers, services, repositories)
@@ -250,6 +259,35 @@ public class PluginManager {
             log.error("Failed to register Spring components for plugin: {}", pluginId, e);
             throw new RuntimeException("Failed to register plugin Spring components: " + pluginId, e);
         }
+    }
+
+    /**
+     * Register a context provider plugin in the context registry.
+     */
+    private void registerContextProvider(String pluginId, ContextProviderPlugin ctxPlugin, PluginManifest manifest) {
+        log.info("Registering context provider: {} from plugin: {}", ctxPlugin.getContextId(), pluginId);
+
+        // Validate required contexts are available
+        List<String> requiredContexts = ctxPlugin.getRequiredContexts();
+        if (requiredContexts != null && !requiredContexts.isEmpty()) {
+            List<String> missing = contextRegistryService.validateRequiredContexts(requiredContexts);
+            if (!missing.isEmpty()) {
+                log.warn("Context provider {} requires missing contexts: {}. "
+                        + "They may be loaded later.", ctxPlugin.getContextId(), missing);
+            }
+        }
+
+        ContextDescriptor descriptor = ContextDescriptor.builder()
+                .contextId(ctxPlugin.getContextId())
+                .providerComponentPath(ctxPlugin.getProviderComponentPath())
+                .apiEndpoints(ctxPlugin.getApiEndpoints())
+                .requiredContexts(requiredContexts != null ? requiredContexts : List.of())
+                .pluginId(pluginId)
+                .pluginVersion(manifest.getVersion())
+                .build();
+
+        contextRegistryService.registerContext(descriptor);
+        log.info("Context provider registered: {} from plugin: {}", ctxPlugin.getContextId(), pluginId);
     }
 
     /**
@@ -510,6 +548,13 @@ public class PluginManager {
             log.info("Unregistered UI component: {} from plugin: {}", componentId, pluginId);
         }
 
+        // Unregister context provider if it was registered
+        if (pluginInstance instanceof ContextProviderPlugin) {
+            ContextProviderPlugin ctxPlugin = (ContextProviderPlugin) pluginInstance;
+            contextRegistryService.unregisterContext(pluginId, ctxPlugin.getContextId());
+            log.info("Unregistered context provider: {} from plugin: {}", ctxPlugin.getContextId(), pluginId);
+        }
+
         // Remove from loaded maps
         loadedPlugins.remove(pluginId);
         PluginClassLoader classLoader = pluginClassLoaders.remove(pluginId);
@@ -690,6 +735,11 @@ public class PluginManager {
                 componentRegistryService.registerComponent(componentManifest);
                 log.info("Registered UI component: {} from plugin: {}",
                         componentManifest.getComponentId(), pluginId);
+            }
+
+            // 11b. Register context provider if applicable
+            if (pluginInstance instanceof ContextProviderPlugin) {
+                registerContextProvider(pluginId, (ContextProviderPlugin) pluginInstance, manifest);
             }
 
             // 12. Store loaded plugin and update status

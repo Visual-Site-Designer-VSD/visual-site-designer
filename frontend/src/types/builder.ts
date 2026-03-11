@@ -316,6 +316,35 @@ export interface ComponentManifest {
 
   /** Allowed child component types (if canHaveChildren is true) */
   allowedChildTypes?: string[];
+
+  /**
+   * Context IDs that this component requires (e.g., ["auth"], ["cart", "auth"]).
+   * The builder validates that all required contexts are provided by active
+   * context provider plugins before allowing the component to be used.
+   */
+  requiredContexts?: string[];
+}
+
+/**
+ * Describes a REST API endpoint exposed by a context provider plugin.
+ */
+export interface ApiEndpoint {
+  path: string;
+  method: string;
+  description: string;
+}
+
+/**
+ * Metadata descriptor for a context provider plugin.
+ * Returned by GET /api/contexts for frontend discovery.
+ */
+export interface ContextDescriptor {
+  contextId: string;
+  providerComponentPath: string;
+  apiEndpoints: ApiEndpoint[];
+  requiredContexts: string[];
+  pluginId: string;
+  pluginVersion: string;
 }
 
 /**
