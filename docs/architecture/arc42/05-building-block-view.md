@@ -352,8 +352,8 @@ graph TB
             PLUGIN_CTX[PluginContext]
         end
 
-        UI_COMP_IF --|extends| PLUGIN_IF
-        CTX_PROV_IF --|extends| PLUGIN_IF
+        UI_COMP_IF -->|extends| PLUGIN_IF
+        CTX_PROV_IF -->|extends| PLUGIN_IF
         UI_COMP_IF --> MANIFEST
         MANIFEST --> CAPABILITIES
         MANIFEST --> PROP_DEF
