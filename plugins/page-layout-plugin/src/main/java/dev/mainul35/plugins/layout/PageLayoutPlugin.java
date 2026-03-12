@@ -4,6 +4,7 @@ import dev.mainul35.cms.sdk.PluginContext;
 import dev.mainul35.cms.sdk.UIComponentPlugin;
 import dev.mainul35.cms.sdk.annotation.UIComponent;
 import dev.mainul35.cms.sdk.component.*;
+import dev.mainul35.cms.sdk.component.ComponentCapabilities;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
@@ -39,8 +40,7 @@ import java.util.*;
     category = "layout",
     icon = "📄",
     resizable = true,
-    defaultWidth = "100%",
-    defaultHeight = "100vh"
+    defaultWidth = "100%"
 )
 public class PageLayoutPlugin implements UIComponentPlugin {
 
@@ -144,7 +144,14 @@ public class PageLayoutPlugin implements UIComponentPlugin {
                 .configurableProps(buildConfigurableProps())
                 .configurableStyles(buildConfigurableStyles())
                 .sizeConstraints(buildSizeConstraints())
-                .canHaveChildren(true)
+                .capabilities(ComponentCapabilities.builder()
+                        .canHaveChildren(true)
+                        .isContainer(true)
+                        .hasDataSource(false)
+                        .autoHeight(false)
+                        .isResizable(true)
+                        .supportsTemplateBindings(false)
+                        .build())
                 .allowedChildTypes(null) // Accept any child types
                 .build();
     }
@@ -165,7 +172,7 @@ public class PageLayoutPlugin implements UIComponentPlugin {
 
     private Map<String, String> buildDefaultStyles() {
         Map<String, String> styles = new HashMap<>();
-        styles.put("display", "grid");
+        // styles.put("display", "grid");
         styles.put("backgroundColor", "#f8f9fa");
         return styles;
     }
@@ -305,7 +312,7 @@ public class PageLayoutPlugin implements UIComponentPlugin {
         return SizeConstraints.builder()
                 .resizable(true)
                 .defaultWidth("100%")
-                .defaultHeight("100vh")
+                .defaultHeight("auto")
                 .minWidth("320px")
                 .maxWidth("100%")
                 .minHeight("400px")

@@ -308,13 +308,7 @@ export interface ComponentManifest {
    */
   capabilities?: ComponentCapabilities;
 
-  /**
-   * @deprecated Use capabilities.canHaveChildren instead
-   * Kept for backward compatibility
-   */
-  canHaveChildren?: boolean;
-
-  /** Allowed child component types (if canHaveChildren is true) */
+  /** Allowed child component types (if capabilities.canHaveChildren is true) */
   allowedChildTypes?: string[];
 
   /**

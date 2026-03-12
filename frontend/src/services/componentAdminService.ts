@@ -27,7 +27,6 @@ export interface ComponentManifest {
   description?: string;
   pluginId: string;
   pluginVersion?: string;
-  canHaveChildren?: boolean;
   defaultProps?: Record<string, any>;
   defaultStyles?: Record<string, string>;
   configurableProps?: PropDefinition[];

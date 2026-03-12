@@ -5,6 +5,7 @@ import dev.mainul35.cms.sdk.PluginContext;
 import dev.mainul35.cms.sdk.UIComponentPlugin;
 import dev.mainul35.cms.sdk.annotation.UIComponent;
 import dev.mainul35.cms.sdk.component.*;
+import dev.mainul35.cms.sdk.component.ComponentCapabilities;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -131,7 +132,14 @@ public class LabelComponentPlugin implements UIComponentPlugin {
                 .configurableProps(buildConfigurableProps())
                 .configurableStyles(buildConfigurableStyles())
                 .sizeConstraints(buildSizeConstraints())
-                .canHaveChildren(false)
+                .capabilities(ComponentCapabilities.builder()
+                        .canHaveChildren(false)
+                        .isContainer(false)
+                        .hasDataSource(false)
+                        .autoHeight(false)
+                        .isResizable(true)
+                        .supportsTemplateBindings(true)
+                        .build())
                 .build();
     }
 

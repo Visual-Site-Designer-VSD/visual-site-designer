@@ -6,12 +6,12 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>dev.mainul35.plugins</groupId>
-    <artifactId>image-component-plugin</artifactId>
+    <artifactId>mobile-navbar-component-plugin</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <name>Image Component Plugin</name>
-    <description>Image component plugin for the visual site builder</description>
+    <name>Mobile Navbar Component Plugin</name>
+    <description>Mobile-friendly navigation bar with breadcrumb and collapsible sidebar for the visual site builder</description>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
@@ -57,6 +57,7 @@
 
     <build>
         <plugins>
+            <!-- Maven Compiler Plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -68,12 +69,13 @@
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
-                            <version>1.18.42</version>
+                            <version>1.18.36</version>
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>
 
+            <!-- Maven JAR Plugin - Include resources -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>

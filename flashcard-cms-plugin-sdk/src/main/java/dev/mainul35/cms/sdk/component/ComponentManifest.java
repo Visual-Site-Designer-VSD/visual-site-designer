@@ -89,14 +89,15 @@ public class ComponentManifest {
     private String pluginVersion;
 
     /**
-     * Whether component can have child components
-     */
-    private boolean canHaveChildren;
-
-    /**
      * Allowed child component types (empty means all)
      */
     private List<String> allowedChildTypes;
+
+    /**
+     * Component capabilities that drive behavior in the visual builder.
+     * Defines container support, data binding, resizing, and more.
+     */
+    private ComponentCapabilities capabilities;
 
     /**
      * Context IDs that this component requires (e.g., ["auth"], ["cart", "auth"]).
