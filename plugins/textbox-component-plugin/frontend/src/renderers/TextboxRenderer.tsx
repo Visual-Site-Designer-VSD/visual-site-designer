@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import type { ComponentInstance } from '../types';
+import type { RendererProps } from '../types';
 
 /**
  * Props for the Textbox component.
- * Use these props directly: <TextboxRenderer label="Name" placeholder="Enter name" />
+ * Extends RendererProps for plugin compatibility.
  */
-export interface TextboxProps {
+export interface TextboxProps extends RendererProps {
   /** Label text displayed above the input */
   label?: string;
   /** Show the label */
@@ -28,8 +28,6 @@ export interface TextboxProps {
   maxLength?: number;
   /** Input name attribute */
   name?: string;
-  /** Edit mode flag */
-  isEditMode?: boolean;
   /** Custom inline styles */
   style?: React.CSSProperties;
   /** Border radius */
@@ -46,8 +44,6 @@ export interface TextboxProps {
   padding?: string;
   /** Change handler */
   onChange?: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
-  /** @deprecated Use direct props instead. Legacy component prop for backward compatibility */
-  component?: ComponentInstance;
 }
 
 /**
@@ -58,36 +54,32 @@ const TextboxRenderer: React.FC<TextboxProps> = (props) => {
   const [value, setValue] = useState('');
   const [isFocused, setIsFocused] = useState(false);
 
-  // Support both new direct props and legacy component prop
-  const isLegacyMode = props.component !== undefined;
+  const { component, isEditMode } = props;
+  const cp = component.props;
 
-  const {
-    label = isLegacyMode ? (props.component?.props?.label as string) ?? '' : '',
-    showLabel = isLegacyMode ? (props.component?.props?.showLabel as boolean) ?? false : false,
-    placeholder = isLegacyMode ? (props.component?.props?.placeholder as string) ?? 'Enter text...' : 'Enter text...',
-    type = isLegacyMode ? (props.component?.props?.type as string) ?? 'text' : 'text',
-    multiline = isLegacyMode ? (props.component?.props?.multiline as boolean) ?? false : false,
-    rows = isLegacyMode ? (props.component?.props?.rows as number) ?? 3 : 3,
-    disabled = isLegacyMode ? (props.component?.props?.disabled as boolean) ?? false : false,
-    readOnly = isLegacyMode ? (props.component?.props?.readOnly as boolean) ?? false : false,
-    required = isLegacyMode ? (props.component?.props?.required as boolean) ?? false : false,
-    maxLength = isLegacyMode ? (props.component?.props?.maxLength as number) ?? 0 : 0,
-    name = isLegacyMode ? (props.component?.props?.name as string) ?? '' : '',
-    isEditMode = false,
-  } = props;
+  const label = (props.label ?? cp?.label as string) ?? '';
+  const showLabel = (props.showLabel ?? cp?.showLabel as boolean) ?? false;
+  const placeholder = (props.placeholder ?? cp?.placeholder as string) ?? 'Enter text...';
+  const type = (props.type ?? cp?.type as string) ?? 'text';
+  const multiline = (props.multiline ?? cp?.multiline as boolean) ?? false;
+  const rows = (props.rows ?? cp?.rows as number) ?? 3;
+  const disabled = (props.disabled ?? cp?.disabled as boolean) ?? false;
+  const readOnly = (props.readOnly ?? cp?.readOnly as boolean) ?? false;
+  const required = (props.required ?? cp?.required as boolean) ?? false;
+  const maxLength = (props.maxLength ?? cp?.maxLength as number) ?? 0;
+  const name = (props.name ?? cp?.name as string) ?? '';
 
-  // Get custom styles from either direct props or legacy component.styles
-  const customStyles: React.CSSProperties = isLegacyMode
-    ? (props.component?.styles as React.CSSProperties) || {}
-    : {
-        borderRadius: props.borderRadius,
-        border: props.border,
-        fontSize: props.fontSize,
-        backgroundColor: props.backgroundColor,
-        color: props.color,
-        padding: props.padding,
-        ...props.style,
-      };
+  // Get custom styles: direct props override component.styles
+  const customStyles: React.CSSProperties = {
+    ...(component.styles as React.CSSProperties),
+    borderRadius: props.borderRadius,
+    border: props.border,
+    fontSize: props.fontSize,
+    backgroundColor: props.backgroundColor,
+    color: props.color,
+    padding: props.padding,
+    ...props.style,
+  };
 
   // Build the style object
   const inputStyles: React.CSSProperties = {
