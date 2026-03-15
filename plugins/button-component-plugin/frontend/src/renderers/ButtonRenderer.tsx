@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import type { RendererProps } from '../types';
+import type { ComponentInstance } from '../types';
 
 /**
  * Props for the Button component.
- * Extends RendererProps for plugin compatibility.
+ * component and isEditMode are optional for standalone usage (e.g., cross-plugin composition).
  */
-export interface ButtonProps extends RendererProps {
+export interface ButtonProps {
   /** Button text */
   text?: string;
   /** Button variant style */
@@ -24,6 +24,10 @@ export interface ButtonProps extends RendererProps {
   fontWeight?: string | number;
   /** Click handler */
   onClick?: (e: React.MouseEvent) => void;
+  /** Edit mode flag */
+  isEditMode?: boolean;
+  /** Component instance (optional for standalone usage) */
+  component?: ComponentInstance;
 }
 
 /**
@@ -33,7 +37,7 @@ const ButtonRenderer: React.FC<ButtonProps> = (props) => {
   const [isHovered, setIsHovered] = useState(false);
 
   const { component, isEditMode } = props;
-  const cp = component.props;
+  const cp = component?.props;
 
   const text = (props.text ?? cp?.text as string) ?? 'Click Me';
   const variant = (props.variant ?? cp?.variant as string) ?? 'primary';
@@ -43,7 +47,7 @@ const ButtonRenderer: React.FC<ButtonProps> = (props) => {
 
   // Get custom styles: direct props override component.styles
   const customStyles: React.CSSProperties = {
-    ...(component.styles as React.CSSProperties),
+    ...(component?.styles as React.CSSProperties),
     borderRadius: props.borderRadius,
     fontWeight: props.fontWeight,
     ...props.style,
