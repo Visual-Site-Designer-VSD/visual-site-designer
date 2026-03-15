@@ -8,7 +8,7 @@ import TextboxRenderer from './renderers/TextboxRenderer';
 export const PLUGIN_ID = 'textbox-component-plugin';
 
 export const renderers: Record<string, RendererComponent> = {
-  Textbox: TextboxRenderer,
+  Textbox: TextboxRenderer as RendererComponent,
 };
 
 export const pluginBundle: PluginBundle = {

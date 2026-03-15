@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import type { RendererProps } from '../types';
+import type { ComponentInstance } from '../types';
 
 /**
  * Props for the Textbox component.
- * Extends RendererProps for plugin compatibility.
+ * component and isEditMode are optional for standalone usage (e.g., cross-plugin composition).
  */
-export interface TextboxProps extends RendererProps {
+export interface TextboxProps {
   /** Label text displayed above the input */
   label?: string;
   /** Show the label */
@@ -42,6 +42,10 @@ export interface TextboxProps extends RendererProps {
   color?: string;
   /** Padding */
   padding?: string;
+  /** Edit mode flag */
+  isEditMode?: boolean;
+  /** Component instance (optional for standalone usage) */
+  component?: ComponentInstance;
   /** Change handler */
   onChange?: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
 }
@@ -55,7 +59,7 @@ const TextboxRenderer: React.FC<TextboxProps> = (props) => {
   const [isFocused, setIsFocused] = useState(false);
 
   const { component, isEditMode } = props;
-  const cp = component.props;
+  const cp = component?.props;
 
   const label = (props.label ?? cp?.label as string) ?? '';
   const showLabel = (props.showLabel ?? cp?.showLabel as boolean) ?? false;
@@ -71,7 +75,7 @@ const TextboxRenderer: React.FC<TextboxProps> = (props) => {
 
   // Get custom styles: direct props override component.styles
   const customStyles: React.CSSProperties = {
-    ...(component.styles as React.CSSProperties),
+    ...(component?.styles as React.CSSProperties),
     borderRadius: props.borderRadius,
     border: props.border,
     fontSize: props.fontSize,
