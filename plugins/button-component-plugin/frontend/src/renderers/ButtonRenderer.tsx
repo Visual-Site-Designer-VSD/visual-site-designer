@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import type { ComponentInstance } from '../types';
+import type { RendererProps } from '../types';
 
 /**
  * Props for the Button component.
- * Use these props directly: <ButtonRenderer text="Click Me" variant="primary" />
+ * Extends RendererProps for plugin compatibility.
  */
-export interface ButtonProps {
+export interface ButtonProps extends RendererProps {
   /** Button text */
   text?: string;
   /** Button variant style */
@@ -16,8 +16,6 @@ export interface ButtonProps {
   disabled?: boolean;
   /** Make button full width */
   fullWidth?: boolean;
-  /** Edit mode flag */
-  isEditMode?: boolean;
   /** Custom inline styles */
   style?: React.CSSProperties;
   /** Border radius */
@@ -26,8 +24,6 @@ export interface ButtonProps {
   fontWeight?: string | number;
   /** Click handler */
   onClick?: (e: React.MouseEvent) => void;
-  /** @deprecated Use direct props instead. Legacy component prop for backward compatibility */
-  component?: ComponentInstance;
 }
 
 /**
@@ -36,26 +32,22 @@ export interface ButtonProps {
 const ButtonRenderer: React.FC<ButtonProps> = (props) => {
   const [isHovered, setIsHovered] = useState(false);
 
-  // Support both new direct props and legacy component prop
-  const isLegacyMode = props.component !== undefined;
+  const { component, isEditMode } = props;
+  const cp = component.props;
 
-  const {
-    text = isLegacyMode ? (props.component?.props?.text as string) ?? 'Click Me' : 'Click Me',
-    variant = isLegacyMode ? (props.component?.props?.variant as string) ?? 'primary' : 'primary',
-    size = isLegacyMode ? (props.component?.props?.size as string) ?? 'medium' : 'medium',
-    disabled = isLegacyMode ? (props.component?.props?.disabled as boolean) ?? false : false,
-    fullWidth = isLegacyMode ? (props.component?.props?.fullWidth as boolean) ?? false : false,
-    isEditMode = false,
-  } = props;
+  const text = (props.text ?? cp?.text as string) ?? 'Click Me';
+  const variant = (props.variant ?? cp?.variant as string) ?? 'primary';
+  const size = (props.size ?? cp?.size as string) ?? 'medium';
+  const disabled = (props.disabled ?? cp?.disabled as boolean) ?? false;
+  const fullWidth = (props.fullWidth ?? cp?.fullWidth as boolean) ?? false;
 
-  // Get custom styles from either direct props or legacy component.styles
-  const customStyles: React.CSSProperties = isLegacyMode
-    ? (props.component?.styles as React.CSSProperties) || {}
-    : {
-        borderRadius: props.borderRadius,
-        fontWeight: props.fontWeight,
-        ...props.style,
-      };
+  // Get custom styles: direct props override component.styles
+  const customStyles: React.CSSProperties = {
+    ...(component.styles as React.CSSProperties),
+    borderRadius: props.borderRadius,
+    fontWeight: props.fontWeight,
+    ...props.style,
+  };
 
   const variantStyles: Record<string, React.CSSProperties> = {
     primary: {
