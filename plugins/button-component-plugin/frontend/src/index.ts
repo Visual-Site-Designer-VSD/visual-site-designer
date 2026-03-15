@@ -8,7 +8,7 @@ import ButtonRenderer from './renderers/ButtonRenderer';
 export const PLUGIN_ID = 'button-component-plugin';
 
 export const renderers: Record<string, RendererComponent> = {
-  Button: ButtonRenderer,
+  Button: ButtonRenderer as RendererComponent,
 };
 
 export const pluginBundle: PluginBundle = {
