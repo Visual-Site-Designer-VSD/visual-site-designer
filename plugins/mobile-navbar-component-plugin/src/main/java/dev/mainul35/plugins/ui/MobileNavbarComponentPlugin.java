@@ -125,7 +125,6 @@ public class MobileNavbarComponentPlugin implements UIComponentPlugin {
                 .defaultProps(defaultProps)
                 .defaultStyles(defaultStyles)
                 .configurableProps(buildConfigurableProps())
-                .configurableStyles(buildConfigurableStyles())
                 .sizeConstraints(buildSizeConstraints())
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(false)
@@ -218,62 +217,6 @@ public class MobileNavbarComponentPlugin implements UIComponentPlugin {
         return props;
     }
 
-    private List<StyleDefinition> buildConfigurableStyles() {
-        List<StyleDefinition> styles = new ArrayList<>();
-
-        styles.add(StyleDefinition.builder()
-                .property("backgroundColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Background Color")
-                .defaultValue("#ffffff")
-                .category("colors")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("textColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Text Color")
-                .defaultValue("#333333")
-                .category("colors")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("accentColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Accent Color")
-                .defaultValue("#007bff")
-                .category("colors")
-                .helpText("Color for active links")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("menuIconColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Menu Icon Color")
-                .defaultValue("#333333")
-                .category("colors")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("padding")
-                .type(StyleDefinition.StyleType.SPACING)
-                .label("Padding")
-                .defaultValue("8px 16px")
-                .allowedUnits(List.of("px", "rem", "em"))
-                .category("spacing")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("fontSize")
-                .type(StyleDefinition.StyleType.SIZE)
-                .label("Font Size")
-                .defaultValue("14px")
-                .allowedUnits(List.of("px", "rem", "em"))
-                .category("typography")
-                .build());
-
-        return styles;
-    }
 
     private SizeConstraints buildSizeConstraints() {
         return SizeConstraints.builder()

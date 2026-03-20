@@ -131,7 +131,6 @@ public class ButtonComponentPlugin implements UIComponentPlugin {
                 .defaultProps(buildDefaultProps())
                 .defaultStyles(buildDefaultStyles())
                 .configurableProps(buildConfigurableProps())
-                .configurableStyles(buildConfigurableStyles())
                 .sizeConstraints(buildSizeConstraints())
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(false)
@@ -229,31 +228,6 @@ public class ButtonComponentPlugin implements UIComponentPlugin {
     /**
      * Configurable styles
      */
-    private List<StyleDefinition> buildConfigurableStyles() {
-        List<StyleDefinition> styles = new ArrayList<>();
-
-        // Border radius
-        styles.add(StyleDefinition.builder()
-                .property("borderRadius")
-                .type(StyleDefinition.StyleType.SIZE)
-                .label("Border Radius")
-                .defaultValue("6px")
-                .allowedUnits(List.of("px", "rem", "%"))
-                .category("border")
-                .build());
-
-        // Font weight
-        styles.add(StyleDefinition.builder()
-                .property("fontWeight")
-                .type(StyleDefinition.StyleType.SELECT)
-                .label("Font Weight")
-                .defaultValue("500")
-                .options(List.of("400", "500", "600", "700"))
-                .category("text")
-                .build());
-
-        return styles;
-    }
 
     /**
      * Size constraints

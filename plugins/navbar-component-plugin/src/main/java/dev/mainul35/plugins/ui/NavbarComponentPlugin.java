@@ -175,7 +175,6 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
                 .defaultProps(defaultProps)
                 .defaultStyles(defaultStyles)
                 .configurableProps(buildNavbarConfigurableProps())
-                .configurableStyles(buildNavbarConfigurableStyles())
                 .sizeConstraints(buildNavbarSizeConstraints())
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(false)
@@ -227,7 +226,6 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
                 .defaultProps(defaultProps)
                 .defaultStyles(defaultStyles)
                 .configurableProps(buildNavbarConfigurableProps())
-                .configurableStyles(buildNavbarConfigurableStyles())
                 .sizeConstraints(buildNavbarSizeConstraints())
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(false)
@@ -279,7 +277,6 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
                 .defaultProps(defaultProps)
                 .defaultStyles(defaultStyles)
                 .configurableProps(buildNavbarConfigurableProps())
-                .configurableStyles(buildNavbarConfigurableStyles())
                 .sizeConstraints(buildNavbarSizeConstraints())
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(false)
@@ -333,7 +330,6 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
                 .defaultProps(defaultProps)
                 .defaultStyles(defaultStyles)
                 .configurableProps(buildNavbarConfigurableProps())
-                .configurableStyles(buildNavbarConfigurableStyles())
                 .sizeConstraints(buildNavbarSizeConstraints())
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(false)
@@ -387,7 +383,6 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
                 .defaultProps(defaultProps)
                 .defaultStyles(defaultStyles)
                 .configurableProps(buildNavbarConfigurableProps())
-                .configurableStyles(buildNavbarConfigurableStyles())
                 .sizeConstraints(buildNavbarSizeConstraints())
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(false)
@@ -439,7 +434,6 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
                 .defaultProps(defaultProps)
                 .defaultStyles(defaultStyles)
                 .configurableProps(buildNavbarConfigurableProps())
-                .configurableStyles(buildNavbarConfigurableStyles())
                 .sizeConstraints(buildNavbarSizeConstraints())
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(false)
@@ -489,7 +483,6 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
                 .defaultProps(defaultProps)
                 .defaultStyles(defaultStyles)
                 .configurableProps(buildSidebarConfigurableProps())
-                .configurableStyles(buildSidebarConfigurableStyles())
                 .sizeConstraints(buildSidebarSizeConstraints())
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(false)
@@ -534,7 +527,6 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
                 .defaultProps(defaultProps)
                 .defaultStyles(defaultStyles)
                 .configurableProps(buildTopHeaderConfigurableProps())
-                .configurableStyles(buildTopHeaderConfigurableStyles())
                 .sizeConstraints(buildTopHeaderSizeConstraints())
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(false)
@@ -801,166 +793,8 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
 
     // ========== Configurable Styles Builders ==========
 
-    private List<StyleDefinition> buildNavbarConfigurableStyles() {
-        List<StyleDefinition> styles = new ArrayList<>();
 
-        styles.add(StyleDefinition.builder()
-                .property("backgroundColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Background Color")
-                .defaultValue("#ffffff")
-                .category("colors")
-                .build());
 
-        styles.add(StyleDefinition.builder()
-                .property("textColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Text Color")
-                .defaultValue("#333333")
-                .category("colors")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("accentColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Accent Color")
-                .defaultValue("#007bff")
-                .category("colors")
-                .helpText("Color for active links and hover states")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("padding")
-                .type(StyleDefinition.StyleType.SPACING)
-                .label("Padding")
-                .defaultValue("0 20px")
-                .allowedUnits(List.of("px", "rem", "em"))
-                .category("spacing")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("boxShadow")
-                .type(StyleDefinition.StyleType.SHADOW)
-                .label("Box Shadow")
-                .defaultValue("0 2px 4px rgba(0,0,0,0.1)")
-                .category("effects")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("borderBottom")
-                .type(StyleDefinition.StyleType.BORDER)
-                .label("Border Bottom")
-                .defaultValue("1px solid #e0e0e0")
-                .category("border")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("fontSize")
-                .type(StyleDefinition.StyleType.SIZE)
-                .label("Font Size")
-                .defaultValue("16px")
-                .allowedUnits(List.of("px", "rem", "em"))
-                .category("text")
-                .build());
-
-        return styles;
-    }
-
-    private List<StyleDefinition> buildSidebarConfigurableStyles() {
-        List<StyleDefinition> styles = new ArrayList<>();
-
-        styles.add(StyleDefinition.builder()
-                .property("backgroundColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Background Color")
-                .defaultValue("#2c3e50")
-                .category("colors")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("textColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Text Color")
-                .defaultValue("#ecf0f1")
-                .category("colors")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("accentColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Accent Color")
-                .defaultValue("#3498db")
-                .category("colors")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("width")
-                .type(StyleDefinition.StyleType.SIZE)
-                .label("Width")
-                .defaultValue("250px")
-                .allowedUnits(List.of("px", "rem", "%"))
-                .category("layout")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("collapsedWidth")
-                .type(StyleDefinition.StyleType.SIZE)
-                .label("Collapsed Width")
-                .defaultValue("60px")
-                .allowedUnits(List.of("px", "rem"))
-                .category("layout")
-                .build());
-
-        return styles;
-    }
-
-    private List<StyleDefinition> buildTopHeaderConfigurableStyles() {
-        List<StyleDefinition> styles = new ArrayList<>();
-
-        styles.add(StyleDefinition.builder()
-                .property("backgroundColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Background Color")
-                .defaultValue("#f8f9fa")
-                .category("colors")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("textColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Text Color")
-                .defaultValue("#666666")
-                .category("colors")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("accentColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Link Color")
-                .defaultValue("#007bff")
-                .category("colors")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("padding")
-                .type(StyleDefinition.StyleType.SPACING)
-                .label("Padding")
-                .defaultValue("8px 20px")
-                .allowedUnits(List.of("px", "rem", "em"))
-                .category("spacing")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("fontSize")
-                .type(StyleDefinition.StyleType.SIZE)
-                .label("Font Size")
-                .defaultValue("13px")
-                .allowedUnits(List.of("px", "rem", "em"))
-                .category("text")
-                .build());
-
-        return styles;
-    }
 
     // ========== Size Constraints Builders ==========
 

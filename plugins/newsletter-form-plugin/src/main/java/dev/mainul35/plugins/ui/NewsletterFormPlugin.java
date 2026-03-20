@@ -138,7 +138,6 @@ public class NewsletterFormPlugin implements UIComponentPlugin {
                 .defaultProps(buildDefaultProps())
                 .defaultStyles(buildDefaultStyles())
                 .configurableProps(buildConfigurableProps())
-                .configurableStyles(buildConfigurableStyles())
                 .sizeConstraints(buildSizeConstraints())
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(false)
@@ -291,67 +290,6 @@ public class NewsletterFormPlugin implements UIComponentPlugin {
     /**
      * Configurable styles
      */
-    private List<StyleDefinition> buildConfigurableStyles() {
-        List<StyleDefinition> styles = new ArrayList<>();
-
-        // Background color
-        styles.add(StyleDefinition.builder()
-                .property("backgroundColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Background Color")
-                .defaultValue("#f8f9fa")
-                .category("background")
-                .build());
-
-        // Padding
-        styles.add(StyleDefinition.builder()
-                .property("padding")
-                .type(StyleDefinition.StyleType.SIZE)
-                .label("Padding")
-                .defaultValue("24px")
-                .allowedUnits(List.of("px", "rem", "em"))
-                .category("spacing")
-                .build());
-
-        // Border radius
-        styles.add(StyleDefinition.builder()
-                .property("borderRadius")
-                .type(StyleDefinition.StyleType.SIZE)
-                .label("Border Radius")
-                .defaultValue("8px")
-                .allowedUnits(List.of("px", "rem", "%"))
-                .category("border")
-                .build());
-
-        // Title color
-        styles.add(StyleDefinition.builder()
-                .property("titleColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Title Color")
-                .defaultValue("#333333")
-                .category("text")
-                .build());
-
-        // Subtitle color
-        styles.add(StyleDefinition.builder()
-                .property("subtitleColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Subtitle Color")
-                .defaultValue("#666666")
-                .category("text")
-                .build());
-
-        // Button color
-        styles.add(StyleDefinition.builder()
-                .property("buttonColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Button Color")
-                .defaultValue("#007bff")
-                .category("button")
-                .build());
-
-        return styles;
-    }
 
     /**
      * Size constraints

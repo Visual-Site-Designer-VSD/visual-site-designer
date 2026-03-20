@@ -134,7 +134,6 @@ public class TextboxComponentPlugin implements UIComponentPlugin {
                 .defaultProps(buildDefaultProps())
                 .defaultStyles(buildDefaultStyles())
                 .configurableProps(buildConfigurableProps())
-                .configurableStyles(buildConfigurableStyles())
                 .sizeConstraints(buildSizeConstraints())
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(false)
@@ -291,68 +290,6 @@ public class TextboxComponentPlugin implements UIComponentPlugin {
     /**
      * Configurable styles
      */
-    private List<StyleDefinition> buildConfigurableStyles() {
-        List<StyleDefinition> styles = new ArrayList<>();
-
-        // Border radius
-        styles.add(StyleDefinition.builder()
-                .property("borderRadius")
-                .type(StyleDefinition.StyleType.SIZE)
-                .label("Border Radius")
-                .defaultValue("4px")
-                .allowedUnits(List.of("px", "rem", "%"))
-                .category("border")
-                .build());
-
-        // Border
-        styles.add(StyleDefinition.builder()
-                .property("border")
-                .type(StyleDefinition.StyleType.BORDER)
-                .label("Border")
-                .defaultValue("1px solid #ccc")
-                .category("border")
-                .build());
-
-        // Font size
-        styles.add(StyleDefinition.builder()
-                .property("fontSize")
-                .type(StyleDefinition.StyleType.SIZE)
-                .label("Font Size")
-                .defaultValue("14px")
-                .allowedUnits(List.of("px", "rem", "em"))
-                .category("text")
-                .build());
-
-        // Background color
-        styles.add(StyleDefinition.builder()
-                .property("backgroundColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Background Color")
-                .defaultValue("#ffffff")
-                .category("background")
-                .build());
-
-        // Text color
-        styles.add(StyleDefinition.builder()
-                .property("color")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Text Color")
-                .defaultValue("#333333")
-                .category("text")
-                .build());
-
-        // Padding
-        styles.add(StyleDefinition.builder()
-                .property("padding")
-                .type(StyleDefinition.StyleType.SIZE)
-                .label("Padding")
-                .defaultValue("8px 12px")
-                .allowedUnits(List.of("px", "rem", "em"))
-                .category("spacing")
-                .build());
-
-        return styles;
-    }
 
     /**
      * Size constraints

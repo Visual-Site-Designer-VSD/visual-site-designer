@@ -97,7 +97,6 @@ public class ImageComponentPlugin implements UIComponentPlugin {
                 .defaultProps(buildDefaultProps())
                 .defaultStyles(buildDefaultStyles())
                 .configurableProps(buildConfigurableProps())
-                .configurableStyles(buildConfigurableStyles())
                 .sizeConstraints(buildSizeConstraints())
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(false)
@@ -233,29 +232,6 @@ public class ImageComponentPlugin implements UIComponentPlugin {
         return props;
     }
 
-    private List<StyleDefinition> buildConfigurableStyles() {
-        List<StyleDefinition> styles = new ArrayList<>();
-
-        styles.add(StyleDefinition.builder()
-                .property("width")
-                .type(StyleDefinition.StyleType.SIZE)
-                .label("Width")
-                .defaultValue("100%")
-                .allowedUnits(List.of("px", "%", "auto"))
-                .category("size")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("height")
-                .type(StyleDefinition.StyleType.SIZE)
-                .label("Height")
-                .defaultValue("auto")
-                .allowedUnits(List.of("px", "%", "auto"))
-                .category("size")
-                .build());
-
-        return styles;
-    }
 
     private SizeConstraints buildSizeConstraints() {
         return SizeConstraints.builder()

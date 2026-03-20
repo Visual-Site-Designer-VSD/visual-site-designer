@@ -123,7 +123,6 @@ public class ScrollableContainerPlugin implements UIComponentPlugin {
                 .defaultProps(buildDefaultProps())
                 .defaultStyles(buildDefaultStyles())
                 .configurableProps(buildConfigurableProps())
-                .configurableStyles(buildConfigurableStyles())
                 .sizeConstraints(buildSizeConstraints())
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(true)
@@ -331,44 +330,6 @@ public class ScrollableContainerPlugin implements UIComponentPlugin {
         return props;
     }
 
-    private List<StyleDefinition> buildConfigurableStyles() {
-        List<StyleDefinition> styles = new ArrayList<>();
-
-        styles.add(StyleDefinition.builder()
-                .property("backgroundColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Background Color")
-                .defaultValue("#ffffff")
-                .category("appearance")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("borderRadius")
-                .type(StyleDefinition.StyleType.SIZE)
-                .label("Border Radius")
-                .defaultValue("8px")
-                .allowedUnits(List.of("px", "rem", "%"))
-                .category("border")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("border")
-                .type(StyleDefinition.StyleType.BORDER)
-                .label("Border")
-                .defaultValue("1px solid #e0e0e0")
-                .category("border")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("boxShadow")
-                .type(StyleDefinition.StyleType.SHADOW)
-                .label("Box Shadow")
-                .defaultValue("0 2px 4px rgba(0,0,0,0.05)")
-                .category("effects")
-                .build());
-
-        return styles;
-    }
 
     private SizeConstraints buildSizeConstraints() {
         return SizeConstraints.builder()

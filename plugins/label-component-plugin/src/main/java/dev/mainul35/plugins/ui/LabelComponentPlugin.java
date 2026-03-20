@@ -130,7 +130,6 @@ public class LabelComponentPlugin implements UIComponentPlugin {
                 .defaultProps(buildDefaultProps())
                 .defaultStyles(buildDefaultStyles())
                 .configurableProps(buildConfigurableProps())
-                .configurableStyles(buildConfigurableStyles())
                 .sizeConstraints(buildSizeConstraints())
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(false)
@@ -229,60 +228,6 @@ public class LabelComponentPlugin implements UIComponentPlugin {
     /**
      * Configurable styles
      */
-    private List<StyleDefinition> buildConfigurableStyles() {
-        List<StyleDefinition> styles = new ArrayList<>();
-
-        // Font size
-        styles.add(StyleDefinition.builder()
-                .property("fontSize")
-                .type(StyleDefinition.StyleType.SIZE)
-                .label("Font Size")
-                .defaultValue("16px")
-                .allowedUnits(List.of("px", "rem", "em", "%"))
-                .category("text")
-                .build());
-
-        // Font weight
-        styles.add(StyleDefinition.builder()
-                .property("fontWeight")
-                .type(StyleDefinition.StyleType.SELECT)
-                .label("Font Weight")
-                .defaultValue("400")
-                .options(List.of("300", "400", "500", "600", "700", "800"))
-                .category("text")
-                .build());
-
-        // Color
-        styles.add(StyleDefinition.builder()
-                .property("color")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Text Color")
-                .defaultValue("#333333")
-                .category("text")
-                .build());
-
-        // Line height
-        styles.add(StyleDefinition.builder()
-                .property("lineHeight")
-                .type(StyleDefinition.StyleType.SIZE)
-                .label("Line Height")
-                .defaultValue("1.5")
-                .allowedUnits(List.of("", "px", "em", "%"))
-                .category("text")
-                .build());
-
-        // Letter spacing
-        styles.add(StyleDefinition.builder()
-                .property("letterSpacing")
-                .type(StyleDefinition.StyleType.SIZE)
-                .label("Letter Spacing")
-                .defaultValue("0")
-                .allowedUnits(List.of("px", "em"))
-                .category("text")
-                .build());
-
-        return styles;
-    }
 
     /**
      * Size constraints

@@ -116,7 +116,6 @@ public class AuthComponentPlugin implements UIComponentPlugin {
                 .defaultProps(buildLoginFormDefaultProps())
                 .defaultStyles(buildLoginFormDefaultStyles())
                 .configurableProps(buildLoginFormConfigurableProps())
-                .configurableStyles(buildFormConfigurableStyles())
                 .sizeConstraints(buildFormSizeConstraints())
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(false)
@@ -279,7 +278,6 @@ public class AuthComponentPlugin implements UIComponentPlugin {
                 .defaultProps(buildRegisterFormDefaultProps())
                 .defaultStyles(buildLoginFormDefaultStyles())
                 .configurableProps(buildRegisterFormConfigurableProps())
-                .configurableStyles(buildFormConfigurableStyles())
                 .sizeConstraints(buildFormSizeConstraints())
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(false)
@@ -454,7 +452,6 @@ public class AuthComponentPlugin implements UIComponentPlugin {
                 .defaultProps(buildSocialLoginDefaultProps())
                 .defaultStyles(buildSocialLoginDefaultStyles())
                 .configurableProps(buildSocialLoginConfigurableProps())
-                .configurableStyles(buildFormConfigurableStyles())
                 .sizeConstraints(buildButtonSizeConstraints())
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(false)
@@ -620,7 +617,6 @@ public class AuthComponentPlugin implements UIComponentPlugin {
                 .defaultProps(buildForgotPasswordDefaultProps())
                 .defaultStyles(buildLoginFormDefaultStyles())
                 .configurableProps(buildForgotPasswordConfigurableProps())
-                .configurableStyles(buildFormConfigurableStyles())
                 .sizeConstraints(buildFormSizeConstraints())
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(false)
@@ -726,7 +722,6 @@ public class AuthComponentPlugin implements UIComponentPlugin {
                 .defaultProps(buildLogoutButtonDefaultProps())
                 .defaultStyles(buildLogoutButtonDefaultStyles())
                 .configurableProps(buildLogoutButtonConfigurableProps())
-                .configurableStyles(buildButtonConfigurableStyles())
                 .sizeConstraints(buildButtonSizeConstraints())
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(false)
@@ -849,76 +844,7 @@ public class AuthComponentPlugin implements UIComponentPlugin {
     }
 
     // ==================== SHARED STYLES ====================
-    private List<StyleDefinition> buildFormConfigurableStyles() {
-        List<StyleDefinition> styles = new ArrayList<>();
 
-        styles.add(StyleDefinition.builder()
-                .property("backgroundColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Background Color")
-                .defaultValue("#ffffff")
-                .category("appearance")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("borderRadius")
-                .type(StyleDefinition.StyleType.SIZE)
-                .label("Border Radius")
-                .defaultValue("12px")
-                .allowedUnits(List.of("px", "rem", "%"))
-                .category("border")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("padding")
-                .type(StyleDefinition.StyleType.SIZE)
-                .label("Padding")
-                .defaultValue("32px")
-                .allowedUnits(List.of("px", "rem", "em"))
-                .category("spacing")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("boxShadow")
-                .type(StyleDefinition.StyleType.SHADOW)
-                .label("Box Shadow")
-                .defaultValue("0 4px 6px rgba(0, 0, 0, 0.1)")
-                .category("effects")
-                .build());
-
-        return styles;
-    }
-
-    private List<StyleDefinition> buildButtonConfigurableStyles() {
-        List<StyleDefinition> styles = new ArrayList<>();
-
-        styles.add(StyleDefinition.builder()
-                .property("backgroundColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Background Color")
-                .defaultValue("#6c757d")
-                .category("appearance")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("textColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Text Color")
-                .defaultValue("#ffffff")
-                .category("appearance")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("borderRadius")
-                .type(StyleDefinition.StyleType.SIZE)
-                .label("Border Radius")
-                .defaultValue("8px")
-                .allowedUnits(List.of("px", "rem", "%"))
-                .category("border")
-                .build());
-
-        return styles;
-    }
 
     // ==================== SIZE CONSTRAINTS ====================
     private SizeConstraints buildFormSizeConstraints() {

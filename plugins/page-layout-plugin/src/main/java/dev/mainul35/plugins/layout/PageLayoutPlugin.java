@@ -142,7 +142,6 @@ public class PageLayoutPlugin implements UIComponentPlugin {
                 .defaultProps(buildDefaultProps())
                 .defaultStyles(buildDefaultStyles())
                 .configurableProps(buildConfigurableProps())
-                .configurableStyles(buildConfigurableStyles())
                 .sizeConstraints(buildSizeConstraints())
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(true)
@@ -262,51 +261,6 @@ public class PageLayoutPlugin implements UIComponentPlugin {
         return props;
     }
 
-    private List<StyleDefinition> buildConfigurableStyles() {
-        List<StyleDefinition> styles = new ArrayList<>();
-
-        styles.add(StyleDefinition.builder()
-                .property("backgroundColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Background Color")
-                .defaultValue("#f5f5f5")
-                .category("appearance")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("headerBackground")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Header Background")
-                .defaultValue("#ffffff")
-                .category("appearance")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("footerBackground")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Footer Background")
-                .defaultValue("#ffffff")
-                .category("appearance")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("sidebarBackground")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Sidebar Background")
-                .defaultValue("#ffffff")
-                .category("appearance")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("centerBackground")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Center Background")
-                .defaultValue("#ffffff")
-                .category("appearance")
-                .build());
-
-        return styles;
-    }
 
     private SizeConstraints buildSizeConstraints() {
         return SizeConstraints.builder()

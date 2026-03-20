@@ -129,7 +129,6 @@ public class ContainerLayoutPlugin implements UIComponentPlugin {
                 .defaultProps(buildDefaultProps())
                 .defaultStyles(buildDefaultStyles())
                 .configurableProps(buildConfigurableProps())
-                .configurableStyles(buildConfigurableStyles())
                 .sizeConstraints(buildSizeConstraints())
                 .capabilities(ComponentCapabilities.builder()
                         .canHaveChildren(true)
@@ -273,37 +272,6 @@ public class ContainerLayoutPlugin implements UIComponentPlugin {
         return props;
     }
 
-    private List<StyleDefinition> buildConfigurableStyles() {
-        List<StyleDefinition> styles = new ArrayList<>();
-
-        styles.add(StyleDefinition.builder()
-                .property(PROP_GAP)
-                .type(StyleDefinition.StyleType.SIZE)
-                .label("Gap Between Items")
-                .defaultValue(DEFAULT_GAP)
-                .allowedUnits(List.of("px", "rem", "em"))
-                .category("spacing")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("backgroundColor")
-                .type(StyleDefinition.StyleType.COLOR)
-                .label("Background Color")
-                .defaultValue("#ffffff")
-                .category("appearance")
-                .build());
-
-        styles.add(StyleDefinition.builder()
-                .property("borderRadius")
-                .type(StyleDefinition.StyleType.SIZE)
-                .label("Border Radius")
-                .defaultValue("8px")
-                .allowedUnits(List.of("px", "rem", "%"))
-                .category("border")
-                .build());
-
-        return styles;
-    }
 
     private SizeConstraints buildSizeConstraints() {
         return SizeConstraints.builder()
