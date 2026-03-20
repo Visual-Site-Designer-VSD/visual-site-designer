@@ -2,7 +2,6 @@
 
 A visual drag-and-drop website builder platform with a plugin-based architecture for creating and exporting sites.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Java](https://img.shields.io/badge/Java-21-blue.svg)](https://www.oracle.com/java/technologies/javase/jdk21-archive-downloads.html)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.0-green.svg)](https://spring.io/projects/spring-boot)
 [![React](https://img.shields.io/badge/React-18.3.1-blue.svg)](https://reactjs.org/)
@@ -10,7 +9,7 @@ A visual drag-and-drop website builder platform with a plugin-based architecture
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -23,8 +22,8 @@ A visual drag-and-drop website builder platform with a plugin-based architecture
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/mainul35/dynamic-site-builder.git
-cd dynamic-site-builder
+git clone https://github.com/Visual-Site-Designer-VSD/visual-site-designer.git
+cd visual-site-designer
 
 # 2. Install the BOM and SDK (required once)
 cd vsd-cms-bom && mvn clean install && cd ..
@@ -51,27 +50,13 @@ Open your browser and navigate to:
 
 ---
 
-## 📚 Documentation
-
-### Getting Started
-
-- **[Quick Start Guide](#-quick-start)** - Get up and running in 5 minutes
-- **[Running the Application](docs/guides/running-the-app.md)** - Development and production setup
-- **[Builder Features](docs/guides/builder-features.md)** - How to use the visual builder
-
-### For Developers
-
-- **[Plugin Development Guide](docs/guides/plugin-development.md)** - Create custom components
-- **[API Reference](docs/api/README.md)** - REST API documentation
-- **[Testing Guide](docs/guides/testing.md)** - Testing strategies and examples
+## Documentation
 
 ### Architecture Documentation
 
-**Complete arc42 architecture documentation is available at:**
+Complete arc42 architecture documentation:
 
-📖 **[Architecture Documentation (arc42)](docs/architecture/arc42/README.md)**
-
-This comprehensive documentation follows the arc42 standard and includes:
+**[Architecture Documentation (arc42)](docs/architecture/arc42/README.md)**
 
 1. [Introduction and Goals](docs/architecture/arc42/01-introduction-and-goals.md) - Requirements, stakeholders, quality goals
 2. [Architecture Constraints](docs/architecture/arc42/02-architecture-constraints.md) - Technical and organizational constraints
@@ -88,72 +73,176 @@ This comprehensive documentation follows the arc42 standard and includes:
 
 ---
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 ### System Components
 
 ```text
 visual-site-designer/
-├── core/                     # Main Spring Boot application
-├── frontend/                 # React visual builder
-├── vsd-cms-bom/             # Bill of Materials
-├── flashcard-cms-plugin-sdk/ # Plugin development SDK
-├── site-runtime/             # Runtime library for exported sites
-└── plugins/                  # Bundled UI component plugins
+├── core/                      # Main Spring Boot application
+├── frontend/                  # React visual builder (npm project)
+├── vsd-cms-bom/               # Bill of Materials (version management)
+├── flashcard-cms-plugin-sdk/  # Plugin development SDK
+├── site-runtime/              # Runtime library for exported sites
+├── plugins/                   # 12 bundled UI component plugins
+├── generated-types/           # Auto-generated TypeScript types
+├── docs/                      # arc42 architecture documentation
+└── data/                      # H2 database storage
 ```
+
+### Maven Modules
+
+The parent POM defines 4 Maven modules: `vsd-cms-bom`, `flashcard-cms-plugin-sdk`, `site-runtime`, `core`. Each plugin under `plugins/` is an independent Maven module.
 
 ### Plugin System
 
 VSD's extensibility comes from its plugin architecture:
 
-- **Isolated ClassLoaders** - Each plugin runs in isolation
+- **Plugin ClassLoaders** - Each plugin has its own ClassLoader for class isolation, but Spring components (controllers, services, repositories) are registered in the main ApplicationContext to ensure JPA compatibility
 - **Hot Reload** - Update plugins without restarting
 - **Spring Integration** - Plugins can register controllers, services, entities
 - **React Components** - UI components built with React
-- **Type Safety** - Auto-generated TypeScript types
+- **Type Safety** - Auto-generated TypeScript types (in `generated-types/`)
+- **Multi-component Plugins** - A single plugin can provide multiple component variants via `getComponentManifests()`
+- **Context Providers** - Plugins can provide shared context (e.g., auth, cart) via `ContextProviderPlugin`
 
-**Learn more**: [Building Block View](docs/architecture/arc42/05-building-block-view.md)
+### Plugin Types
+
+| Type | Interface | Description |
+|------|-----------|-------------|
+| **UI Component** | `UIComponentPlugin` | Visual components for the drag-and-drop builder |
+| **Context Provider** | `ContextProviderPlugin` | Shared context (auth, data) consumed by UI components |
+
+### Bundled Plugins (12 plugins, 21 component variants)
+
+| Plugin | Variants | Category |
+|--------|----------|----------|
+| auth-component-plugin | LoginForm, RegisterForm, SocialLoginButtons, ForgotPasswordForm, LogoutButton | form |
+| button-component-plugin | Button | ui |
+| container-layout-plugin | Container | layout |
+| horizontal-row-plugin | HorizontalRow | ui |
+| image-component-plugin | Image | ui |
+| label-component-plugin | Label | ui |
+| mobile-navbar-component-plugin | MobileNavbar | navbar |
+| navbar-component-plugin | NavbarDefault, NavbarCentered, NavbarMinimal, NavbarDark, NavbarGlass, NavbarSticky, SidebarNav, TopHeaderBar | navbar |
+| newsletter-form-plugin | NewsletterForm | form |
+| page-layout-plugin | PageLayout | layout |
+| scrollable-container-plugin | ScrollableContainer | layout |
+| textbox-component-plugin | Textbox | ui |
 
 ### Export Options
 
 | Format | Description | Use Case |
 |--------|-------------|----------|
-| **Static HTML** | Self-contained HTML/CSS/JS files | Static hosting (Netlify, Vercel, S3) |
-| **Spring Boot + Thymeleaf** | Server-side rendered application | Dynamic sites with database |
+| **Static HTML** | Client-side export via `staticExportService.ts` | Static hosting (Netlify, Vercel, S3) |
+| **Spring Boot + Thymeleaf** | Client-side export via `thymeleafExportService.ts` | Dynamic sites with server-side rendering |
+
+Plugins participate in export through `ComponentManifest` template fields: `staticExportTemplate`, `thymeleafExportTemplate`, `hasCustomExport`, and `exportMetadata`.
 
 ---
 
-## 🔌 Plugin Development
+## Plugin Development
 
-### Quick Plugin Creation
+### Plugin SDK
 
-```bash
-# Use the plugin template
-cp -r plugins/label-component-plugin plugins/my-component-plugin
+The SDK provides two approaches for building plugins:
 
-# Implement the plugin interface
-public class MyComponentPlugin implements UIComponentPlugin {
+**1. Annotation-based (recommended for simple plugins):**
+
+Extend `AbstractUIComponentPlugin` and use `@UIComponent` annotation:
+
+```java
+@UIComponent(
+    componentId = "horizontalRow",
+    displayName = "Horizontal Row",
+    category = "ui",
+    icon = "horizontal_rule"
+)
+public class HorizontalRowComponentPlugin extends AbstractUIComponentPlugin {
+    // Override buildDefaultProps(), buildConfigurableProps(), etc.
+}
+```
+
+**2. Interface-based (for multi-component plugins):**
+
+Implement `UIComponentPlugin` directly and override `getComponentManifests()`:
+
+```java
+public class NavbarComponentPlugin implements UIComponentPlugin {
     @Override
-    public ComponentManifest getComponentManifest() {
+    public List<ComponentManifest> getComponentManifests() {
+        return List.of(
+            buildNavbarDefault(),
+            buildNavbarCentered(),
+            buildNavbarMinimal()
+            // ... 8 variants total
+        );
+    }
+
+    private ComponentManifest buildNavbarDefault() {
         return ComponentManifest.builder()
-            .componentId("myComponent")
-            .displayName("My Component")
+            .componentId("navbarDefault")
+            .displayName("Navbar - Default")
             .category("ui")
+            .capabilities(ComponentCapabilities.builder()
+                .canHaveChildren(false)
+                .isContainer(false)
+                .isResizable(true)
+                .supportsTemplateBindings(false)
+                .build())
             .build();
     }
 }
+```
 
-# Build and deploy
+### ComponentCapabilities
+
+Every component manifest should include `ComponentCapabilities` to control visual builder behavior:
+
+| Capability | Default | Description |
+|------------|---------|-------------|
+| `canHaveChildren` | `false` | Can contain child components |
+| `isContainer` | `false` | Acts as a layout container (accepts drops) |
+| `hasDataSource` | `false` | Supports data source bindings |
+| `autoHeight` | `false` | Auto-sizes height to fit content |
+| `isResizable` | `true` | Can be resized by user in builder |
+| `supportsIteration` | `false` | Supports iteration over data collections |
+| `supportsTemplateBindings` | `true` | Supports `{{variable}}` template bindings |
+
+### Context Provider Plugins
+
+Plugins can provide shared context consumed by UI components:
+
+```java
+public interface ContextProviderPlugin extends Plugin {
+    String getContextId();
+    String getProviderComponentPath();
+    List<ApiEndpoint> getApiEndpoints();
+    default List<String> getRequiredContexts() { return List.of(); }
+}
+```
+
+UI components declare context dependencies via `requiredContexts` in their `ComponentManifest`. The builder validates that all required contexts are available before allowing the component to be used.
+
+### Data Source System
+
+The SDK provides a data-fetching abstraction via `DataFetcher`, `DataSourceConfig`, and `DataSourceResult` for components with `hasDataSource = true`.
+
+### Event System
+
+Plugins can handle events via `EventHandler` and `EventContext` interfaces for inter-component communication.
+
+### Build and Deploy
+
+```bash
 cd plugins/my-component-plugin
 mvn clean package
 cp target/*.jar ../../core/plugins/
 ```
 
-**Full Guide**: [Plugin Development](docs/guides/plugin-development.md)
-
 ---
 
-## 🐳 Docker Deployment
+## Docker Deployment
 
 ### Development with Docker Compose
 
@@ -176,9 +265,9 @@ docker-compose -f docker-compose.prod.yml up -d
 
 ---
 
-## 🔐 Authentication
+## Authentication
 
-VSD supports multiple authentication methods:
+VSD supports dual authentication - both local JWT tokens and external OAuth2/SSO:
 
 ### Local Authentication
 
@@ -198,20 +287,20 @@ Supported providers:
 - VSD Auth Server (custom)
 - Generic OIDC provider
 
-**Configuration**: See [System Scope and Context](docs/architecture/arc42/03-system-scope-and-context.md#ti-01-oauth2-authentication)
+**Configuration**: See [System Scope and Context](docs/architecture/arc42/03-system-scope-and-context.md)
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ```bash
-# Backend tests
+# Backend tests (core module)
 cd core && mvn test
 
 # Frontend tests
 cd frontend && npm test
 
-# All tests
+# SDK + Core tests
 mvn test -pl core,flashcard-cms-plugin-sdk
 ```
 
@@ -219,13 +308,13 @@ mvn test -pl core,flashcard-cms-plugin-sdk
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 ### Backend
 
 - **Java 21** - Modern JVM features
 - **Spring Boot 4.0.0** - Enterprise application framework
-- **Spring Security** - Authentication & authorization
+- **Spring Security** - Authentication and authorization
 - **JPA/Hibernate** - ORM and persistence
 - **Flyway** - Database migrations
 - **H2 / PostgreSQL** - Development / production databases
@@ -242,22 +331,22 @@ mvn test -pl core,flashcard-cms-plugin-sdk
 ### Development Tools
 
 - **Maven** - Build and dependency management
-- **IntelliJ IDEA** - IDE with VSD plugin
 - **Docker** - Containerization
 
 ---
 
-## 📊 Project Statistics
+## Project Statistics
 
 - **Languages**: Java, TypeScript, JavaScript
-- **Lines of Code**: ~50,000+
-- **Modules**: 5 (core, frontend, SDK, site-runtime, BOM)
-- **Plugins**: 11 bundled components
+- **Lines of Code**: ~35,000+
+- **Maven Modules**: 4 (core, SDK, site-runtime, BOM) + 12 plugin modules
+- **Plugins**: 12 bundled plugins providing 21 component variants
 - **Documentation**: 280KB+ arc42 documentation
+- **Tests**: 63+ backend tests
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please follow these steps:
 
@@ -271,29 +360,23 @@ We welcome contributions! Please follow these steps:
 
 ---
 
-## 📝 License
+## Links
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🔗 Links
-
-- **GitHub**: [https://github.com/mainul35/dynamic-site-builder](https://github.com/mainul35/dynamic-site-builder)
+- **GitHub**: [https://github.com/Visual-Site-Designer-VSD/visual-site-designer](https://github.com/Visual-Site-Designer-VSD/visual-site-designer)
 - **Architecture Documentation**: [docs/architecture/arc42/](docs/architecture/arc42/)
-- **Issue Tracker**: [GitHub Issues](https://github.com/mainul35/dynamic-site-builder/issues)
+- **Issue Tracker**: [GitHub Issues](https://github.com/Visual-Site-Designer-VSD/visual-site-designer/issues)
 
 ---
 
-## 📞 Support
+## Support
 
 - **Documentation**: Check the [arc42 architecture docs](docs/architecture/arc42/README.md)
-- **Issues**: Report bugs via [GitHub Issues](https://github.com/mainul35/dynamic-site-builder/issues)
+- **Issues**: Report bugs via [GitHub Issues](https://github.com/Visual-Site-Designer-VSD/visual-site-designer/issues)
 - **Discussions**: Join discussions on GitHub Discussions
 
 ---
 
-## 🎯 Roadmap
+## Roadmap
 
 ### Current Version: 1.0.0-SNAPSHOT
 
@@ -306,7 +389,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Improved E2E testing coverage
 
 **See**: [Risks and Technical Debt](docs/architecture/arc42/11-risks-and-technical-debt.md#technical-debt-reduction-plan)
-
----
-
-Built with ❤️ by the VSD Team

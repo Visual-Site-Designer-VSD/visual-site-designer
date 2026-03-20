@@ -34,7 +34,7 @@ A reusable UI element (e.g., Button, Label, Container) that can be placed on a p
 ---
 
 #### Component Capabilities
-A set of boolean flags on `ComponentManifest` that describe a component's behavioral properties in the visual builder. Includes: `canHaveChildren`, `isContainer`, `hasDataSource`, `autoHeight`, `isResizable`, `supportsIteration`, `supportsTemplateBindings`.
+A dedicated `ComponentCapabilities` class embedded in `ComponentManifest` via the `capabilities` field. Contains boolean flags that describe a component's behavioral properties in the visual builder: `canHaveChildren`, `isContainer`, `hasDataSource`, `autoHeight`, `isResizable`, `supportsIteration`, `supportsTemplateBindings`.
 
 **Related**: Component, Manifest, Plugin SDK
 
@@ -45,19 +45,26 @@ A set of boolean flags on `ComponentManifest` that describe a component's behavi
 #### Component Manifest
 A JSON descriptor that defines a component's properties, styles, capabilities, and behavior. Plugins provide manifests for each component they register.
 
-**Structure**:
-```json
-{
-  "componentId": "label",
-  "displayName": "Label",
-  "category": "ui",
-  "props": [...],
-  "styles": [...],
-  "sizeConstraints": {...}
-}
-```
+**Fields**:
+- `componentId`: Unique component identifier
+- `displayName`: Name shown in the component palette
+- `category`: Component category (ui, layout, form, widget)
+- `icon`: Icon identifier
+- `description`: Component description
+- `defaultProps`: Default property values
+- `defaultStyles`: Default CSS styles
+- `reactComponentPath`: Path to React component in plugin resources
+- `previewComponentPath`: Path to preview component (optional)
+- `configurableProps`: List of `PropDefinition` entries
+- `configurableStyles`: List of `StyleDefinition` entries
+- `sizeConstraints`: `SizeConstraints` object
+- `pluginId`, `pluginVersion`: Owning plugin metadata
+- `allowedChildTypes`: Restricts which components can be nested
+- `capabilities`: `ComponentCapabilities` object (canHaveChildren, isContainer, hasDataSource, autoHeight, isResizable, supportsIteration, supportsTemplateBindings)
+- `requiredContexts`: List of context IDs this component depends on (e.g., `["auth"]`)
+- `staticExportTemplate`, `thymeleafExportTemplate`, `hasCustomExport`, `exportMetadata`: Export template fields
 
-**Related**: Component, Plugin, ComponentRegistry
+**Related**: Component, Plugin, ComponentRegistry, ComponentCapabilities
 
 **See also**: [Section 8.1.4 - Component Manifest Structure](08-crosscutting-concepts.md#component-manifest-structure)
 
@@ -86,14 +93,21 @@ A database table and in-memory cache that stores metadata about registered compo
 
 ---
 
-#### Context Provider Plugin (Planned)
-A new plugin type (`ContextProviderPlugin`) that provides shared state and services for a feature domain (e.g., authentication, e-commerce cart). Unlike UI Component Plugins, Context Provider Plugins do not render visual components. Instead, they supply a React context provider and backend API endpoints that multiple UI component plugins can consume.
+#### Context Provider Plugin
+A plugin type (`ContextProviderPlugin extends Plugin`) that provides shared state and services for a feature domain (e.g., authentication, e-commerce cart). Unlike UI Component Plugins, Context Provider Plugins do not render visual components. Instead, they supply a React context provider and backend API endpoints that multiple UI component plugins can consume.
 
-**Key properties**:
-- `contextId`: Unique identifier (e.g., `"auth"`, `"cart"`)
-- `providerComponentPath`: Path to React context provider
-- `apiEndpoints`: Backend REST endpoints the context exposes
-- `requiredContexts`: Dependencies on other context providers
+**`ContextProviderPlugin` interface methods**:
+- `String getContextId()`: Unique identifier (e.g., `"auth"`, `"cart"`)
+- `String getProviderComponentPath()`: Path to React context provider bundle
+- `List<ApiEndpoint> getApiEndpoints()`: Backend REST endpoints the context exposes
+- `List<String> getRequiredContexts()`: Dependencies on other context providers (default: empty)
+
+**`ContextDescriptor` fields** (stored in registry, served to frontend):
+- `contextId`, `providerComponentPath`, `apiEndpoints`, `requiredContexts`, `pluginId`, `pluginVersion`
+
+**Backend infrastructure**:
+- `ContextRegistryService`: Handles registration with dependency validation and topological sorting
+- `ContextRegistryController` at `/api/contexts/**`: REST API for frontend context discovery
 
 **Related**: Plugin, ContextRegistry, UIComponentPlugin
 
@@ -101,8 +115,8 @@ A new plugin type (`ContextProviderPlugin`) that provides shared state and servi
 
 ---
 
-#### ContextRegistry (Planned)
-A registry (analogous to ComponentRegistry) that stores metadata about active context providers. Used by the frontend to discover which shared contexts are available and determine the provider wrapping order based on dependency resolution.
+#### ContextRegistry
+A registry (analogous to ComponentRegistry) that stores metadata about active context providers. The `ContextRegistryService` handles registration with dependency validation and topological sorting. The `ContextRegistryController` at `/api/contexts/` exposes REST endpoints for frontend discovery of active contexts and their dependency-sorted provider wrapping order.
 
 **Related**: Context Provider Plugin, ComponentRegistry
 
@@ -174,7 +188,7 @@ plugin.jar
 └── frontend/bundle.js      # React component
 ```
 
-**Lifecycle**: Upload → Validate → Load → Activate → Register Components
+**Lifecycle**: Upload → Validate → Load → Register Components
 
 **Related**: Component, ClassLoader, UIComponentPlugin
 
@@ -259,14 +273,22 @@ A separate Maven module that provides runtime libraries for exported Spring Boot
 ---
 
 #### UIComponentPlugin
-The Java interface that plugins must implement. Defines methods for plugin lifecycle (initialize, destroy) and component registration.
+The Java interface that UI component plugins must implement. Extends the base `Plugin` interface with UI component-specific methods for manifest registration, rendering, and validation.
 
-**Methods**:
-- `void initialize(PluginContext context)`: Called when plugin loads
-- `void destroy()`: Called when plugin unloads
-- `List<ComponentManifest> getComponents()`: Returns component manifests
+**Own Methods**:
+- `ComponentManifest getComponentManifest()`: Returns the single component manifest
+- `List<ComponentManifest> getComponentManifests()`: Returns all manifests (override for multi-variant plugins like navbar with 8 variants)
+- `String getReactComponentPath()`: Path to the React component bundle
+- `byte[] getComponentThumbnail()`: Preview thumbnail for the component palette
+- `ValidationResult validateProps(Map<String, Object> props)`: Custom prop validation
+- `String renderToHTML(Map<String, Object> props, Map<String, String> styles)`: Optional server-side rendering
+- `String getPropsSchema()`: Optional JSON schema for advanced prop validation
 
-**Related**: Plugin, Plugin SDK
+**Inherited from Plugin**:
+- `String getPluginId()`, `String getName()`, `String getVersion()`, `String getDescription()`
+- `void onLoad(PluginContext)`, `default void onUninstall(PluginContext)`
+
+**Related**: Plugin, Plugin SDK, ComponentManifest
 
 **See also**: [Section 5.2 - Plugin SDK](05-building-block-view.md#plugin-sdk)
 
@@ -288,13 +310,19 @@ A document capturing a significant architectural decision, including context, de
 #### API (Application Programming Interface)
 A set of endpoints exposed by the backend for the frontend to interact with the system. VSD provides a RESTful API.
 
-**Base URL**: `/api/v1/`
+**Base URL**: `/api/`
 
-**Key Endpoints**:
-- `/api/v1/sites`: Site management
-- `/api/v1/pages`: Page management
-- `/api/v1/plugins`: Plugin management
-- `/api/v1/components`: Component registry
+**Key Controllers and Endpoints**:
+- `ComponentRegistryController` at `/api/components/**`: Component browsing, search, manifests, bundles
+- `ComponentAdminController` at `/api/admin/components/**`: Component admin operations
+- `PluginAssetController` at `/api/plugins/**`: Plugin asset serving
+- `PluginDiagnosticsController` at `/api/diagnostics/**`: Plugin diagnostic info
+- `ContextRegistryController` at `/api/contexts/**`: Context provider discovery
+- `PageController` at `/api/sites/{siteId}/pages/**`: Page management (scoped to site)
+- `PageDataController` at `/api/pages/**`: Page data operations
+- `SiteController` at `/api/sites/**`: Site management
+- `AuthController` at `/api/auth/**`: Authentication
+- `ContentRepositoryController` at `/api/content/**`: Content repository operations
 
 **Related**: REST, Controller
 
@@ -611,7 +639,7 @@ A Spring Data interface for database access. VSD uses repository pattern for CRU
 **Examples**:
 - `SiteRepository extends JpaRepository<Site, Long>`
 - `PageRepository extends JpaRepository<Page, Long>`
-- `UserRepository extends JpaRepository<User, Long>`
+- `CmsUserRepository extends JpaRepository<CmsUser, Long>`
 
 **Related**: JPA, Database, Spring Data
 
@@ -622,7 +650,7 @@ An architectural style for designing networked applications. VSD provides a REST
 
 **Principles**:
 - Stateless (JWT tokens)
-- Resource-based URLs (`/api/v1/sites/{id}`)
+- Resource-based URLs (`/api/sites/{id}`)
 - HTTP methods (GET, POST, PUT, DELETE)
 - JSON payloads
 
@@ -857,15 +885,15 @@ A lightweight state management library for React. VSD uses Zustand for frontend 
 | **Bundle** | Plugin JAR file with embedded assets |
 | **ClassLoader** | Java class loading mechanism |
 | **Hot Reload** | Runtime plugin reload without restart |
-| **Context Provider** | Plugin providing shared state for a feature domain (planned) |
-| **Context Registry** | Registry of active context providers (planned) |
+| **Context Provider** | Plugin providing shared state for a feature domain |
+| **Context Registry** | Registry of active context providers with dependency resolution |
 | **Isolation** | Separate classloader per plugin |
 | **Manifest** | Component metadata (plugin.yml, component manifest JSON) |
 | **Plugin Context** | Access to Spring beans and services |
 | **Registry** | Database of registered components |
 | **requiredContexts** | Contexts a UI component needs (declared in manifest) |
 | **Sandbox** | Isolated execution environment (not implemented) |
-| **usePluginContext** | React hook to consume a registered context provider (planned) |
+| **usePluginContext** | React hook to consume a registered context provider |
 
 ---
 

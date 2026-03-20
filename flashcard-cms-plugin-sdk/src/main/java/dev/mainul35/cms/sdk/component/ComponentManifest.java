@@ -59,19 +59,9 @@ public class ComponentManifest {
     private String reactComponentPath;
 
     /**
-     * Path to preview component (optional)
-     */
-    private String previewComponentPath;
-
-    /**
      * List of configurable properties
      */
     private List<PropDefinition> configurableProps;
-
-    /**
-     * List of configurable CSS properties
-     */
-    private List<StyleDefinition> configurableStyles;
 
     /**
      * Size constraints

@@ -2,6 +2,8 @@
 
 This section shows the static decomposition of VSD into building blocks (modules, components, subsystems) and their relationships.
 
+> For C4 Container and Component diagrams, see [C4 Architecture Model](C4_MODEL.md).
+
 ---
 
 ## 5.1 Whitebox Overall System (Level 1)
@@ -56,7 +58,7 @@ graph TB
 | **Plugin API** | `UIComponentPlugin` interface for component lifecycle and metadata |
 | **Component Registry API** | Dynamic component registration and retrieval |
 | **WebSocket API** | Real-time updates for preview window (BroadcastChannel) |
-| **Export API** | Generate static HTML or Spring Boot projects |
+| **Export API** | Client-side export of static HTML or Spring Boot/Thymeleaf projects (no backend export service) |
 
 ---
 
@@ -71,24 +73,25 @@ graph TB
             AUTH_CTRL[AuthController]
             SITE_CTRL[SiteController]
             PAGE_CTRL[PageController]
-            COMP_CTRL[ComponentController]
-            PLUGIN_CTRL[PluginController]
+            COMP_CTRL[ComponentRegistryController]
+            COMP_ADMIN_CTRL[ComponentAdminController]
+            PLUGIN_CTRL[PluginAssetController]
+            CTX_CTRL[ContextRegistryController]
+            DIAG_CTRL[PluginDiagnosticsController]
         end
 
         subgraph "Service Layer"
             AUTH_SVC[AuthenticationService]
             SITE_SVC[SiteService]
             PAGE_SVC[PageService]
-            COMP_REG[ComponentRegistry]
+            COMP_REG[ComponentRegistryService]
+            CTX_REG_SVC[ContextRegistryService]
             PLUGIN_MGR[PluginManager]
-            EXPORT_SVC[ExportService]
         end
 
         subgraph "Plugin System"
-            LOADER[PluginLoader]
-            VALIDATOR[PluginValidator]
-            CLASSLOADER[IsolatedClassLoader]
-            LIFECYCLE[PluginLifecycleManager]
+            PLUGIN_MGR_DETAIL[PluginManager]
+            CLASSLOADER[PluginClassLoader]
         end
 
         subgraph "Security"
@@ -100,7 +103,7 @@ graph TB
         subgraph "Persistence"
             SITE_REPO[SiteRepository]
             PAGE_REPO[PageRepository]
-            USER_REPO[UserRepository]
+            USER_REPO[CmsUserRepository]
             COMP_REG_REPO[ComponentRegistryRepository]
         end
 
@@ -108,12 +111,13 @@ graph TB
         SITE_CTRL --> SITE_SVC
         PAGE_CTRL --> PAGE_SVC
         COMP_CTRL --> COMP_REG
+        COMP_ADMIN_CTRL --> COMP_REG
+        COMP_ADMIN_CTRL --> PLUGIN_MGR
         PLUGIN_CTRL --> PLUGIN_MGR
+        CTX_CTRL --> CTX_REG_SVC
 
-        PLUGIN_MGR --> LOADER
-        PLUGIN_MGR --> VALIDATOR
-        PLUGIN_MGR --> LIFECYCLE
-        LOADER --> CLASSLOADER
+        PLUGIN_MGR --> PLUGIN_MGR_DETAIL
+        PLUGIN_MGR_DETAIL --> CLASSLOADER
 
         AUTH_SVC --> JWT_FILTER
         AUTH_SVC --> OAUTH2_HANDLER
@@ -130,7 +134,9 @@ graph TB
     FRONTEND --> SITE_CTRL
     FRONTEND --> PAGE_CTRL
     FRONTEND --> COMP_CTRL
+    FRONTEND --> COMP_ADMIN_CTRL
     FRONTEND --> PLUGIN_CTRL
+    FRONTEND --> CTX_CTRL
 
     PLUGINS[Plugin JARs] --> PLUGIN_MGR
     DB[(Database)] <--> SITE_REPO
@@ -146,13 +152,16 @@ graph TB
 
 #### Web Layer (Controllers)
 
-| Component | Responsibility |
-|-----------|----------------|
-| **AuthController** | User login, registration, token refresh, OAuth2 callbacks |
-| **SiteController** | CRUD operations for sites |
-| **PageController** | Page management, versioning, rollback |
-| **ComponentController** | List components, get manifests, serve plugin bundles |
-| **PluginController** | Upload, activate, deactivate, uninstall plugins |
+| Component | Path | Responsibility |
+|-----------|------|----------------|
+| **AuthController** | `/api/auth/**` | User login, registration, token refresh, OAuth2 callbacks |
+| **SiteController** | `/api/sites/**` | CRUD operations for sites |
+| **PageController** | `/api/sites/{siteId}/pages/**` | Page management, versioning, component validation |
+| **ComponentRegistryController** | `/api/components/**` | List components, get manifests, search, serve plugin bundles |
+| **ComponentAdminController** | `/api/admin/components/**` | Upload plugins, register/unregister components (admin/designer only) |
+| **PluginAssetController** | `/api/plugins/**` | Serve frontend bundles (JS/CSS) and assets from plugin JARs |
+| **PluginDiagnosticsController** | `/api/diagnostics/**` | Debug endpoint for plugin directory and JAR file info |
+| **ContextRegistryController** | `/api/contexts/**` | List active context providers, validate required contexts |
 
 #### Service Layer
 
@@ -161,18 +170,16 @@ graph TB
 | **AuthenticationService** | JWT generation, user validation, role mapping |
 | **SiteService** | Site business logic, ownership validation |
 | **PageService** | Page CRUD, version management, content validation |
-| **ComponentRegistry** | Register and lookup components, cache manifests |
-| **PluginManager** | Load, activate, deactivate plugins, hot-reload |
-| **ExportService** | Generate static HTML or Spring Boot projects |
+| **ComponentRegistryService** | Register and lookup components, cache manifests |
+| **ContextRegistryService** | Register and lookup context providers, dependency validation, topological sorting |
+| **PluginManager** | Load and uninstall plugins, hot-reload; handles both `UIComponentPlugin` and `ContextProviderPlugin` registration |
 
 #### Plugin System
 
 | Component | Responsibility |
 |-----------|----------------|
-| **PluginLoader** | Scan plugins directory, read `plugin.yml`, instantiate plugins |
-| **PluginValidator** | Validate plugin structure, dependencies, manifest integrity |
-| **IsolatedClassLoader** | Load plugin classes in isolated classloader to prevent conflicts |
-| **PluginLifecycleManager** | Call lifecycle methods (`onLoad`, `onActivate`, `onDeactivate`, `onUninstall`) |
+| **PluginManager** | Scan plugins directory, validate structure, load/uninstall plugins, hot-reload, lifecycle management. All plugin system logic (loading, validation, lifecycle) is integrated in this single class |
+| **PluginClassLoader** | Load plugin classes in isolated classloader to prevent conflicts |
 
 #### Security
 
@@ -188,7 +195,7 @@ graph TB
 |-----------|----------------|
 | **SiteRepository** | JPA repository for sites |
 | **PageRepository** | JPA repository for pages and versions |
-| **UserRepository** | JPA repository for users |
+| **CmsUserRepository** | JPA repository for users |
 | **ComponentRegistryRepository** | JPA repository for registered components |
 
 ---
@@ -233,6 +240,8 @@ graph TB
             API_CLIENT[apiClient]
             PLUGIN_LOADER_SVC[PluginLoaderService]
             PREVIEW_BROADCAST[PreviewBroadcastService]
+            STATIC_EXPORT[staticExportService]
+            THYMELEAF_EXPORT[thymeleafExportService]
         end
 
         BUILDER --> PALETTE
@@ -317,6 +326,8 @@ graph TB
 | **apiClient** | Axios-based HTTP client with JWT interceptor |
 | **PluginLoaderService** | Dynamically load plugin bundles from `/api/plugins/{pluginId}/bundle.js` |
 | **PreviewBroadcastService** | Cross-window communication using BroadcastChannel API |
+| **staticExportService** | Client-side static HTML export: walks page definitions, applies export templates, generates .zip via JSZip |
+| **thymeleafExportService** | Client-side Spring Boot/Thymeleaf export: generates Maven project with Thymeleaf templates, controllers, and config |
 
 ---
 
@@ -383,9 +394,7 @@ graph TB
 // Plugin Lifecycle Interface
 public interface Plugin {
     void onLoad(PluginContext context) throws Exception;
-    void onActivate(PluginContext context) throws Exception;
-    void onDeactivate(PluginContext context) throws Exception;
-    void onUninstall(PluginContext context) throws Exception;
+    default void onUninstall(PluginContext context) throws Exception {}
 
     String getPluginId();
     String getName();
@@ -403,13 +412,9 @@ public interface UIComponentPlugin extends Plugin {
 
     // Optional hooks
     default String renderToHTML(Map<String, Object> props, Map<String, String> styles);
-    default void onComponentAdded(PluginContext context, Long pageId, String instanceId);
-    default void onComponentRemoved(PluginContext context, Long pageId, String instanceId);
-    default void onPropsUpdated(PluginContext context, String instanceId,
-                               Map<String, Object> oldProps, Map<String, Object> newProps);
 }
 
-// Context Provider Interface (extends Plugin) — NEW
+// Context Provider Interface (extends Plugin)
 public interface ContextProviderPlugin extends Plugin {
     // Unique context identifier (e.g., "auth", "cart")
     String getContextId();
@@ -429,7 +434,7 @@ public interface ContextProviderPlugin extends Plugin {
 
 | Class | Purpose |
 |-------|---------|
-| **ComponentManifest** | Complete component metadata (id, name, props, styles, capabilities, constraints) |
+| **ComponentManifest** | Complete component metadata: id, name, props, styles, `capabilities` (ComponentCapabilities), `requiredContexts`, size constraints, and export templates (`staticExportTemplate`, `thymeleafExportTemplate`, `hasCustomExport`, `exportMetadata`) |
 | **ComponentCapabilities** | Behavioral flags driving builder behavior (canHaveChildren, isContainer, hasDataSource, autoHeight, isResizable, supportsIteration, supportsTemplateBindings) |
 | **PropDefinition** | Define a configurable property (type, label, options, default, validation) |
 | **StyleDefinition** | Define a configurable CSS style (property, type, category, units) |
@@ -599,9 +604,16 @@ graph LR
 
 ---
 
-## 5.6 Level 2: Context Provider Plugins (Whitebox) — Planned
+## 5.6 Level 2: Context Provider Plugins (Whitebox)
 
-Context Provider Plugins are a new plugin type that provides **shared state and services** for feature domains. Unlike UI Component Plugins (which render visual components), Context Provider Plugins supply React context providers and backend API endpoints that multiple UI component plugins can consume.
+Context Provider Plugins are a plugin type that provides **shared state and services** for feature domains. Unlike UI Component Plugins (which render visual components), Context Provider Plugins supply React context providers and backend API endpoints that multiple UI component plugins can consume.
+
+The infrastructure is fully implemented:
+- `ContextProviderPlugin` interface in the SDK (extends `Plugin`)
+- `ContextDescriptor` and `ApiEndpoint` data models in SDK's context package
+- `ContextRegistryService` in core for registration, lookup, and dependency validation
+- `ContextRegistryController` at `/api/contexts/**` for frontend discovery
+- `PluginManager` handles `ContextProviderPlugin` registration alongside `UIComponentPlugin`
 
 ### Architecture Overview
 
@@ -735,11 +747,11 @@ At page render time, the runtime wraps the component tree with all active contex
 </AuthProvider>
 ```
 
-### Planned Context Provider Plugins
+### Context Provider Plugins
 
 | Plugin | Context ID | Provides | Required Contexts | Status |
 |--------|-----------|----------|-------------------|--------|
-| **auth-context-plugin** | `auth` | AuthContext (session, tokens, user info, login/logout) | — | Planned |
+| **auth-context-plugin** | `auth` | AuthContext (session, tokens, user info, login/logout) | -- | Infrastructure implemented |
 | **cart-context-plugin** | `cart` | CartContext (items, add/remove, totals) | `auth` | Future |
 | **order-context-plugin** | `order` | OrderContext (order history, tracking) | `auth` | Future |
 
@@ -838,19 +850,18 @@ This section provides a detailed look at the plugin loading and registration pro
 sequenceDiagram
     participant App as Spring Boot App
     participant PM as PluginManager
-    participant PL as PluginLoader
-    participant CL as IsolatedClassLoader
+    participant CL as PluginClassLoader
     participant Plugin as Plugin Instance
     participant CR as ComponentRegistry
     participant DB as Database
 
     App->>PM: applicationStartup()
-    PM->>PL: scanPluginsDirectory()
-    PL->>PL: Find all .jar files
+    PM->>PM: scanPluginsDirectory()
+    PM->>PM: Find all .jar files
 
     loop For each plugin JAR
-        PL->>PL: Read plugin.yml
-        PL->>CL: Create isolated ClassLoader
+        PM->>PM: Read plugin.yml
+        PM->>CL: Create PluginClassLoader
         CL->>Plugin: Load main-class
         Plugin->>Plugin: new Instance()
 
@@ -860,9 +871,6 @@ sequenceDiagram
 
         PM->>CR: registerComponent(manifest)
         CR->>DB: Save to cms_component_registry
-
-        PM->>Plugin: onActivate(context)
-        Plugin-->>PM: Plugin ready
     end
 
     PM-->>App: All plugins loaded
@@ -872,11 +880,10 @@ sequenceDiagram
 
 1. **Discovery**: Scan `plugins/` directory for `.jar` files
 2. **Validation**: Read `plugin.yml`, validate structure and dependencies
-3. **ClassLoader Creation**: Create `IsolatedClassLoader` with parent=system classloader
+3. **ClassLoader Creation**: Create `PluginClassLoader` with parent=system classloader
 4. **Instantiation**: Load plugin main class, call no-arg constructor
 5. **Load Phase**: Call `onLoad(context)`, plugin builds manifest
 6. **Registration**: Register component in `ComponentRegistry`, persist to database
-7. **Activation**: Call `onActivate(context)`, plugin is ready for use
 
 ### Hot Reload Process
 
@@ -889,18 +896,16 @@ sequenceDiagram
     participant CR as ComponentRegistry
 
     IDE->>IDE: Build plugin JAR
-    IDE->>API: POST /api/plugins/upload
+    IDE->>API: POST /api/admin/components/upload
     API->>PM: hotReload(pluginId)
 
     PM->>PM: Find existing plugin
-    PM->>Plugin: onDeactivate()
     PM->>CL: Close classloader
     PM->>CR: Unregister component
 
     PM->>PM: Load new version
     PM->>CL: Create new ClassLoader
     PM->>Plugin: onLoad(context)
-    PM->>Plugin: onActivate(context)
     PM->>CR: Register component
 
     PM-->>API: Hot reload complete
@@ -921,7 +926,7 @@ sequenceDiagram
     participant FE as Frontend
     participant AC as AuthController
     participant AS as AuthService
-    participant UR as UserRepository
+    participant UR as CmsUserRepository
     participant JWT as JwtService
 
     User->>FE: Enter username/password
@@ -949,7 +954,7 @@ sequenceDiagram
     participant Auth as Auth Server
     participant OAuth2 as OAuth2Handler
     participant AS as AuthService
-    participant UR as UserRepository
+    participant UR as CmsUserRepository
 
     User->>FE: Click "Sign in with SSO"
     FE->>Core: GET /oauth2/authorization/vsd-auth
@@ -997,71 +1002,76 @@ graph LR
 
 ## 5.10 Level 3: Export Process (Deep Dive)
 
-This section details how sites are exported to standalone applications.
+This section details how sites are exported to standalone applications. Export is handled **entirely client-side** in the frontend -- there is no backend `ExportController` or `ExportService`. The frontend TypeScript services (`staticExportService.ts` and `thymeleafExportService.ts`) traverse the page definition, use `ComponentManifest` export fields (`staticExportTemplate`, `thymeleafExportTemplate`, `hasCustomExport`, `exportMetadata`) contributed by plugins, and generate a `.zip` archive for download via the browser.
 
 ### Static HTML Export
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant FE as Frontend
-    participant API as ExportController
-    participant ES as ExportService
-    participant PD as PageDefinition
-    participant FS as FileSystem
+    participant FE as Frontend Toolbar
+    participant SES as staticExportService.ts
+    participant REG as ExportTemplateRegistry
+    participant ZIP as JSZip (browser)
 
     User->>FE: Click "Export as Static HTML"
-    FE->>API: POST /api/sites/{id}/export?type=html
-    API->>ES: exportAsStaticHTML(site)
+    FE->>SES: exportSiteAsStaticHTML(pages, siteName)
 
     loop For each page
-        ES->>PD: Load page definition
-        ES->>ES: Generate HTML from components
-        ES->>ES: Inline styles
-        ES->>ES: Bundle React runtime
-        ES->>FS: Write index.html
+        SES->>SES: Walk component tree
+        SES->>REG: Lookup staticExportTemplate per component type
+        SES->>SES: Generate HTML with inline styles
+        SES->>SES: Generate responsive CSS (breakpoints)
+        SES->>ZIP: Add page HTML to archive
     end
 
-    ES->>FS: Copy assets (images, fonts)
-    ES->>FS: Create .zip archive
-    ES-->>API: export.zip
-    API-->>FE: Download .zip
-    FE->>User: Save file
+    SES->>ZIP: Add shared CSS and JS assets
+    SES->>ZIP: Generate .zip blob
+    SES-->>FE: Trigger browser download
+    FE->>User: Save .zip file
 ```
 
-### Spring Boot Export
+### Spring Boot / Thymeleaf Export
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant FE as Frontend
-    participant API as ExportController
-    participant ES as ExportService
-    participant TPL as TemplateEngine
-    participant MVN as Maven Project
-    participant FS as FileSystem
+    participant FE as Frontend Toolbar
+    participant TES as thymeleafExportService.ts
+    participant REG as ExportTemplateRegistry
+    participant ZIP as JSZip (browser)
 
     User->>FE: Click "Export as Spring Boot"
-    FE->>API: POST /api/sites/{id}/export?type=springboot
-    API->>ES: exportAsSpringBoot(site)
+    FE->>TES: exportAsThymeleaf(pages, options)
 
-    ES->>MVN: Create project structure
-    ES->>MVN: Add site-runtime dependency
-    ES->>MVN: Add pom.xml
+    TES->>ZIP: Create Maven project structure (pom.xml, Application.java)
+    TES->>ZIP: Add site-runtime dependency
 
     loop For each page
-        ES->>TPL: Generate Thymeleaf template
-        ES->>FS: Write to templates/
+        TES->>TES: Walk component tree
+        TES->>REG: Lookup thymeleafExportTemplate per component type
+        TES->>TES: Generate Thymeleaf template with th:* attributes
+        TES->>TES: Detect data sources, generate controller classes
+        TES->>ZIP: Add template to src/main/resources/templates/
+        TES->>ZIP: Add generated controller to src/main/java/
     end
 
-    ES->>FS: Copy static assets
-    ES->>FS: Create application.properties
-    ES->>FS: Create main Application class
-    ES->>FS: Create .zip archive
-    ES-->>API: springboot-app.zip
-    API-->>FE: Download .zip
-    FE->>User: Save file
+    TES->>ZIP: Add static assets, application.properties
+    TES->>ZIP: Generate .zip blob
+    TES-->>FE: Trigger browser download
+    FE->>User: Save .zip file
 ```
+
+### Plugin Export Contribution
+
+Plugins contribute export behavior through `ComponentManifest` fields rather than a backend export service:
+
+| Manifest Field | Purpose |
+|---------------|---------|
+| `staticExportTemplate` | HTML template string used by `staticExportService.ts` for static export |
+| `thymeleafExportTemplate` | Thymeleaf template string used by `thymeleafExportService.ts` for Spring Boot export |
+| `hasCustomExport` | Flag indicating the plugin provides custom export logic |
+| `exportMetadata` | Additional metadata (e.g., required JS libraries, external CSS) |
 
 ---
 

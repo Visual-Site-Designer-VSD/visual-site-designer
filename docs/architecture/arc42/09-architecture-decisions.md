@@ -712,7 +712,7 @@ export default defineConfig({
 ## ADR-008: Context Provider Plugins for Cross-Plugin Shared State
 
 **Date**: 2026-02-27
-**Status**: Proposed
+**Status**: Accepted
 **Decision Makers**: Architecture Team
 
 ### Context
@@ -861,7 +861,7 @@ Context Provider Plugins (no UI)          UI Component Plugins (1 each)
 | ADR-005 | Zustand for Frontend State Management | 2025-02-20 | Accepted |
 | ADR-006 | BroadcastChannel API for Real-time Preview | 2025-02-22 | Accepted |
 | ADR-007 | Vite Build Tool for Frontend | 2025-02-08 | Accepted |
-| ADR-008 | Context Provider Plugins for Cross-Plugin Shared State | 2026-02-27 | Proposed |
+| ADR-008 | Context Provider Plugins for Cross-Plugin Shared State | 2026-02-27 | Accepted |
 
 ---
 

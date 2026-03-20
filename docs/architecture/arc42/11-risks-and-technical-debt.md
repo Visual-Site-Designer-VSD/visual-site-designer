@@ -329,15 +329,15 @@ Page content stored as JSONB (PostgreSQL) but TEXT in H2:
 
 ---
 
-### Risk R-09: Context Provider Dependency Complexity (Planned Feature)
+### Risk R-09: Context Provider Dependency Complexity
 
 **Category**: Architecture
 **Severity**: Medium
 **Likelihood**: Medium
-**Status**: Planned (associated with ADR-008)
+**Status**: Accepted (associated with ADR-008)
 
 #### Description
-The planned Context Provider Plugin architecture introduces dependency management between plugins. Risks include:
+The Context Provider Plugin architecture (implemented, ADR-008 Accepted) introduces dependency management between plugins. Risks include:
 - Circular context dependencies (Context A depends on B depends on A)
 - Missing context at runtime (context plugin uninstalled but consumer still present)
 - Context provider tree depth affecting React rendering performance

@@ -36,7 +36,7 @@ This section provides a high-level overview of the fundamental decisions and sol
 |----------|-----------|-----------|
 | **Plugin Discovery** | ClassLoader scanning | Java-native, no external dependencies, isolated execution |
 | **Plugin Format** | JAR with embedded resources | Standard Java packaging, includes code + assets |
-| **Plugin Types** | UIComponentPlugin + ContextProviderPlugin (planned) | UI components for visual elements, Context providers for shared state |
+| **Plugin Types** | UIComponentPlugin + ContextProviderPlugin | UI components for visual elements, Context providers for shared state |
 | **Frontend Bundling** | Vite (IIFE format) | Bundle React components into single file, global exports |
 | **Type Generation** | IntelliJ Plugin | Auto-generate TypeScript types from Java manifests |
 
@@ -50,6 +50,7 @@ This section provides a high-level overview of the fundamental decisions and sol
 graph TB
     subgraph "Presentation Layer"
         UI[React Frontend<br/>Visual Builder]
+        EXPORT[Client-side Export<br/>staticExportService / thymeleafExportService]
     end
 
     subgraph "Application Layer"
@@ -62,7 +63,6 @@ graph TB
         SITE[Site Management]
         PAGE[Page Management]
         COMP[Component Registry]
-        EXPORT[Export Service]
     end
 
     subgraph "Infrastructure Layer"
@@ -79,17 +79,16 @@ graph TB
     end
 
     UI <--> API
+    UI --> EXPORT
     API --> AUTH
     API --> PLUGIN_MGR
     API --> SITE
     API --> PAGE
     API --> COMP
-    API --> EXPORT
 
     SITE --> DB
     PAGE --> DB
     COMP --> DB
-    EXPORT --> FS
 
     PLUGIN_MGR --> P1
     PLUGIN_MGR --> P2

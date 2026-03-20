@@ -295,9 +295,7 @@ export interface ComponentManifest {
   defaultProps: Record<string, any>;
   defaultStyles: Record<string, string>;
   reactComponentPath: string;
-  previewComponentPath?: string;
   configurableProps: PropDefinition[];
-  configurableStyles: StyleDefinition[];
   sizeConstraints: SizeConstraints;
   pluginId: string;
   pluginVersion: string;

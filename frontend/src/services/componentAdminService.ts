@@ -30,7 +30,6 @@ export interface ComponentManifest {
   defaultProps?: Record<string, any>;
   defaultStyles?: Record<string, string>;
   configurableProps?: PropDefinition[];
-  configurableStyles?: StyleDefinition[];
   sizeConstraints?: SizeConstraints;
   staticExportTemplate?: string;
   thymeleafExportTemplate?: string;
@@ -44,14 +43,6 @@ export interface PropDefinition {
   defaultValue?: any;
   options?: Array<{ label: string; value: any }>;
   required?: boolean;
-}
-
-export interface StyleDefinition {
-  property: string;
-  label: string;
-  type: string;
-  defaultValue?: string;
-  options?: Array<{ label: string; value: string }>;
 }
 
 export interface SizeConstraints {

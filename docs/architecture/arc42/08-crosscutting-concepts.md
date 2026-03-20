@@ -208,7 +208,17 @@ Each plugin provides a component manifest describing its capabilities:
     "maxWidth": "100%",
     "minHeight": "20px",
     "maxHeight": "500px"
-  }
+  },
+  "capabilities": {
+    "canHaveChildren": false,
+    "isContainer": false,
+    "hasDataSource": false,
+    "autoHeight": false,
+    "isResizable": true,
+    "supportsIteration": false,
+    "supportsTemplateBindings": true
+  },
+  "requiredContexts": []
 }
 ```
 
@@ -409,7 +419,7 @@ public ResponseEntity<Page> createPage(
 
 **Risk Mitigation**:
 - Only ADMIN users can upload plugins
-- Plugin validation before activation
+- Plugin validation before loading
 - Audit log for plugin operations
 - Regular security reviews of bundled plugins
 
@@ -423,15 +433,11 @@ public ResponseEntity<Page> createPage(
 stateDiagram-v2
     [*] --> Discovered: JAR found in plugins/
     Discovered --> Validated: Read plugin.yml
-    Validated --> Loaded: Create ClassLoader, instantiate
-    Loaded --> Activated: onActivate()
-    Activated --> Deactivated: onDeactivate()
-    Deactivated --> Activated: Re-activate
-    Deactivated --> Uninstalled: onUninstall()
+    Validated --> Loaded: Create ClassLoader, onLoad()
+    Loaded --> Uninstalled: onUninstall()
     Uninstalled --> [*]: Delete JAR
 
     Loaded --> Failed: Exception
-    Activated --> Failed: Exception
     Failed --> [*]: Log error
 ```
 
@@ -442,14 +448,8 @@ public interface Plugin {
     // Called once when plugin JAR is loaded
     void onLoad(PluginContext context) throws Exception;
 
-    // Called when plugin is activated (ready for use)
-    void onActivate(PluginContext context) throws Exception;
-
-    // Called when plugin is deactivated (still installed)
-    void onDeactivate(PluginContext context) throws Exception;
-
-    // Called before plugin is uninstalled
-    void onUninstall(PluginContext context) throws Exception;
+    // Called before plugin is uninstalled (optional)
+    default void onUninstall(PluginContext context) throws Exception {}
 }
 ```
 
@@ -518,10 +518,10 @@ graph TB
 
 **Implementation**:
 ```java
-public class IsolatedClassLoader extends URLClassLoader {
+public class PluginClassLoader extends URLClassLoader {
     private final Set<String> sharedPackages;
 
-    public IsolatedClassLoader(URL[] urls, ClassLoader parent) {
+    public PluginClassLoader(URL[] urls, ClassLoader parent) {
         super(urls, parent);
         this.sharedPackages = Set.of(
             "dev.mainul35.cms.plugin.api",  // SDK package
@@ -598,7 +598,7 @@ class PluginLoaderService {
 }
 ```
 
-### 8.3.5 Cross-Plugin Shared Context Pattern (Planned)
+### 8.3.5 Cross-Plugin Shared Context Pattern
 
 **Problem**: Feature domains like authentication and e-commerce require shared state across multiple independent UI component plugins. For example, a login form, registration form, and user profile all need access to auth session state. In an e-commerce scenario, product cards, cart widgets, checkout forms, and shipping forms all need access to cart state.
 
@@ -732,7 +732,6 @@ graph TB
 
     PluginException --> PluginLoadException[PluginLoadException]
     PluginException --> PluginValidationException[PluginValidationException]
-    PluginException --> PluginActivationException[PluginActivationException]
 
     style VsdException fill:#f38181,color:#fff
 ```
@@ -924,7 +923,7 @@ axios.interceptors.response.use(
 // Plugin lifecycle logging
 log.info("Loading plugin: {} (version: {})", pluginId, version);
 log.debug("Plugin manifest: {}", manifest);
-log.info("Plugin activated: {}", pluginId);
+log.info("Plugin loaded: {}", pluginId);
 log.error("Failed to load plugin: {}", pluginId, exception);
 
 // Authentication logging
@@ -966,35 +965,25 @@ graph TB
 class PluginManagerTest {
 
     @Mock
-    private PluginLoader pluginLoader;
-
-    @Mock
-    private ComponentRegistry componentRegistry;
+    private ComponentRegistryService componentRegistryService;
 
     @InjectMocks
     private PluginManager pluginManager;
 
     @Test
     void testLoadPlugin_Success() {
-        // Given
-        Plugin mockPlugin = mock(UIComponentPlugin.class);
-        when(pluginLoader.loadPlugin(any())).thenReturn(mockPlugin);
-        when(mockPlugin.getPluginId()).thenReturn("test-plugin");
-
+        // Given: PluginManager handles loading, validation, and lifecycle internally
         // When
         pluginManager.loadPlugin(Path.of("test-plugin.jar"));
 
         // Then
-        verify(pluginLoader).loadPlugin(any());
-        verify(componentRegistry).registerComponent(any());
+        verify(componentRegistryService).registerComponent(any());
         assertTrue(pluginManager.isPluginLoaded("test-plugin"));
     }
 
     @Test
     void testLoadPlugin_InvalidManifest_ThrowsException() {
-        // Given
-        when(pluginLoader.loadPlugin(any()))
-            .thenThrow(new PluginValidationException("Invalid manifest"));
+        // Given: PluginManager validates plugin structure during loadPluginFromJar()
 
         // When/Then
         assertThrows(PluginException.class,

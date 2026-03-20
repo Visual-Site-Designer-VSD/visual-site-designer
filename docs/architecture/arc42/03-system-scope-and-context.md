@@ -2,6 +2,8 @@
 
 This section defines the boundaries of Visual Site Designer and its relationships with external systems and actors.
 
+> For formal C4 model diagrams (System Context, Container, and Component levels), see [C4 Architecture Model](C4_MODEL.md).
+
 ---
 
 ## 3.1 Business Context
@@ -218,10 +220,10 @@ exported-site/
     └── images/
 ```
 
-**Protocol**: HTTP download
-**Endpoint**: `GET /api/sites/{id}/export?format=static`
+**Implementation**: Client-side export via `staticExportService.ts`
+**Mechanism**: The frontend reads the page definitions from the store, renders HTML/CSS/JS using export templates from each component's `ComponentManifest`, and packages the result into a ZIP archive for download. No backend endpoint is involved.
 
-#### TI-07: Spring Boot Site Export
+#### TI-07: Spring Boot Site Export (Thymeleaf)
 
 **Output Format**: Maven project with:
 ```
@@ -236,6 +238,9 @@ exported-spring-boot-app/
 │   └── static/                # Assets
 └── README.md
 ```
+
+**Implementation**: Client-side export via `thymeleafExportService.ts`
+**Mechanism**: The frontend generates a Spring Boot project structure with Thymeleaf templates using export templates from each component's `ComponentManifest`. The generated project is packaged as a ZIP archive for download. No backend endpoint is involved.
 
 **Runtime Dependency**:
 ```xml

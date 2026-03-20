@@ -6,16 +6,16 @@ This section describes the behavior and interaction of VSD's building blocks at 
 
 ## 6.1 Plugin Lifecycle
 
-### 6.1.1 Plugin Load and Activation
+### 6.1.1 Plugin Load and Registration
 
-This scenario shows how a plugin is discovered, loaded, and activated when VSD starts.
+This scenario shows how a plugin is discovered, loaded, and registered when VSD starts.
 
 ```mermaid
 sequenceDiagram
     participant Boot as Spring Boot
     participant PM as PluginManager
     participant FS as File System
-    participant CL as IsolatedClassLoader
+    participant CL as PluginClassLoader
     participant Plugin
     participant CR as ComponentRegistry
     participant DB as Database
@@ -31,7 +31,7 @@ sequenceDiagram
         Note over PM: Validate plugin structure
         PM->>PM: validatePlugin(metadata)
 
-        PM->>CL: Create IsolatedClassLoader(plugin.jar)
+        PM->>CL: Create PluginClassLoader(plugin.jar)
         CL->>CL: Set parent=SystemClassLoader
         CL-->>PM: ClassLoader instance
 
@@ -48,16 +48,14 @@ sequenceDiagram
         Plugin-->>PM: (void)
 
         Note over PM,CR: Registration Phase
-        PM->>Plugin: getComponentManifest()
-        Plugin-->>PM: ComponentManifest
-        PM->>CR: registerComponent(manifest)
-        CR->>DB: INSERT INTO cms_component_registry
-        DB-->>CR: Success
+        PM->>Plugin: getComponentManifests()
+        Plugin-->>PM: List of ComponentManifest
 
-        Note over PM,Plugin: Activation Phase
-        PM->>Plugin: onActivate(PluginContext)
-        Plugin->>Plugin: Start background tasks (if any)
-        Plugin-->>PM: (void)
+        loop For each manifest
+            PM->>CR: registerComponent(manifest)
+            CR->>DB: INSERT INTO cms_component_registry
+            DB-->>CR: Success
+        end
 
         PM->>PM: Store plugin instance in registry
     end
@@ -70,9 +68,8 @@ sequenceDiagram
 2. **Validation**: Read `plugin.yml`, validate required fields (`plugin-id`, `main-class`, `version`)
 3. **ClassLoader Creation**: Create isolated classloader to prevent conflicts
 4. **Instantiation**: Load plugin class, call no-arg constructor
-5. **Load**: Call `onLoad(context)`, plugin builds manifest and initializes
-6. **Registration**: Register component in database for fast lookup
-7. **Activation**: Call `onActivate(context)`, plugin is ready for use
+5. **Load**: Call `onLoad(context)`, plugin builds manifests and initializes
+6. **Registration**: Register component(s) in database via `getComponentManifests()` (supports multi-component plugins)
 
 **Preconditions**:
 - Plugin JAR exists in `plugins/` directory
@@ -81,7 +78,7 @@ sequenceDiagram
 
 **Postconditions**:
 - Plugin instance stored in memory
-- Component registered in database
+- Component(s) registered in database
 - Frontend can fetch component metadata and bundle
 
 ---
@@ -93,7 +90,7 @@ This scenario shows how a plugin can be reloaded without restarting VSD.
 ```mermaid
 sequenceDiagram
     participant IDE as IntelliJ Plugin
-    participant API as PluginController
+    participant API as ComponentAdminController
     participant PM as PluginManager
     participant Old as Old Plugin Instance
     participant CL as Old ClassLoader
@@ -103,13 +100,8 @@ sequenceDiagram
     participant NewCL as New ClassLoader
 
     IDE->>IDE: Build plugin JAR
-    IDE->>API: POST /api/plugins/{id}/reload
-    API->>PM: reloadPlugin(pluginId)
-
-    Note over PM,Old: Deactivation Phase
-    PM->>Old: onDeactivate(context)
-    Old->>Old: Stop background tasks
-    Old-->>PM: (void)
+    IDE->>API: POST /api/admin/components/upload
+    API->>PM: installPlugin(jarFile)
 
     Note over PM,CR: Unregistration Phase
     PM->>CR: unregisterComponent(pluginId)
@@ -124,7 +116,7 @@ sequenceDiagram
 
     Note over PM,NewCL: Reload Phase
     PM->>FS: Read new plugin.jar
-    PM->>NewCL: Create new IsolatedClassLoader
+    PM->>NewCL: Create new PluginClassLoader
     NewCL-->>PM: ClassLoader instance
 
     PM->>NewCL: loadClass(mainClass)
@@ -133,30 +125,29 @@ sequenceDiagram
     PM->>New: new Instance()
     New-->>PM: New plugin instance
 
-    Note over PM,New: Re-load and Re-activate
+    Note over PM,New: Re-load Phase
     PM->>New: onLoad(context)
     New->>New: buildComponentManifest()
     New-->>PM: (void)
 
-    PM->>New: getComponentManifest()
-    New-->>PM: ComponentManifest
-    PM->>CR: registerComponent(manifest)
-    CR->>DB: INSERT INTO cms_component_registry
-    DB-->>CR: Success
+    PM->>New: getComponentManifests()
+    New-->>PM: List of ComponentManifest
 
-    PM->>New: onActivate(context)
-    New-->>PM: (void)
+    loop For each manifest
+        PM->>CR: registerComponent(manifest)
+        CR->>DB: INSERT INTO cms_component_registry
+        DB-->>CR: Success
+    end
 
     PM-->>API: Reload successful
     API-->>IDE: 200 OK
 ```
 
 **Key Steps**:
-1. **Deactivation**: Call `onDeactivate()` on old plugin instance
-2. **Unregistration**: Remove component from database
-3. **ClassLoader Disposal**: Close old classloader, release resources, trigger GC
-4. **Reload**: Create new classloader, load new version of plugin
-5. **Re-activation**: Call `onLoad()` and `onActivate()` on new instance
+1. **Unregistration**: Remove component from database
+2. **ClassLoader Disposal**: Close old classloader, release resources, trigger GC
+3. **Reload**: Create new classloader, load new version of plugin
+4. **Re-load**: Call `onLoad()` on new instance, register components
 
 **Benefits**:
 - No server restart required
@@ -170,34 +161,20 @@ sequenceDiagram
 
 ---
 
-### 6.1.3 Plugin Deactivation and Uninstall
+### 6.1.3 Plugin Uninstall
 
 ```mermaid
 sequenceDiagram
     participant Admin as Admin User
-    participant API as PluginController
+    participant API as ComponentAdminController
     participant PM as PluginManager
     participant Plugin
     participant CR as ComponentRegistry
     participant DB as Database
     participant FS as File System
 
-    Admin->>API: POST /api/plugins/{id}/deactivate
-    API->>PM: deactivatePlugin(pluginId)
-
-    Note over PM,Plugin: Deactivation
-    PM->>Plugin: onDeactivate(context)
-    Plugin->>Plugin: Stop background tasks
-    Plugin->>Plugin: Release resources
-    Plugin-->>PM: (void)
-
-    PM->>PM: Mark plugin as inactive
-    PM-->>API: Deactivation successful
-    API-->>Admin: 200 OK
-
-    Note over Admin: Later...
-    Admin->>API: DELETE /api/plugins/{id}
-    API->>PM: uninstallPlugin(pluginId)
+    Admin->>API: DELETE /api/admin/components/{pluginId}/{componentId}
+    API->>PM: unregisterComponent(pluginId, componentId)
 
     Note over PM,Plugin: Uninstallation
     PM->>Plugin: onUninstall(context)
@@ -220,15 +197,14 @@ sequenceDiagram
 ```
 
 **Key Steps**:
-1. **Deactivation**: Call `onDeactivate()`, plugin stops but remains installed
-2. **Uninstallation**: Call `onUninstall()`, plugin performs cleanup
-3. **Unregistration**: Remove from component registry
-4. **File Deletion**: Delete JAR file from plugins directory
-5. **Cleanup**: Close classloader, clear references
+1. **Uninstallation**: Call `onUninstall()`, plugin performs cleanup
+2. **Unregistration**: Remove from component registry
+3. **File Deletion**: Delete JAR file from plugins directory
+4. **Cleanup**: Close classloader, clear references
 
 ---
 
-### 6.1.4 Context Provider Plugin Lifecycle (Planned)
+### 6.1.4 Context Provider Plugin Lifecycle
 
 This scenario shows how context provider plugins are loaded, registered in the context registry, and made available to UI component plugins.
 
@@ -236,7 +212,7 @@ This scenario shows how context provider plugins are loaded, registered in the c
 sequenceDiagram
     participant Boot as Spring Boot
     participant PM as PluginManager
-    participant CL as IsolatedClassLoader
+    participant CL as PluginClassLoader
     participant CtxPlugin as ContextProviderPlugin
     participant CtxReg as ContextRegistry
     participant DB as Database
@@ -247,7 +223,7 @@ sequenceDiagram
     Note over PM: Load Context Providers first (dependency resolution)
 
     loop For each context-provider plugin JAR
-        PM->>CL: Create IsolatedClassLoader(plugin.jar)
+        PM->>CL: Create PluginClassLoader(plugin.jar)
         CL-->>PM: ClassLoader instance
 
         PM->>CL: loadClass(mainClass)
@@ -273,9 +249,6 @@ sequenceDiagram
         PM->>CtxReg: registerContext(contextDescriptor)
         CtxReg->>DB: INSERT INTO cms_context_registry
         DB-->>CtxReg: Success
-
-        PM->>CtxPlugin: onActivate(PluginContext)
-        CtxPlugin-->>PM: Context provider ready
     end
 
     Note over PM: Then load UI Component Plugins
@@ -292,14 +265,16 @@ When the frontend loads, it fetches the list of active context providers and bui
 ```mermaid
 sequenceDiagram
     participant FE as Frontend
-    participant API as Context API
-    participant CtxReg as ContextRegistry
+    participant API as ContextRegistryController
+    participant CtxReg as ContextRegistryService
     participant FE_CTX as ContextProviderTree
 
     FE->>API: GET /api/contexts
-    API->>CtxReg: getActiveContexts()
-    CtxReg-->>API: [AuthContext, CartContext]
-    API-->>FE: Context descriptors
+    API->>CtxReg: getActiveContextDescriptors()
+    CtxReg-->>API: List of ContextDescriptor
+    API->>CtxReg: topologicalSort(descriptors)
+    CtxReg-->>API: Sorted descriptors
+    API-->>FE: Context descriptors (dependency-ordered)
 
     FE->>FE_CTX: buildProviderTree(contexts)
     FE_CTX->>FE_CTX: Topological sort by dependencies
@@ -334,7 +309,7 @@ sequenceDiagram
     participant FE as Frontend
     participant AC as AuthController
     participant AS as AuthService
-    participant UR as UserRepository
+    participant UR as CmsUserRepository
     participant BC as BCryptPasswordEncoder
     participant JWT as JwtService
     participant DB as Database
@@ -429,7 +404,7 @@ sequenceDiagram
     participant Auth as VSD Auth Server
     participant OAuth2 as OAuth2AuthenticationSuccessHandler
     participant AS as AuthService
-    participant UR as UserRepository
+    participant UR as CmsUserRepository
     participant JWT as JwtService
     participant DB as Database
 
@@ -526,7 +501,7 @@ sequenceDiagram
     participant FE as Frontend
     participant Filter as JwtAuthenticationFilter
     participant JWT as JwtService
-    participant UR as UserRepository
+    participant UR as CmsUserRepository
     participant SEC as SecurityContext
     participant Controller
     participant Service
@@ -772,181 +747,181 @@ sequenceDiagram
 
 ## 6.4 Export Process
 
+Export is handled entirely **client-side** via frontend TypeScript services. There are no backend `ExportController` or `ExportService` Java classes. The frontend reads page definitions from the Zustand stores, renders HTML in the browser, assembles assets, and produces a ZIP file using the `JSZip` library -- all without making any export-specific API calls to the backend.
+
 ### 6.4.1 Static HTML Export
 
-This scenario shows how a site is exported to static HTML files.
+This scenario shows how a site is exported to static HTML files via `staticExportService.ts`.
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant FE as Frontend
-    participant API as ExportController
-    participant ES as ExportService
-    participant PR as PageRepository
-    participant CR as ComponentRegistry
-    participant PL as PluginLoaderService
-    participant FS as FileSystem
-    participant ZIP as ZipOutputStream
+    participant FE as Frontend (BuilderPage)
+    participant SES as staticExportService.ts
+    participant ETR as ExportTemplateRegistry
+    participant Store as pageStore (Zustand)
+    participant JSZip as JSZip (client-side)
+    participant Browser as Browser Download API
 
     User->>FE: Click "Export as Static HTML"
-    FE->>API: POST /api/sites/{siteId}/export?type=html
-    API->>ES: exportAsStaticHTML(siteId)
+    FE->>Store: Get all pages and definitions
+    Store-->>FE: SiteExportData (pages + definitions)
+    FE->>SES: exportSiteAsZip(siteData, options)
 
-    Note over ES,PR: Load Site Data
-    ES->>PR: findAllBySiteId(siteId)
-    PR-->>ES: List<Page>
+    Note over SES,JSZip: Create ZIP in memory
+    SES->>JSZip: new JSZip()
 
-    Note over ES,ZIP: Create Export Directory
-    ES->>FS: Create temp directory
-    ES->>ZIP: new ZipOutputStream()
+    Note over SES: Generate base CSS and JS
+    SES->>SES: generateBaseCSS()
+    SES->>JSZip: zip.file("css/styles.css", css)
+    SES->>SES: generateBaseJS()
+    SES->>JSZip: zip.file("js/main.js", js)
 
-    loop For each page
-        Note over ES,CR: Render Page to HTML
-        ES->>ES: Generate HTML structure
-        ES->>ES: Add <!DOCTYPE html>
-        ES->>ES: Add <head> with meta tags
-
-        loop For each component in page.components
-            ES->>CR: getComponentManifest(pluginId, componentId)
-            CR-->>ES: ComponentManifest
-
-            ES->>PL: Load plugin renderer
-            PL-->>ES: Renderer function
-
-            ES->>ES: renderToHTML(component, props, styles)
-            ES->>ES: Append to HTML body
-        end
-
-        ES->>ES: Inline all styles
-        ES->>ES: Bundle React runtime (production build)
-        ES->>ES: Add hydration script
-
-        ES->>ZIP: addEntry(page.route + "/index.html", html)
+    Note over SES: Collect and embed images
+    SES->>SES: collectImageUrls(all page components)
+    loop For each image URL
+        SES->>SES: fetchImageAsBlob(url)
+        SES->>JSZip: zip.file("images/{filename}", blob)
     end
 
-    Note over ES,ZIP: Copy Assets
-    ES->>FS: Copy images from content repository
-    ES->>ZIP: addEntry("assets/images/*")
-    ES->>FS: Copy fonts
-    ES->>ZIP: addEntry("assets/fonts/*")
+    loop For each page
+        Note over SES,ETR: Render page to HTML
+        SES->>SES: generateHTMLPage(definition, pageMeta, allPages, options)
 
-    Note over ES,ZIP: Finalize
-    ES->>ZIP: close()
-    ES->>FS: Create site-export.zip
-    FS-->>ES: File path
+        loop For each component in page.components
+            SES->>ETR: getTemplate(pluginId, componentId)
+            ETR-->>SES: Export template (or null for fallback)
+            SES->>SES: renderComponentToHTML(component, props, styles)
+            SES->>SES: Apply container layout styles (flex/grid)
+            SES->>SES: Generate responsive CSS media queries
+        end
 
-    ES-->>API: byte[] zipFile
-    API-->>FE: Download response
-    FE->>User: Save "site-export.zip"
+        SES->>SES: replaceImageUrls(html, urlMap)
+        SES->>JSZip: zip.file("{pageSlug}.html", html)
+    end
+
+    Note over SES,JSZip: Add README
+    SES->>JSZip: zip.file("README.md", readme)
+
+    Note over SES,JSZip: Generate ZIP blob
+    SES->>JSZip: zip.generateAsync(type: "blob")
+    JSZip-->>SES: Blob
+
+    SES-->>FE: Blob (ZIP file)
+    FE->>Browser: downloadBlob(blob, "site-export.zip")
+    Browser->>User: Save "site-export.zip"
 
     Note over User: User extracts and deploys
-    User->>User: Extract site-export.zip
-    User->>User: Upload to web server (Nginx, S3, Netlify)
+    User->>User: Upload to Netlify, Vercel, GitHub Pages, or any web server
 ```
 
 **Generated File Structure**:
 ```
 site-export.zip
 ├── index.html           (homepage, route="/")
-├── about/
-│   └── index.html       (route="/about")
-├── contact/
-│   └── index.html       (route="/contact")
-├── assets/
-│   ├── images/
-│   │   ├── logo.png
-│   │   └── hero.jpg
-│   ├── fonts/
-│   │   └── roboto.woff2
-│   └── js/
-│       ├── react.production.min.js
-│       └── runtime.js
-└── README.txt
+├── about.html           (route="/about")
+├── contact.html         (route="/contact")
+├── css/
+│   └── styles.css
+├── js/
+│   └── main.js
+├── images/
+│   ├── logo.png
+│   └── hero.jpg
+└── README.md
 ```
 
 **Key Steps**:
-1. Load all pages for site
-2. For each page, render component tree to HTML
-3. Inline all styles (no external CSS)
-4. Bundle React runtime (production build)
-5. Copy assets (images, fonts)
-6. Create ZIP archive
-7. Return as download
+1. Read all page definitions from Zustand `pageStore`
+2. Collect image URLs from all component trees and fetch as blobs
+3. For each page, render component tree to static HTML using export templates
+4. Apply layout styles (flex/grid) and responsive media queries
+5. Replace image URLs with local paths (`images/...`)
+6. Generate CSS and JS assets
+7. Assemble all files into a ZIP using `JSZip`
+8. Trigger browser download via `URL.createObjectURL`
+
+**Important**: This is a fully client-side process. No backend API call is made for export -- the frontend already has the page definitions in memory.
 
 ---
 
-### 6.4.2 Spring Boot Export
+### 6.4.2 Thymeleaf / Spring Boot Export
 
-This scenario shows how a site is exported as a Spring Boot application.
+This scenario shows how a site is exported as a Spring Boot + Thymeleaf project via `thymeleafExportService.ts`.
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant FE as Frontend
-    participant API as ExportController
-    participant ES as ExportService
-    participant PR as PageRepository
-    participant TPL as TemplateEngine
-    participant MVN as MavenProject
-    participant FS as FileSystem
-    participant ZIP as ZipOutputStream
+    participant FE as Frontend (BuilderPage)
+    participant TES as thymeleafExportService.ts
+    participant ETR as ExportTemplateRegistry
+    participant Store as pageStore (Zustand)
+    participant JSZip as JSZip (client-side)
+    participant Browser as Browser Download API
 
     User->>FE: Click "Export as Spring Boot"
-    FE->>API: POST /api/sites/{siteId}/export?type=springboot
-    API->>ES: exportAsSpringBoot(siteId)
+    FE->>Store: Get all pages and definitions
+    Store-->>FE: PageExportData[]
+    FE->>TES: exportAsThymeleafProject(pages, options)
 
-    Note over ES,MVN: Create Project Structure
-    ES->>MVN: Create Maven project
-    ES->>MVN: Generate pom.xml with site-runtime dependency
-    ES->>FS: Create src/main/java/
-    ES->>FS: Create src/main/resources/
+    Note over TES,JSZip: Create ZIP in memory
+    TES->>JSZip: new JSZip()
 
-    Note over ES,PR: Load Pages
-    ES->>PR: findAllBySiteId(siteId)
-    PR-->>ES: List<Page>
+    Note over TES: Collect and add images first
+    TES->>TES: collectAndAddImages(pages, zip)
+    TES->>JSZip: zip.file("src/main/resources/static/images/...", blob)
 
-    loop For each page
-        Note over ES,TPL: Generate Thymeleaf Template
-        ES->>TPL: Create template for page
-        TPL->>TPL: Add Thymeleaf namespace
-        TPL->>TPL: Add component placeholders
-        TPL->>TPL: Add data binding expressions
+    Note over TES: Detect API data sources
+    TES->>TES: collectApiEndpoints(pages)
 
-        ES->>FS: Write to templates/{route}.html
+    Note over TES: Generate Maven project
+    TES->>TES: generatePomXmlWithLombok(options)
+    TES->>JSZip: zip.file("pom.xml", pomXml)
+
+    Note over TES: Generate Java source files
+    TES->>TES: generateApplicationJava(options)
+    TES->>JSZip: zip.file("src/.../Application.java")
+    TES->>TES: generatePageController(pages, options)
+    TES->>JSZip: zip.file("src/.../controller/PageController.java")
+    TES->>TES: generatePageDataService(options)
+    TES->>JSZip: zip.file("src/.../service/PageDataService.java")
+    TES->>TES: generateImageUrlResolver(options)
+    TES->>JSZip: zip.file("src/.../service/ImageUrlResolver.java")
+    TES->>TES: generateImageProxyController(options)
+    TES->>JSZip: zip.file("src/.../controller/ImageProxyController.java")
+
+    opt API endpoints detected
+        TES->>TES: generateApiDataController(endpoints, options)
+        TES->>JSZip: zip.file("src/.../controller/ApiDataController.java")
+        TES->>TES: generateDataService(endpoints, options)
+        TES->>JSZip: zip.file("src/.../service/DataService.java")
     end
 
-    Note over ES,FS: Generate Controllers
-    ES->>FS: Create PageController.java
-    ES->>FS: Add @GetMapping for each route
-    ES->>FS: Add data fetching logic
+    Note over TES: Generate Thymeleaf templates
+    loop For each page
+        TES->>TES: generateThymeleafTemplate(page)
+        TES->>JSZip: zip.file("src/.../templates/{pageName}.html")
+        TES->>TES: collectComponentDataSources(page.components)
+        TES->>JSZip: zip.file("src/.../pages/{pageName}.json")
+    end
 
-    Note over ES,FS: Generate Main Application Class
-    ES->>FS: Create Application.java
-    ES->>FS: Add @SpringBootApplication
-    ES->>FS: Add main() method
+    Note over TES: Generate config and static assets
+    TES->>TES: generateApplicationProperties(options)
+    TES->>JSZip: zip.file("src/.../application.properties")
+    TES->>JSZip: zip.file("src/.../static/css/styles.css")
+    TES->>JSZip: zip.file("src/.../static/js/main.js")
 
-    Note over ES,FS: Configuration
-    ES->>FS: Create application.properties
-    ES->>FS: Add database config (H2 by default)
-    ES->>FS: Add server.port=8080
-    ES->>FS: Add site-runtime config
+    Note over TES: Generate deployment files
+    TES->>JSZip: zip.file("Dockerfile")
+    TES->>JSZip: zip.file("README.md")
 
-    Note over ES,FS: Copy Static Assets
-    ES->>FS: Copy to src/main/resources/static/
-    ES->>FS: Copy images, fonts, CSS, JS
+    Note over TES,JSZip: Generate ZIP blob
+    TES->>JSZip: zip.generateAsync(type: "blob")
+    JSZip-->>TES: Blob
 
-    Note over ES,FS: Documentation
-    ES->>FS: Create README.md with deployment instructions
-    ES->>FS: Create Dockerfile for containerization
-
-    Note over ES,ZIP: Package
-    ES->>ZIP: Create site-springboot.zip
-    ES->>ZIP: Add all project files
-    ES->>ZIP: close()
-
-    ES-->>API: byte[] zipFile
-    API-->>FE: Download response
-    FE->>User: Save "site-springboot.zip"
+    TES-->>FE: Blob (ZIP file)
+    FE->>Browser: downloadThymeleafProject(blob, "site-springboot.zip")
+    Browser->>User: Save "site-springboot.zip"
 
     Note over User: User builds and runs
     User->>User: Extract site-springboot.zip
@@ -964,62 +939,41 @@ site-springboot/
     ├── java/com/example/site/
     │   ├── Application.java
     │   ├── controller/
-    │   │   └── PageController.java
-    │   └── config/
-    │       └── SiteRuntimeConfig.java
+    │   │   ├── PageController.java
+    │   │   └── ImageProxyController.java
+    │   └── service/
+    │       ├── PageDataService.java
+    │       └── ImageUrlResolver.java
     └── resources/
         ├── application.properties
+        ├── pages/
+        │   ├── index.json
+        │   └── about.json
         ├── templates/
         │   ├── index.html (Thymeleaf)
         │   ├── about.html
         │   └── contact.html
         └── static/
             ├── css/
+            │   └── styles.css
             ├── js/
+            │   └── main.js
             └── images/
 ```
 
-**Generated pom.xml Dependencies**:
-```xml
-<dependencies>
-    <!-- Site Runtime -->
-    <dependency>
-        <groupId>dev.mainul35</groupId>
-        <artifactId>site-runtime</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
-    </dependency>
-
-    <!-- Spring Boot Web -->
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-web</artifactId>
-    </dependency>
-
-    <!-- Thymeleaf -->
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-thymeleaf</artifactId>
-    </dependency>
-
-    <!-- H2 Database (can be changed) -->
-    <dependency>
-        <groupId>com.h2database</groupId>
-        <artifactId>h2</artifactId>
-        <scope>runtime</scope>
-    </dependency>
-</dependencies>
-```
-
 **Key Steps**:
-1. Create Maven project structure
-2. Generate pom.xml with site-runtime dependency
-3. For each page, generate Thymeleaf template
-4. Generate Spring Boot controllers with route mappings
-5. Generate main application class
-6. Create application.properties with configuration
-7. Copy static assets
-8. Create README with deployment instructions
-9. Package as ZIP
+1. Read page definitions from Zustand stores (entirely client-side)
+2. Collect images from all pages and fetch blobs
+3. Detect API data sources used by components
+4. Generate `pom.xml` with Spring Boot + Thymeleaf + Lombok dependencies
+5. Generate `Application.java`, `PageController.java`, `ImageProxyController.java`
+6. Generate `PageDataService.java` and `ImageUrlResolver.java`
+7. Optionally generate `ApiDataController.java` and `DataService.java` if data sources are detected
+8. For each page, generate a Thymeleaf template with `th:*` attributes and a page definition JSON
+9. Generate `application.properties`, static CSS/JS assets, Dockerfile, and README
+10. Assemble all files into a ZIP using `JSZip` and trigger browser download
+
+**Important**: Like the static HTML export, the Thymeleaf export is entirely client-side. The frontend generates all Java source files, Thymeleaf templates, and Maven configuration in TypeScript and packages them as a ZIP in the browser.
 
 **Deployment Options for Exported Site**:
 - Run locally: `mvn spring-boot:run`

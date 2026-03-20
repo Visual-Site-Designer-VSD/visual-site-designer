@@ -324,8 +324,8 @@ All 12 mandatory arc42 sections: **Complete**
 ### Medium-term (1-3 months)
 
 1. **Enhanced Diagrams**
-   - Add C4 model diagrams for system context
-   - Create detailed component diagrams
+   - ~~Add C4 model diagrams for system context~~ (Done — see [C4_MODEL.md](arc42/C4_MODEL.md))
+   - ~~Create detailed component diagrams~~ (Done — see [C4_MODEL.md](arc42/C4_MODEL.md))
    - Document data flow diagrams
 
 2. **API Documentation**

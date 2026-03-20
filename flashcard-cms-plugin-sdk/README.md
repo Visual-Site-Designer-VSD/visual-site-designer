@@ -5,7 +5,7 @@ The Flashcard CMS Plugin SDK provides the core framework for building modular pl
 ## Overview
 
 The Plugin SDK provides:
-- Plugin lifecycle management (load, activate, deactivate, uninstall)
+- Plugin lifecycle management (load, uninstall)
 - Base classes for entities, services, and controllers
 - Annotations for plugin component discovery
 - Access to platform services through PluginContext
@@ -26,9 +26,7 @@ public interface Plugin {
     String getDescription();
 
     void onLoad(PluginContext context) throws Exception;
-    void onActivate(PluginContext context) throws Exception;
-    void onDeactivate(PluginContext context) throws Exception;
-    void onUninstall(PluginContext context) throws Exception;
+    default void onUninstall(PluginContext context) throws Exception {}
 }
 ```
 
@@ -137,22 +135,8 @@ public class MyPlugin implements Plugin {
         this.logger = context.getLogger();
         logger.info("Loading {} v{}", getName(), VERSION);
 
-        // Initialize resources
+        // Initialize resources, register controllers, start services
         logger.info("{} loaded successfully", getName());
-    }
-
-    @Override
-    public void onActivate(PluginContext context) throws Exception {
-        logger.info("Activating {}", getName());
-        // Register controllers, start services
-        logger.info("{} activated successfully", getName());
-    }
-
-    @Override
-    public void onDeactivate(PluginContext context) throws Exception {
-        logger.info("Deactivating {}", getName());
-        // Cleanup, unregister controllers
-        logger.info("{} deactivated successfully", getName());
     }
 
     @Override
@@ -361,9 +345,7 @@ public class MyItemController extends PluginController {
 - Return appropriate HTTP status codes
 
 ### 4. Plugin Lifecycle
-- Initialize resources in `onLoad()`
-- Start services in `onActivate()`
-- Stop services in `onDeactivate()`
+- Initialize resources and start services in `onLoad()`
 - Clean up in `onUninstall()`
 
 ### 5. Logging
@@ -518,10 +500,8 @@ This will install the SDK to your local Maven repository for use in plugin proje
 
 | Method | Description | When Called |
 |--------|-------------|-------------|
-| `onLoad()` | Initialize plugin resources | Plugin installation or platform startup |
-| `onActivate()` | Start plugin services | Plugin activation |
-| `onDeactivate()` | Stop plugin services | Plugin deactivation |
-| `onUninstall()` | Final cleanup | Plugin uninstallation |
+| `onLoad()` | Initialize plugin resources and start services | Plugin installation or platform startup |
+| `onUninstall()` | Final cleanup (default no-op) | Plugin uninstallation |
 
 ### PluginContext Methods
 
