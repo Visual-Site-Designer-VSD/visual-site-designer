@@ -81,21 +81,6 @@ public class PageLayoutPlugin implements UIComponentPlugin {
     }
 
     @Override
-    public void onActivate(PluginContext context) throws Exception {
-        log.info("Activating Page Layout Plugin");
-    }
-
-    @Override
-    public void onDeactivate(PluginContext context) throws Exception {
-        log.info("Deactivating Page Layout Plugin");
-    }
-
-    @Override
-    public void onUninstall(PluginContext context) throws Exception {
-        log.info("Uninstalling Page Layout Plugin");
-    }
-
-    @Override
     public ComponentManifest getComponentManifest() {
         return manifest;
     }

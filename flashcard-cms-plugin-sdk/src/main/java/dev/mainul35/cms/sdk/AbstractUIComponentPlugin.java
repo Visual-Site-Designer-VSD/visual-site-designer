@@ -112,26 +112,6 @@ public abstract class AbstractUIComponentPlugin implements UIComponentPlugin {
     }
 
     @Override
-    public final void onActivate(PluginContext context) throws Exception {
-        log.info("[{}] Activating plugin", getPluginId());
-
-        // Call subclass activation hook
-        doOnActivate();
-
-        log.info("[{}] Plugin activated - component '{}' is ready", getPluginId(), manifest.getComponentId());
-    }
-
-    @Override
-    public final void onDeactivate(PluginContext context) throws Exception {
-        log.info("[{}] Deactivating plugin", getPluginId());
-
-        // Call subclass deactivation hook
-        doOnDeactivate();
-
-        log.info("[{}] Plugin deactivated", getPluginId());
-    }
-
-    @Override
     public final void onUninstall(PluginContext context) throws Exception {
         log.info("[{}] Uninstalling plugin", getPluginId());
 
@@ -152,22 +132,6 @@ public abstract class AbstractUIComponentPlugin implements UIComponentPlugin {
      * Override to perform custom initialization (e.g., load configuration, initialize caches).
      */
     protected void doOnLoad() throws Exception {
-        // Default: no-op. Override in subclass if needed.
-    }
-
-    /**
-     * Called when plugin is activated.
-     * Override to start services, schedule tasks, or register event listeners.
-     */
-    protected void doOnActivate() throws Exception {
-        // Default: no-op. Override in subclass if needed.
-    }
-
-    /**
-     * Called when plugin is deactivated.
-     * Override to stop services, cancel scheduled tasks, or release resources.
-     */
-    protected void doOnDeactivate() throws Exception {
         // Default: no-op. Override in subclass if needed.
     }
 
@@ -217,12 +181,14 @@ public abstract class AbstractUIComponentPlugin implements UIComponentPlugin {
     protected abstract List<PropDefinition> defineProps();
 
     /**
-     * Define the configurable styles for this component.
-     * Use the helper methods: style(), colorStyle(), sizeStyle()
+     * Override to define default style values for this component.
+     * Used only to derive defaultStyles map — override with colorStyle(), sizeStyle(), etc.
      *
-     * @return List of style definitions
+     * @return List of style definitions (only defaultValue is used)
      */
-    protected abstract List<StyleDefinition> defineStyles();
+    protected List<StyleDefinition> defineStyles() {
+        return Collections.emptyList();
+    }
 
     // ==================== Optional Overrides ====================
 
@@ -439,7 +405,6 @@ public abstract class AbstractUIComponentPlugin implements UIComponentPlugin {
                 .defaultProps(getDefaultProps())
                 .defaultStyles(getDefaultStyles())
                 .configurableProps(defineProps())
-                .configurableStyles(defineStyles())
                 .sizeConstraints(buildSizeConstraints())
                 .allowedChildTypes(getAllowedChildTypes())
                 .build();

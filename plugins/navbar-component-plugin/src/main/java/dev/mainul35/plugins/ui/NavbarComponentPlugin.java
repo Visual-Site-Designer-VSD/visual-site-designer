@@ -57,21 +57,6 @@ public class NavbarComponentPlugin implements UIComponentPlugin {
     }
 
     @Override
-    public void onActivate(PluginContext context) throws Exception {
-        log.info("Activating Navbar Component Plugin");
-    }
-
-    @Override
-    public void onDeactivate(PluginContext context) throws Exception {
-        log.info("Deactivating Navbar Component Plugin");
-    }
-
-    @Override
-    public void onUninstall(PluginContext context) throws Exception {
-        log.info("Uninstalling Navbar Component Plugin");
-    }
-
-    @Override
     public ComponentManifest getComponentManifest() {
         // Return the primary manifest (NavbarDefault)
         return manifests.isEmpty() ? null : manifests.get(0);

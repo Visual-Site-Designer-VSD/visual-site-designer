@@ -48,24 +48,6 @@ public class ButtonComponentPlugin implements UIComponentPlugin {
     }
 
     @Override
-    public void onActivate(PluginContext context) throws Exception {
-        log.info("Activating Button Component Plugin");
-        // Plugin is now active and ready to use
-    }
-
-    @Override
-    public void onDeactivate(PluginContext context) throws Exception {
-        log.info("Deactivating Button Component Plugin");
-        // Cleanup any active resources
-    }
-
-    @Override
-    public void onUninstall(PluginContext context) throws Exception {
-        log.info("Uninstalling Button Component Plugin");
-        // Final cleanup
-    }
-
-    @Override
     public ComponentManifest getComponentManifest() {
         return manifest;
     }

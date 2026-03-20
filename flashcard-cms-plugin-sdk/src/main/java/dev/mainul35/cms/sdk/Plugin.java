@@ -28,8 +28,8 @@ public interface Plugin {
     String getDescription();
 
     /**
-     * Called when the plugin is loaded and initialized
-     * Use this to set up plugin resources, register event listeners, etc.
+     * Called when the plugin is loaded, initialized, and activated.
+     * Use this to set up plugin resources, build manifests, register event listeners, etc.
      *
      * @param context Plugin context providing access to platform services
      * @throws Exception if initialization fails
@@ -37,29 +37,14 @@ public interface Plugin {
     void onLoad(PluginContext context) throws Exception;
 
     /**
-     * Called when the plugin is activated
-     * Use this to start services, register controllers, etc.
-     *
-     * @param context Plugin context
-     * @throws Exception if activation fails
-     */
-    void onActivate(PluginContext context) throws Exception;
-
-    /**
-     * Called when the plugin is deactivated
-     * Use this to stop services, unregister controllers, cleanup resources, etc.
-     *
-     * @param context Plugin context
-     * @throws Exception if deactivation fails
-     */
-    void onDeactivate(PluginContext context) throws Exception;
-
-    /**
-     * Called when the plugin is uninstalled
+     * Called when the plugin is uninstalled.
      * Use this for final cleanup, data migration, etc.
+     * Default implementation does nothing.
      *
      * @param context Plugin context
      * @throws Exception if uninstallation fails
      */
-    void onUninstall(PluginContext context) throws Exception;
+    default void onUninstall(PluginContext context) throws Exception {
+        // Default: no-op. Override for custom cleanup.
+    }
 }

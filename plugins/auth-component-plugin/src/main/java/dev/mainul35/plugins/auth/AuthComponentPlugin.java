@@ -47,21 +47,6 @@ public class AuthComponentPlugin implements UIComponentPlugin {
     }
 
     @Override
-    public void onActivate(PluginContext context) throws Exception {
-        log.info("Activating Auth Component Plugin");
-    }
-
-    @Override
-    public void onDeactivate(PluginContext context) throws Exception {
-        log.info("Deactivating Auth Component Plugin");
-    }
-
-    @Override
-    public void onUninstall(PluginContext context) throws Exception {
-        log.info("Uninstalling Auth Component Plugin");
-    }
-
-    @Override
     public ComponentManifest getComponentManifest() {
         return manifests.get(0); // LoginForm as primary
     }

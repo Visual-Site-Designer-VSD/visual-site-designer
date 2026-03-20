@@ -50,21 +50,6 @@ public class LabelComponentPlugin implements UIComponentPlugin {
     }
 
     @Override
-    public void onActivate(PluginContext context) throws Exception {
-        log.info("Activating Label Component Plugin");
-    }
-
-    @Override
-    public void onDeactivate(PluginContext context) throws Exception {
-        log.info("Deactivating Label Component Plugin");
-    }
-
-    @Override
-    public void onUninstall(PluginContext context) throws Exception {
-        log.info("Uninstalling Label Component Plugin");
-    }
-
-    @Override
     public ComponentManifest getComponentManifest() {
         return manifest;
     }

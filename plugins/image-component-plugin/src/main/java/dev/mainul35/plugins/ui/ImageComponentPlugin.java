@@ -38,21 +38,6 @@ public class ImageComponentPlugin implements UIComponentPlugin {
     }
 
     @Override
-    public void onActivate(PluginContext context) throws Exception {
-        log.info("Activating Image Component Plugin");
-    }
-
-    @Override
-    public void onDeactivate(PluginContext context) throws Exception {
-        log.info("Deactivating Image Component Plugin");
-    }
-
-    @Override
-    public void onUninstall(PluginContext context) throws Exception {
-        log.info("Uninstalling Image Component Plugin");
-    }
-
-    @Override
     public ComponentManifest getComponentManifest() {
         return manifest;
     }

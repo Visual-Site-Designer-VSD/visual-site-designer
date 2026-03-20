@@ -51,21 +51,6 @@ public class NewsletterFormPlugin implements UIComponentPlugin {
     }
 
     @Override
-    public void onActivate(PluginContext context) throws Exception {
-        log.info("Activating Newsletter Form Plugin");
-    }
-
-    @Override
-    public void onDeactivate(PluginContext context) throws Exception {
-        log.info("Deactivating Newsletter Form Plugin");
-    }
-
-    @Override
-    public void onUninstall(PluginContext context) throws Exception {
-        log.info("Uninstalling Newsletter Form Plugin");
-    }
-
-    @Override
     public ComponentManifest getComponentManifest() {
         return manifest;
     }

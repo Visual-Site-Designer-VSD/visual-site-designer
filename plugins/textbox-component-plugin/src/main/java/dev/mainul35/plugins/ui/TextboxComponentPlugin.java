@@ -48,21 +48,6 @@ public class TextboxComponentPlugin implements UIComponentPlugin {
     }
 
     @Override
-    public void onActivate(PluginContext context) throws Exception {
-        log.info("Activating Textbox Component Plugin");
-    }
-
-    @Override
-    public void onDeactivate(PluginContext context) throws Exception {
-        log.info("Deactivating Textbox Component Plugin");
-    }
-
-    @Override
-    public void onUninstall(PluginContext context) throws Exception {
-        log.info("Uninstalling Textbox Component Plugin");
-    }
-
-    @Override
     public ComponentManifest getComponentManifest() {
         return manifest;
     }

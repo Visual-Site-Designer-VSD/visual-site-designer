@@ -194,7 +194,6 @@ public class PluginManager {
         if (pluginInstance instanceof dev.mainul35.cms.sdk.Plugin) {
             dev.mainul35.cms.sdk.Plugin plugin = (dev.mainul35.cms.sdk.Plugin) pluginInstance;
             plugin.onLoad(context);
-            plugin.onActivate(context);
 
             // If it's a UI component plugin, register all its component manifests
             if (pluginInstance instanceof UIComponentPlugin uiPlugin) {
@@ -721,14 +720,7 @@ public class PluginManager {
                 }
             }
 
-            // 10. Call plugin onActivate lifecycle hook
-            if (pluginInstance instanceof dev.mainul35.cms.sdk.Plugin) {
-                dev.mainul35.cms.sdk.Plugin sdkPlugin = (dev.mainul35.cms.sdk.Plugin) pluginInstance;
-                sdkPlugin.onActivate(context);
-                log.info("Called onActivate hook for plugin: {}", pluginId);
-            }
-
-            // 11. Register UI component(s) if applicable
+            // 10. Register UI component(s) if applicable
             if (pluginInstance instanceof UIComponentPlugin uiPlugin) {
                 for (ComponentManifest componentManifest : uiPlugin.getComponentManifests()) {
                     componentRegistryService.registerComponent(componentManifest);

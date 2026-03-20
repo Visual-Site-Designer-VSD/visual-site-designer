@@ -83,40 +83,4 @@ public interface UIComponentPlugin extends Plugin {
         return null;
     }
 
-    /**
-     * Hook called when component is added to a page.
-     * Can be used for initialization, analytics, or custom logic.
-     *
-     * @param context Plugin context
-     * @param pageId Page ID where component was added
-     * @param instanceId Unique instance identifier
-     */
-    default void onComponentAdded(PluginContext context, Long pageId, String instanceId) {
-        // Default implementation does nothing
-    }
-
-    /**
-     * Hook called when component is removed from a page.
-     * Can be used for cleanup or analytics.
-     *
-     * @param context Plugin context
-     * @param pageId Page ID where component was removed from
-     * @param instanceId Unique instance identifier
-     */
-    default void onComponentRemoved(PluginContext context, Long pageId, String instanceId) {
-        // Default implementation does nothing
-    }
-
-    /**
-     * Hook called when component props are updated.
-     *
-     * @param context Plugin context
-     * @param instanceId Component instance ID
-     * @param oldProps Previous props
-     * @param newProps Updated props
-     */
-    default void onPropsUpdated(PluginContext context, String instanceId,
-                                Map<String, Object> oldProps, Map<String, Object> newProps) {
-        // Default implementation does nothing
-    }
 }
