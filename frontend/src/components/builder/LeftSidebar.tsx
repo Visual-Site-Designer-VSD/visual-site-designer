@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { ComponentPalette } from './ComponentPalette';
 import { TemplatePalette } from './TemplatePalette';
 import { PageManager } from './PageManager';
+import { ContextPanel } from './ContextPanel';
 import { ComponentRegistryEntry, ComponentInstance } from '../../types/builder';
 import { Page } from '../../types/site';
 import './LeftSidebar.css';
 
-type SidebarTab = 'pages' | 'components' | 'templates';
+type SidebarTab = 'pages' | 'components' | 'templates' | 'contexts';
 
 interface LeftSidebarProps {
   siteId?: number | null;
@@ -60,6 +61,14 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
           <span className="tab-icon">📐</span>
           <span className="tab-label">Templates</span>
         </button>
+        <button
+          className={`sidebar-tab ${activeTab === 'contexts' ? 'active' : ''}`}
+          onClick={() => setActiveTab('contexts')}
+          title="View active context providers"
+        >
+          <span className="tab-icon">🔗</span>
+          <span className="tab-label">Contexts</span>
+        </button>
       </div>
 
       {/* Tab Content */}
@@ -79,6 +88,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
         {activeTab === 'templates' && (
           <TemplatePalette onTemplateDrop={onTemplateDrop} />
         )}
+        {activeTab === 'contexts' && <ContextPanel />}
       </div>
     </div>
   );

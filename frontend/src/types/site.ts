@@ -57,6 +57,8 @@ export interface Page {
   displayOrder: number;
   isPublished: boolean;
   layoutId?: number;
+  /** Context provider IDs explicitly enabled for this page (null = all active contexts) */
+  enabledContexts?: string[] | null;
   createdAt: string;
   updatedAt: string;
   publishedAt?: string;

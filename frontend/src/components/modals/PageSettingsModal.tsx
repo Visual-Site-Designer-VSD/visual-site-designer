@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ModalBase, ModalSection, ModalField, ModalActions, ModalButton } from './ModalBase';
 import { Page } from '../../types/site';
+import { useContextStore } from '../../stores/contextStore';
 
 export interface PageSettingsModalProps {
   isOpen: boolean;
@@ -29,6 +30,9 @@ export const PageSettingsModal: React.FC<PageSettingsModalProps> = ({
   });
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [useAllContexts, setUseAllContexts] = useState(true);
+  const [enabledContextIds, setEnabledContextIds] = useState<Set<string>>(new Set());
+  const { contexts } = useContextStore();
 
   useEffect(() => {
     if (page && isOpen) {
@@ -42,6 +46,15 @@ export const PageSettingsModal: React.FC<PageSettingsModalProps> = ({
         isPublished: page.isPublished !== false,
       });
       setErrors({});
+
+      // Initialize context configuration
+      if (page.enabledContexts === null || page.enabledContexts === undefined) {
+        setUseAllContexts(true);
+        setEnabledContextIds(new Set());
+      } else {
+        setUseAllContexts(false);
+        setEnabledContextIds(new Set(page.enabledContexts));
+      }
     }
   }, [page, isOpen]);
 
@@ -104,6 +117,7 @@ export const PageSettingsModal: React.FC<PageSettingsModalProps> = ({
         metaKeywords: formData.metaKeywords,
         isHomePage: formData.isHomePage,
         isPublished: formData.isPublished,
+        enabledContexts: useAllContexts ? null : Array.from(enabledContextIds),
       });
       onClose();
     } catch {
@@ -233,6 +247,85 @@ export const PageSettingsModal: React.FC<PageSettingsModalProps> = ({
           </button>
         </div>
       </ModalSection>
+
+      {contexts.length > 0 && (
+        <ModalSection title="Context Providers">
+          <div className="settings-toggle">
+            <div className="settings-toggle-info">
+              <span className="settings-toggle-label">Use All Contexts</span>
+              <span className="settings-toggle-desc">
+                Enable all active context providers for this page
+              </span>
+            </div>
+            <button
+              className={`settings-switch ${useAllContexts ? 'active' : ''}`}
+              onClick={() => setUseAllContexts(!useAllContexts)}
+              aria-label="Toggle use all contexts"
+              type="button"
+            >
+              <span className="settings-switch-knob" />
+            </button>
+          </div>
+
+          {!useAllContexts && (
+            <div style={{ marginTop: '12px' }}>
+              <ModalField
+                label="Select contexts for this page"
+                htmlFor="enabledContexts"
+                hint="Only selected context providers will be active on this page"
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {contexts.map((ctx) => (
+                    <label
+                      key={ctx.contextId}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={enabledContextIds.has(ctx.contextId)}
+                        onChange={(e) => {
+                          const next = new Set(enabledContextIds);
+                          if (e.target.checked) {
+                            next.add(ctx.contextId);
+                            // Auto-include required contexts
+                            if (ctx.requiredContexts) {
+                              ctx.requiredContexts.forEach((dep) => next.add(dep));
+                            }
+                          } else {
+                            next.delete(ctx.contextId);
+                          }
+                          setEnabledContextIds(next);
+                        }}
+                      />
+                      <span style={{ fontWeight: 500 }}>{ctx.contextId}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        ({ctx.pluginId})
+                      </span>
+                      {ctx.requiredContexts && ctx.requiredContexts.length > 0 && (
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            color: 'var(--text-secondary)',
+                            marginLeft: 'auto',
+                          }}
+                        >
+                          requires: {ctx.requiredContexts.join(', ')}
+                        </span>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              </ModalField>
+            </div>
+          )}
+        </ModalSection>
+      )}
     </ModalBase>
   );
 };
