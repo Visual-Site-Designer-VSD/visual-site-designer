@@ -1,0 +1,11 @@
+plugin-id: auth-context-plugin
+plugin-name: Auth Context Provider
+version: 1.0.0
+author: Mainul35
+description: Authentication context provider that supplies shared auth state (login status, user info, tokens) for UI components
+main-class: dev.mainul35.plugins.context.auth.AuthContextPlugin
+plugin-type: context-provider
+
+# Spring configuration - registers the auth controller with the CMS
+spring:
+  component-scan: dev.mainul35.plugins.context.auth
