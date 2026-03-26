@@ -1,19 +1,38 @@
 import React, { useState } from 'react';
 import type { RendererProps } from '../types';
+import { useAuthContext } from '../hooks/useAuthContext';
 import '../styles/AuthComponents.css';
 
 /**
  * ForgotPasswordForm Renderer
- * Renders a password reset request form
+ * Renders a password reset request form.
+ * When auth-context-plugin is installed, redirects authenticated users away.
  */
 const ForgotPasswordFormRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
   const props = component.props || {};
   const styles = component.styles || {};
 
+  const auth = useAuthContext();
+
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  // If user is already authenticated, show a message instead
+  if (auth?.isAuthenticated && !isEditMode) {
+    return (
+      <div className="auth-form forgot-password-form" style={containerStyle(styles)}>
+        <div className="auth-success">
+          <h2 className="auth-form-title">Already signed in</h2>
+          <p className="auth-form-subtitle">
+            You are already signed in as {auth.user?.name || auth.user?.email}.
+            You can change your password in your account settings.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,18 +61,9 @@ const ForgotPasswordFormRenderer: React.FC<RendererProps> = ({ component, isEdit
     }
   };
 
-  const containerStyle: React.CSSProperties = {
-    backgroundColor: styles.backgroundColor || '#ffffff',
-    borderRadius: styles.borderRadius || '12px',
-    padding: styles.padding || '32px',
-    boxShadow: styles.boxShadow || '0 4px 6px rgba(0, 0, 0, 0.1)',
-    maxWidth: styles.maxWidth || '400px',
-    width: '100%',
-  };
-
   if (isSuccess) {
     return (
-      <div className="auth-form forgot-password-form" style={containerStyle}>
+      <div className="auth-form forgot-password-form" style={containerStyle(styles)}>
         <div className="auth-success">
           {props.showSuccessIcon !== false && (
             <div className="auth-success-icon">✓</div>
@@ -83,7 +93,7 @@ const ForgotPasswordFormRenderer: React.FC<RendererProps> = ({ component, isEdit
   const subtitle = props.subtitle as string | undefined;
 
   return (
-    <div className="auth-form forgot-password-form" style={containerStyle}>
+    <div className="auth-form forgot-password-form" style={containerStyle(styles)}>
       {title && <h2 className="auth-form-title">{title}</h2>}
       {subtitle && <p className="auth-form-subtitle">{subtitle}</p>}
 
@@ -127,5 +137,16 @@ const ForgotPasswordFormRenderer: React.FC<RendererProps> = ({ component, isEdit
     </div>
   );
 };
+
+function containerStyle(styles: Record<string, string>): React.CSSProperties {
+  return {
+    backgroundColor: styles.backgroundColor || '#ffffff',
+    borderRadius: styles.borderRadius || '12px',
+    padding: styles.padding || '32px',
+    boxShadow: styles.boxShadow || '0 4px 6px rgba(0, 0, 0, 0.1)',
+    maxWidth: styles.maxWidth || '400px',
+    width: '100%',
+  };
+}
 
 export default ForgotPasswordFormRenderer;

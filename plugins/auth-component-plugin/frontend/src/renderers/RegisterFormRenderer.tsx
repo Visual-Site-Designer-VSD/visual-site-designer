@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
 import type { RendererProps } from '../types';
+import { useAuthContext } from '../hooks/useAuthContext';
 import '../styles/AuthComponents.css';
 
 /**
  * RegisterForm Renderer
- * Renders a user registration form with configurable fields and validation
+ * Renders a user registration form with configurable fields and validation.
+ * When auth-context-plugin is installed, auto-logs in user after registration.
  */
 const RegisterFormRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
   const props = component.props || {};
   const styles = component.styles || {};
+
+  const auth = useAuthContext();
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -21,6 +25,21 @@ const RegisterFormRenderer: React.FC<RendererProps> = ({ component, isEditMode }
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
+
+  // If user is already authenticated via context, show a message
+  if (auth?.isAuthenticated && !isEditMode) {
+    return (
+      <div className="auth-form register-form" style={containerStyle(styles)}>
+        <div className="auth-success">
+          <div className="auth-success-icon">✓</div>
+          <h2 className="auth-form-title">Already signed in</h2>
+          <p className="auth-form-subtitle">
+            You are signed in as {auth.user?.name || auth.user?.email}.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const validatePassword = (password: string): string[] => {
     const errors: string[] = [];
@@ -84,7 +103,17 @@ const RegisterFormRenderer: React.FC<RendererProps> = ({ component, isEditMode }
       });
 
       if (response.ok) {
-        window.location.href = (props.redirectUrl as string) || '/login';
+        // If auth context is available, auto-login after registration
+        if (auth) {
+          try {
+            await auth.login(formData.email, formData.password);
+          } catch {
+            // Login failed after register — redirect to login page
+            window.location.href = (props.redirectUrl as string) || '/login';
+          }
+        } else {
+          window.location.href = (props.redirectUrl as string) || '/login';
+        }
       } else {
         const data = await response.json();
         setError(data.message || 'Registration failed. Please try again.');
@@ -96,20 +125,11 @@ const RegisterFormRenderer: React.FC<RendererProps> = ({ component, isEditMode }
     }
   };
 
-  const containerStyle: React.CSSProperties = {
-    backgroundColor: styles.backgroundColor || '#ffffff',
-    borderRadius: styles.borderRadius || '12px',
-    padding: styles.padding || '32px',
-    boxShadow: styles.boxShadow || '0 4px 6px rgba(0, 0, 0, 0.1)',
-    maxWidth: styles.maxWidth || '400px',
-    width: '100%',
-  };
-
   const title = props.title as string | undefined;
   const subtitle = props.subtitle as string | undefined;
 
   return (
-    <div className="auth-form register-form" style={containerStyle}>
+    <div className="auth-form register-form" style={containerStyle(styles)}>
       {title && <h2 className="auth-form-title">{title}</h2>}
       {subtitle && <p className="auth-form-subtitle">{subtitle}</p>}
 
@@ -243,5 +263,16 @@ const RegisterFormRenderer: React.FC<RendererProps> = ({ component, isEditMode }
     </div>
   );
 };
+
+function containerStyle(styles: Record<string, string>): React.CSSProperties {
+  return {
+    backgroundColor: styles.backgroundColor || '#ffffff',
+    borderRadius: styles.borderRadius || '12px',
+    padding: styles.padding || '32px',
+    boxShadow: styles.boxShadow || '0 4px 6px rgba(0, 0, 0, 0.1)',
+    maxWidth: styles.maxWidth || '400px',
+    width: '100%',
+  };
+}
 
 export default RegisterFormRenderer;
