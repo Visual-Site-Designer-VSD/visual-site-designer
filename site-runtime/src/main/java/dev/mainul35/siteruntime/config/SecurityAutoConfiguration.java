@@ -1,11 +1,14 @@
 package dev.mainul35.siteruntime.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
@@ -13,13 +16,23 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Auto-configuration for authentication based on properties.
- * Supports: none, basic, social (Google/GitHub/Facebook), sso (Okta/Keycloak/Azure)
+ * Supports: none, social (Google/GitHub/Facebook), sso (Okta/Keycloak/Azure)
+ *
+ * Designed for SPA architecture:
+ * - API routes (/api/**) return JSON 401 instead of redirects
+ * - OAuth2 login flows redirect the browser, then return to the SPA
+ * - Static assets and SPA routes are always permitted
  */
 @Configuration
 @EnableWebSecurity
@@ -27,6 +40,12 @@ import java.util.List;
 public class SecurityAutoConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(SecurityAutoConfiguration.class);
+
+    private static final String[] PUBLIC_PATHS = {
+            "/", "/index.html", "/favicon.ico",
+            "/css/**", "/js/**", "/images/**", "/plugins/**", "/static/**",
+            "/api/pages/**"
+    };
 
     private final SiteRuntimeProperties properties;
 
@@ -42,6 +61,7 @@ public class SecurityAutoConfiguration {
     public SecurityFilterChain noAuthSecurityFilterChain(HttpSecurity http) throws Exception {
         log.info("Configuring security: no authentication (permit all)");
         http
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
             .csrf(csrf -> csrf.disable());
         return http.build();
@@ -49,52 +69,128 @@ public class SecurityAutoConfiguration {
 
     /**
      * Social login configuration (Google, GitHub, Facebook)
+     * SPA-friendly: API endpoints return JSON 401, OAuth2 redirects for browser auth
      */
     @Bean
     @ConditionalOnProperty(name = "site.runtime.auth.type", havingValue = "social")
     public SecurityFilterChain socialLoginSecurityFilterChain(HttpSecurity http) throws Exception {
-        log.info("Configuring security: social login");
+        log.info("Configuring security: social login (SPA mode)");
         http
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/login", "/error", "/css/**", "/js/**", "/images/**").permitAll()
+                .requestMatchers(PUBLIC_PATHS).permitAll()
+                .requestMatchers("/api/ctx/auth/session").permitAll()
+                .requestMatchers("/api/ctx/auth/providers").permitAll()
+                .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth2 -> oauth2
-                .loginPage("/login")
-                .defaultSuccessUrl(properties.getAuth().getLoginSuccessUrl(), true)
+                .successHandler(spaAuthenticationSuccessHandler())
             )
             .logout(logout -> logout
-                .logoutSuccessUrl(properties.getAuth().getLogoutSuccessUrl())
+                .logoutUrl("/api/ctx/auth/logout")
+                .logoutSuccessHandler((request, response, authentication) -> {
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    response.getWriter().write("{\"message\":\"Logged out successfully\"}");
+                })
                 .permitAll()
-            );
+            )
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> {
+                    if (isApiRequest(request)) {
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                        response.getWriter().write("{\"authenticated\":false,\"message\":\"Authentication required\"}");
+                    } else {
+                        response.sendRedirect("/");
+                    }
+                })
+            )
+            .csrf(csrf -> csrf.disable());
         return http.build();
     }
 
     /**
      * SSO configuration (Okta, Keycloak, Azure AD, Custom OIDC)
+     * SPA-friendly: same pattern as social login
      */
     @Bean
     @ConditionalOnProperty(name = "site.runtime.auth.type", havingValue = "sso")
     public SecurityFilterChain ssoSecurityFilterChain(HttpSecurity http) throws Exception {
-        log.info("Configuring security: SSO");
+        log.info("Configuring security: SSO (SPA mode)");
         http
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/login", "/error", "/css/**", "/js/**", "/images/**").permitAll()
+                .requestMatchers(PUBLIC_PATHS).permitAll()
+                .requestMatchers("/api/ctx/auth/session").permitAll()
+                .requestMatchers("/api/ctx/auth/providers").permitAll()
+                .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth2 -> oauth2
-                .defaultSuccessUrl(properties.getAuth().getLoginSuccessUrl(), true)
+                .successHandler(spaAuthenticationSuccessHandler())
             )
             .logout(logout -> logout
-                .logoutSuccessUrl(properties.getAuth().getLogoutSuccessUrl())
+                .logoutUrl("/api/ctx/auth/logout")
+                .logoutSuccessHandler((request, response, authentication) -> {
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    response.getWriter().write("{\"message\":\"Logged out successfully\"}");
+                })
                 .permitAll()
-            );
+            )
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> {
+                    if (isApiRequest(request)) {
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                        response.getWriter().write("{\"authenticated\":false,\"message\":\"Authentication required\"}");
+                    } else {
+                        response.sendRedirect("/");
+                    }
+                })
+            )
+            .csrf(csrf -> csrf.disable());
         return http.build();
     }
 
     /**
-     * Build client registrations for social providers
+     * After OAuth2 login succeeds, redirect back to the SPA with a query param
+     * so the frontend knows authentication completed.
      */
+    private AuthenticationSuccessHandler spaAuthenticationSuccessHandler() {
+        return (request, response, authentication) -> {
+            String successUrl = properties.getAuth().getLoginSuccessUrl();
+            String separator = successUrl.contains("?") ? "&" : "?";
+            response.sendRedirect(successUrl + separator + "authenticated=true");
+        };
+    }
+
+    /**
+     * CORS configuration for SPA development (allows localhost dev server).
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOriginPatterns(List.of("*"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
+    }
+
+    private boolean isApiRequest(jakarta.servlet.http.HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        String accept = request.getHeader("Accept");
+        return uri.startsWith("/api/")
+                || (accept != null && accept.contains("application/json"));
+    }
+
+    // ---- Client Registration Beans ----
+
     @Bean
     @ConditionalOnProperty(name = "site.runtime.auth.type", havingValue = "social")
     public ClientRegistrationRepository socialClientRegistrationRepository() {
@@ -125,9 +221,6 @@ public class SecurityAutoConfiguration {
         return new InMemoryClientRegistrationRepository(registrations);
     }
 
-    /**
-     * Build client registration for SSO provider
-     */
     @Bean
     @ConditionalOnProperty(name = "site.runtime.auth.type", havingValue = "sso")
     public ClientRegistrationRepository ssoClientRegistrationRepository() {

@@ -74,6 +74,7 @@ public class PageDataService {
                     .data(Map.of())
                     .errors(Map.of())
                     .pageMeta(createPageMeta(pageDefinition))
+                    .components(pageDefinition.getComponents())
                     .fetchTimeMs(System.currentTimeMillis() - startTime)
                     .build();
         }
@@ -103,6 +104,7 @@ public class PageDataService {
                 .data(aggregatedData)
                 .errors(errors)
                 .pageMeta(createPageMeta(pageDefinition))
+                .components(pageDefinition.getComponents())
                 .fetchTimeMs(System.currentTimeMillis() - startTime)
                 .build();
     }
@@ -327,6 +329,7 @@ public class PageDataService {
         private String description;
         private String path;
         private Map<String, DataSourceConfig> dataSources;
+        private List<Object> components;
 
         public String getPageName() { return pageName; }
         public void setPageName(String pageName) { this.pageName = pageName; }
@@ -338,6 +341,8 @@ public class PageDataService {
         public void setPath(String path) { this.path = path; }
         public Map<String, DataSourceConfig> getDataSources() { return dataSources; }
         public void setDataSources(Map<String, DataSourceConfig> dataSources) { this.dataSources = dataSources; }
+        public List<Object> getComponents() { return components; }
+        public void setComponents(List<Object> components) { this.components = components; }
     }
 
     /**
@@ -366,6 +371,7 @@ public class PageDataService {
         private Map<String, Object> data;
         private Map<String, String> errors;
         private PageMeta pageMeta;
+        private List<Object> components;
         private long fetchTimeMs;
 
         public static Builder builder() { return new Builder(); }
@@ -388,6 +394,11 @@ public class PageDataService {
                 return this;
             }
 
+            public Builder components(List<Object> components) {
+                pageData.components = components;
+                return this;
+            }
+
             public Builder fetchTimeMs(long fetchTimeMs) {
                 pageData.fetchTimeMs = fetchTimeMs;
                 return this;
@@ -399,6 +410,7 @@ public class PageDataService {
         public Map<String, Object> getData() { return data; }
         public Map<String, String> getErrors() { return errors; }
         public PageMeta getPageMeta() { return pageMeta; }
+        public List<Object> getComponents() { return components; }
         public long getFetchTimeMs() { return fetchTimeMs; }
     }
 }

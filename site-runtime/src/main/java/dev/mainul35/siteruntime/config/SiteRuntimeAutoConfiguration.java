@@ -1,5 +1,7 @@
 package dev.mainul35.siteruntime.config;
 
+import dev.mainul35.siteruntime.controller.PageApiController;
+import dev.mainul35.siteruntime.controller.SpaController;
 import dev.mainul35.siteruntime.data.*;
 import dev.mainul35.siteruntime.service.PageDataService;
 import dev.mainul35.siteruntime.service.InMemoryCacheProvider;
@@ -102,5 +104,23 @@ public class SiteRuntimeAutoConfiguration {
     @ConditionalOnMissingBean(ObjectMapper.class)
     public ObjectMapper objectMapper() {
         return new ObjectMapper();
+    }
+
+    /**
+     * SPA fallback controller - forwards non-API routes to index.html
+     */
+    @Bean
+    @ConditionalOnMissingBean(SpaController.class)
+    public SpaController spaController() {
+        return new SpaController();
+    }
+
+    /**
+     * Page API controller - serves page data as JSON for the SPA
+     */
+    @Bean
+    @ConditionalOnMissingBean(PageApiController.class)
+    public PageApiController pageApiController(PageDataService pageDataService) {
+        return new PageApiController(pageDataService);
     }
 }
