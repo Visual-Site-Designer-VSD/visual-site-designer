@@ -10,6 +10,10 @@ import {
   exportAsThymeleafProject,
   downloadThymeleafProject,
 } from '../../services/thymeleafExportService';
+import {
+  exportAsSpaProject,
+  downloadSpaProject,
+} from '../../services/spaExportService';
 import { Page } from '../../types/site';
 import { PageDefinition } from '../../types/builder';
 import './ExportModal.css';
@@ -23,7 +27,7 @@ interface ExportModalProps {
   hasUnsavedChanges?: boolean;
 }
 
-type ExportType = 'current-page' | 'all-pages' | 'spring-boot';
+type ExportType = 'current-page' | 'all-pages' | 'spring-boot' | 'spring-boot-spa';
 type ExportFormat = 'html' | 'zip';
 
 interface SpringBootOptions {
@@ -33,6 +37,7 @@ interface SpringBootOptions {
   version: string;
   springBootVersion: string;
   javaVersion: string;
+  authType?: 'none' | 'social' | 'sso';
 }
 
 /**
@@ -100,8 +105,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         const pageName = currentPageMeta?.pageSlug || currentPage.pageName.replace(/\s+/g, '-').toLowerCase();
         const filename = `${pageName}.html`;
         downloadHTML(html, filename);
-      } else if (exportType === 'spring-boot') {
-        // Export as Spring Boot/Thymeleaf project
+      } else if (exportType === 'spring-boot' || exportType === 'spring-boot-spa') {
+        // Export as Spring Boot project
         const savedPages = JSON.parse(localStorage.getItem('builder_saved_pages') || '{}');
 
         if (Object.keys(savedPages).length === 0) {
@@ -114,9 +119,20 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           definition: definition as PageDefinition,
         }));
 
-        const blob = await exportAsThymeleafProject(pages, springBootOptions);
-        const filename = `${springBootOptions.artifactId}-spring-boot.zip`;
-        downloadThymeleafProject(blob, filename);
+        if (exportType === 'spring-boot-spa') {
+          // SPA export (React + Spring Boot)
+          const blob = await exportAsSpaProject(pages, {
+            ...springBootOptions,
+            authType: springBootOptions.authType || 'none',
+          });
+          const filename = `${springBootOptions.artifactId}-spa.zip`;
+          downloadSpaProject(pages, { ...springBootOptions, authType: springBootOptions.authType || 'none' });
+        } else {
+          // Legacy Thymeleaf export
+          const blob = await exportAsThymeleafProject(pages, springBootOptions);
+          const filename = `${springBootOptions.artifactId}-spring-boot.zip`;
+          downloadThymeleafProject(blob, filename);
+        }
       } else {
         // Export all pages as static ZIP
         const blob = await exportDemoSite(siteName);
@@ -201,24 +217,41 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 <input
                   type="radio"
                   name="exportType"
+                  value="spring-boot-spa"
+                  checked={exportType === 'spring-boot-spa'}
+                  onChange={() => setExportType('spring-boot-spa')}
+                />
+                <div className="option-content">
+                  <span className="option-icon">🚀</span>
+                  <div className="option-text">
+                    <strong>Spring Boot + React SPA</strong>
+                    <span>Modern SPA with plugin support & OAuth2</span>
+                  </div>
+                  <span className="option-badge">Recommended</span>
+                </div>
+              </label>
+
+              <label className="export-option">
+                <input
+                  type="radio"
+                  name="exportType"
                   value="spring-boot"
                   checked={exportType === 'spring-boot'}
                   onChange={() => setExportType('spring-boot')}
                 />
                 <div className="option-content">
-                  <span className="option-icon">🚀</span>
+                  <span className="option-icon">📋</span>
                   <div className="option-text">
-                    <strong>Spring Boot Application</strong>
-                    <span>Export as runnable Java application with Thymeleaf</span>
+                    <strong>Spring Boot + Thymeleaf</strong>
+                    <span>Server-rendered Java application</span>
                   </div>
-                  <span className="option-badge">Recommended</span>
                 </div>
               </label>
             </div>
           </div>
 
           {/* Spring Boot Options */}
-          {exportType === 'spring-boot' && (
+          {(exportType === 'spring-boot' || exportType === 'spring-boot-spa') && (
             <div className="spring-boot-options">
               <h4>Project Configuration</h4>
               <div className="options-grid">
@@ -290,6 +323,21 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     <option value="17">Java 17</option>
                   </select>
                 </div>
+
+                {exportType === 'spring-boot-spa' && (
+                  <div className="export-field">
+                    <label htmlFor="authType">Authentication</label>
+                    <select
+                      id="authType"
+                      value={springBootOptions.authType || 'none'}
+                      onChange={(e) => handleSpringBootOptionChange('authType', e.target.value)}
+                    >
+                      <option value="none">None (Permit All)</option>
+                      <option value="social">Social Login (Google/GitHub/Facebook)</option>
+                      <option value="sso">SSO (Okta/Keycloak/Azure AD)</option>
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -297,7 +345,16 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           {/* Export Info */}
           <div className="export-info">
             <h4>Export includes:</h4>
-            {exportType === 'spring-boot' ? (
+            {exportType === 'spring-boot-spa' ? (
+              <ul>
+                <li>React SPA with client-side routing</li>
+                <li>Spring Boot backend with Page API</li>
+                <li>Plugin support (add/remove at runtime)</li>
+                <li>OAuth2/SSO authentication (configurable)</li>
+                <li>Dockerfile for containerization</li>
+                <li>README with deployment instructions</li>
+              </ul>
+            ) : exportType === 'spring-boot' ? (
               <ul>
                 <li>Complete Maven project structure</li>
                 <li>Spring Boot application with Thymeleaf templates</li>
@@ -326,7 +383,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           {/* Deployment Tips */}
           <div className="deployment-tips">
             <h4>Deployment Options:</h4>
-            {exportType === 'spring-boot' ? (
+            {(exportType === 'spring-boot' || exportType === 'spring-boot-spa') ? (
               <div className="deploy-options">
                 <div className="deploy-option deploy-option-info">
                   <span className="deploy-icon">💻</span>
@@ -436,7 +493,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             ) : (
               <>
                 <span className="download-icon">⬇</span>
-                {exportType === 'spring-boot'
+                {exportType === 'spring-boot-spa'
+                  ? 'Download SPA Project'
+                  : exportType === 'spring-boot'
                   ? 'Download Spring Boot Project'
                   : exportType === 'all-pages'
                     ? 'Download ZIP'
