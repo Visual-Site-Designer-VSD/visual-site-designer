@@ -22,6 +22,23 @@ const jsxRuntimeObj = { jsx, jsxs, Fragment };
 // Also set on globalThis for broader compatibility
 (globalThis as unknown as Record<string, unknown>).jsxRuntime = jsxRuntimeObj;
 
+// Expose plugin context API for plugin bundles to consume/provide shared state
+import {
+  PluginContextRegistryContext,
+  usePluginContext,
+  registerPluginContextValue,
+  unregisterPluginContextValue,
+  getPluginContextValues,
+} from './hooks/usePluginContext';
+
+(window as unknown as Record<string, unknown>).__VSD__ = {
+  PluginContextRegistryContext,
+  usePluginContext,
+  registerPluginContextValue,
+  unregisterPluginContextValue,
+  getPluginContextValues,
+};
+
 // Debug: verify jsxRuntime is set correctly
 console.log('[main.tsx] jsxRuntime set:', {
   jsx: typeof jsx,
