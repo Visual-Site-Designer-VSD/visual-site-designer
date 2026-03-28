@@ -1,0 +1,6 @@
+plugin-id: article-editor-plugin
+plugin-name: Article Editor Plugin
+version: 1.0.0
+main-class: dev.mainul35.plugins.article.editor.ArticleEditorPlugin
+description: Medium-like rich text article editor with TipTap, requires authentication
+author: Mainul35
