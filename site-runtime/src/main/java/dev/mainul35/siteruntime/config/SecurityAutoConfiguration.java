@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -40,6 +41,8 @@ import java.util.Map;
 public class SecurityAutoConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(SecurityAutoConfiguration.class);
+
+    private static final String PROXY_PATH_PATTERN = "/api/proxy/**";
 
     private static final String[] PUBLIC_PATHS = {
             "/", "/index.html", "/favicon.ico",
@@ -78,6 +81,10 @@ public class SecurityAutoConfiguration {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(HttpMethod.GET, PROXY_PATH_PATTERN).permitAll()
+                .requestMatchers(HttpMethod.POST, PROXY_PATH_PATTERN).authenticated()
+                .requestMatchers(HttpMethod.PUT, PROXY_PATH_PATTERN).authenticated()
+                .requestMatchers(HttpMethod.DELETE, PROXY_PATH_PATTERN).authenticated()
                 .requestMatchers(PUBLIC_PATHS).permitAll()
                 .requestMatchers("/api/ctx/auth/session").permitAll()
                 .requestMatchers("/api/ctx/auth/providers").permitAll()
@@ -121,6 +128,10 @@ public class SecurityAutoConfiguration {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(HttpMethod.GET, PROXY_PATH_PATTERN).permitAll()
+                .requestMatchers(HttpMethod.POST, PROXY_PATH_PATTERN).authenticated()
+                .requestMatchers(HttpMethod.PUT, PROXY_PATH_PATTERN).authenticated()
+                .requestMatchers(HttpMethod.DELETE, PROXY_PATH_PATTERN).authenticated()
                 .requestMatchers(PUBLIC_PATHS).permitAll()
                 .requestMatchers("/api/ctx/auth/session").permitAll()
                 .requestMatchers("/api/ctx/auth/providers").permitAll()

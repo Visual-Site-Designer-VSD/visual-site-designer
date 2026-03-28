@@ -1,5 +1,6 @@
 package dev.mainul35.siteruntime.config;
 
+import dev.mainul35.siteruntime.controller.ApiProxyController;
 import dev.mainul35.siteruntime.controller.PageApiController;
 import dev.mainul35.siteruntime.controller.SpaController;
 import dev.mainul35.siteruntime.data.*;
@@ -11,6 +12,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 
 import java.util.List;
 
@@ -122,5 +125,24 @@ public class SiteRuntimeAutoConfiguration {
     @ConditionalOnMissingBean(PageApiController.class)
     public PageApiController pageApiController(PageDataService pageDataService) {
         return new PageApiController(pageDataService);
+    }
+
+    /**
+     * API Proxy controller - forwards authenticated requests from SPA to external APIs.
+     * Only registered when auth is enabled and OAuth2AuthorizedClientService is available.
+     */
+    @Bean
+    @ConditionalOnMissingBean(ApiProxyController.class)
+    @ConditionalOnProperty(name = "site.runtime.auth.type", havingValue = "none", matchIfMissing = false)
+    public ApiProxyController apiProxyControllerNoAuth(SiteRuntimeProperties props) {
+        return new ApiProxyController(props, null);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(ApiProxyController.class)
+    public ApiProxyController apiProxyController(
+            SiteRuntimeProperties props,
+            OAuth2AuthorizedClientService authorizedClientService) {
+        return new ApiProxyController(props, authorizedClientService);
     }
 }
