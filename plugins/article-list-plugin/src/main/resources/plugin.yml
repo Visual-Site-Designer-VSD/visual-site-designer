@@ -1,0 +1,6 @@
+plugin-id: article-list-plugin
+plugin-name: Article List Plugin
+version: 1.0.0
+main-class: dev.mainul35.plugins.article.list.ArticleListPlugin
+description: Paginated article list/grid component for displaying blog articles
+author: Mainul35

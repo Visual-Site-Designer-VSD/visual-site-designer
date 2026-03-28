@@ -1,0 +1,70 @@
+/* ArticleList styles */
+
+.article-list {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.article-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.article-card:hover {
+  text-decoration: none;
+}
+
+.article-card--minimal:hover span:first-child {
+  color: #4f46e5 !important;
+}
+
+.article-list__page-btn:hover:not(:disabled) {
+  background-color: #f9fafb !important;
+  border-color: #9ca3af !important;
+}
+
+/* Skeleton loading animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Responsive grid for cards layout */
+@media (max-width: 1024px) {
+  .article-list__grid--cards {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .article-list__grid--cards {
+    grid-template-columns: 1fr !important;
+  }
+
+  .article-card--list {
+    flex-direction: column !important;
+  }
+
+  .article-card--list > div:first-child {
+    width: 100% !important;
+    height: 180px !important;
+  }
+}
+
+/* Edit mode indicator */
+.article-list--edit {
+  position: relative;
+}
+
+.article-list--edit::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border: 1px dashed #9ca3af;
+  border-radius: 8px;
+  pointer-events: none;
+}
