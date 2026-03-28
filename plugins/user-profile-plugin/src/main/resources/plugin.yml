@@ -1,0 +1,6 @@
+plugin-id: user-profile-plugin
+plugin-name: User Profile Plugin
+version: 1.0.0
+main-class: dev.mainul35.plugins.profile.UserProfilePlugin
+description: User profile badge component showing logged-in user info or sign-in link
+author: Mainul35
