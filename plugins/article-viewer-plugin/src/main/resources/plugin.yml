@@ -1,0 +1,6 @@
+plugin-id: article-viewer-plugin
+plugin-name: Article Viewer Plugin
+version: 1.0.0
+main-class: dev.mainul35.plugins.article.viewer.ArticleViewerPlugin
+description: Single article viewer component displaying full article content with metadata
+author: Mainul35
