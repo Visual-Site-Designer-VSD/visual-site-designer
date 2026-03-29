@@ -26,7 +26,7 @@ export interface AuthContextValue {
  * window.__VSD__ API exposed by the main frontend.
  */
 export function useAuthContext(): AuthContextValue | undefined {
-  const vsd = (window as Record<string, unknown>).__VSD__ as
+  const vsd = (window as unknown as Record<string, unknown>).__VSD__ as
     | { PluginContextRegistryContext?: React.Context<Map<string, unknown>> }
     | undefined;
 

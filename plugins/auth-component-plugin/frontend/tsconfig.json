@@ -18,12 +18,6 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
-    "baseUrl": ".",
-    "paths": {
-      "react": ["../../../frontend/node_modules/@types/react"],
-      "react-dom": ["../../../frontend/node_modules/@types/react-dom"],
-      "react/jsx-runtime": ["../../../frontend/node_modules/@types/react/jsx-runtime"]
-    },
     "typeRoots": [
       "../../../frontend/node_modules/@types",
       "./node_modules/@types"

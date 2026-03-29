@@ -129,7 +129,7 @@ public class ApiProxyController {
         String queryString = request.getQueryString();
 
         UriComponentsBuilder builder = UriComponentsBuilder
-                .fromHttpUrl(gatewayUrl)
+                .fromUriString(gatewayUrl)
                 .path(path);
 
         if (queryString != null && !queryString.isEmpty()) {

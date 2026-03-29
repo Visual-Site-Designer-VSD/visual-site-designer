@@ -23,7 +23,7 @@ export interface AuthContextValue {
  * Returns undefined if auth-context-plugin is not installed.
  */
 export function useAuthContext(): AuthContextValue | undefined {
-  const vsd = (window as Record<string, unknown>).__VSD__ as
+  const vsd = (window as unknown as Record<string, unknown>).__VSD__ as
     | { PluginContextRegistryContext?: React.Context<Map<string, unknown>> }
     | undefined;
 
