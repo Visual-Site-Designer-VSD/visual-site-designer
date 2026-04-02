@@ -90,6 +90,11 @@ const ContainerRenderer: React.FC<RendererProps> = ({ component, isEditMode }) =
     // Default to 'resizable' to preserve backwards compatibility
     // Overflow behavior: wrap=visible, fill/resizable=auto (scrollbar on overflow)
     heightMode = 'resizable' as HeightMode,
+    // Flex alignment props (same as editor applies via BuilderCanvas)
+    alignItems: propsAlignItems,
+    justifyContent: propsJustifyContent,
+    // Gap from props takes priority over styles
+    gap: propsGap,
   } = component.props;
 
   // Use layoutMode if set, otherwise fall back to layoutType, then default
@@ -245,9 +250,23 @@ const ContainerRenderer: React.FC<RendererProps> = ({ component, isEditMode }) =
   const heightStyles = getHeightStyles();
 
   // Base container styles
+  // IMPORTANT: Layout properties (display, flexDirection, flexWrap, gridTemplateColumns,
+  // alignItems, justifyContent) are controlled by getLayoutStyles() and component.props.
+  // They must NOT be overridden by component.styles spread at the end.
+  const layoutConflictKeys = [
+    'background', 'backgroundColor', 'overflow', 'height', 'minHeight',
+    // Layout properties — controlled by getLayoutStyles() and props, not styles
+    'display', 'flexDirection', 'flexWrap', 'gridTemplateColumns',
+    'alignItems', 'justifyContent', 'gap',
+  ];
+
   const containerStyles: React.CSSProperties = {
     ...getLayoutStyles(),
-    gap: component.styles.gap || '16px',
+    // Gap: props > styles > default (matching editor behavior)
+    gap: (propsGap as string) || (component.styles.gap as string) || '16px',
+    // Align Items and Justify Content from component props (matching editor behavior)
+    alignItems: (propsAlignItems as string) || undefined,
+    justifyContent: (propsJustifyContent as string) || undefined,
     padding: padding as string,
     maxWidth: maxWidth !== 'none' ? (maxWidth as string) : undefined,
     margin: centerContent ? '0 auto' : undefined,
@@ -261,10 +280,10 @@ const ContainerRenderer: React.FC<RendererProps> = ({ component, isEditMode }) =
     // Apply height based on heightMode
     ...heightStyles,
     // Apply additional styles from component (excluding properties we control)
-    // Exclude height/minHeight so heightMode logic is respected
+    // Filter out layout-conflicting properties so they don't override getLayoutStyles() / props
     ...Object.fromEntries(
       Object.entries(component.styles as React.CSSProperties).filter(
-        ([key]) => !['background', 'backgroundColor', 'overflow', 'height', 'minHeight'].includes(key)
+        ([key]) => !layoutConflictKeys.includes(key)
       )
     ),
   };

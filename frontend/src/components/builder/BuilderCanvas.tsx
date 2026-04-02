@@ -487,108 +487,79 @@ export const BuilderCanvas: React.FC<BuilderCanvasProps> = ({ onComponentSelect,
           display: 'flex',
           flexDirection: 'row',
           flexWrap: 'nowrap',
-          alignItems: 'flex-start',
-          alignContent: 'flex-start',
         };
       case 'flex-wrap':
         return {
           display: 'flex',
           flexDirection: 'row',
           flexWrap: 'wrap',
-          alignItems: 'flex-start',
-          alignContent: 'flex-start',
         };
       case 'grid-2col':
         return {
           display: 'grid',
           gridTemplateColumns: 'repeat(2, 1fr)',
-          alignItems: 'start',
-          alignContent: 'start',
         };
       case 'grid-3col':
         return {
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
-          alignItems: 'start',
-          alignContent: 'start',
         };
       case 'grid-4col':
         return {
           display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',
-          alignItems: 'start',
-          alignContent: 'start',
         };
       case 'grid-auto':
         return {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          alignItems: 'start',
-          alignContent: 'start',
         };
       // Asymmetric 2-column layouts
       case 'grid-20-80':
         return {
           display: 'grid',
           gridTemplateColumns: '20% 80%',
-          alignItems: 'start',
-          alignContent: 'start',
         };
       case 'grid-25-75':
         return {
           display: 'grid',
           gridTemplateColumns: '25% 75%',
-          alignItems: 'start',
-          alignContent: 'start',
         };
       case 'grid-33-67':
         return {
           display: 'grid',
           gridTemplateColumns: '33.33% 66.67%',
-          alignItems: 'start',
-          alignContent: 'start',
         };
       case 'grid-40-60':
         return {
           display: 'grid',
           gridTemplateColumns: '40% 60%',
-          alignItems: 'start',
-          alignContent: 'start',
         };
       case 'grid-60-40':
         return {
           display: 'grid',
           gridTemplateColumns: '60% 40%',
-          alignItems: 'start',
-          alignContent: 'start',
         };
       case 'grid-67-33':
         return {
           display: 'grid',
           gridTemplateColumns: '66.67% 33.33%',
-          alignItems: 'start',
-          alignContent: 'start',
         };
       case 'grid-75-25':
         return {
           display: 'grid',
           gridTemplateColumns: '75% 25%',
-          alignItems: 'start',
-          alignContent: 'start',
         };
       case 'grid-80-20':
         return {
           display: 'grid',
           gridTemplateColumns: '80% 20%',
-          alignItems: 'start',
-          alignContent: 'start',
         };
       case 'flex-column':
       default:
         return {
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'flex-start', // Changed from 'stretch' to allow child components to have custom widths
         };
     }
   };

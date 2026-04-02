@@ -190,73 +190,22 @@
   animation: componentAdded 0.3s ease-out;
 }
 
-/* Child components - allow resizing while fitting in grid/flex layout */
+/* Child components — neutral base so parent's Layout Mode, Align Items,
+   and Justify Content CSS properties control positioning naturally */
 .draggable-component.child-component {
-  /* Use small minimums to allow free resizing - ResizableComponent controls actual size */
-  /* Content will clip if resized smaller than content (handled by overflow on content) */
   min-height: 20px;
-  min-width: 20px;
-  box-sizing: border-box;
-  /* Ensure child components don't have absolute positioning that breaks flex layout */
-  position: relative;
-  /* Prevent flex shrinking/growing so items maintain their resized size */
-  flex-shrink: 0;
-  flex-grow: 0;
-  /* Flex-basis auto ensures the element uses its width/height from inline styles */
-  flex-basis: auto;
-  /* CRITICAL: Use flex-start to prevent stretch behavior from parent's align-items: stretch */
-  /* This allows child components to have their own width from ResizableComponent */
-  align-self: flex-start;
-  /* CRITICAL: Don't stretch children - let them size to their content */
-  /* This ensures component-content matches ResizableComponent exactly */
-  align-items: flex-start;
-  /* CRITICAL: Use fit-content so the wrapper shrinks to match child's resized width */
-  /* Without this, the draggable wrapper stays full width and prevents resize */
-  width: fit-content;
-  /* Width and height are controlled by ResizableComponent */
-  /* Allow resize handles to show (they extend outside with negative offsets) */
-  overflow: visible;
-}
-
-/* EXCEPTION: Inside PageLayout slots, child components should fill the slot width */
-/* This overrides width: fit-content above for proper responsive behavior */
-.page-layout-region .draggable-component.child-component {
-  width: 100%;
-  max-width: 100%;
   min-width: 0;
-  align-self: stretch;
-  flex-shrink: 1;
-}
-
-.page-layout-region .draggable-component.child-component .component-content {
-  width: 100%;
-  max-width: 100%;
+  box-sizing: border-box;
+  position: relative;
+  overflow: visible;
 }
 
 .draggable-component.child-component .component-content {
-  /* CRITICAL: Use fit-content so component-content shrinks to match ResizableComponent */
-  /* This ensures the selection border (on DraggableComponent) aligns with resize handles */
-  width: fit-content;
-  /* Don't force height: 100% - let inline styles from component.size control height */
-  /* For 'auto' height components (like navbars), this allows content-based sizing */
-  /* Use small minimum to allow free resizing */
+  width: 100%;
   min-height: 20px;
-  /* Keep flex display for proper content flow */
   display: flex;
   flex-direction: column;
-  /* CRITICAL: Don't grow/shrink - size exactly to ResizableComponent inside */
-  /* This ensures selection border (on DraggableComponent) matches resize handles */
-  flex: 0 0 auto;
-  /* Allow resize handles (inside ResizableComponent) to be visible */
-  /* Actual content clipping happens in .resizable-content */
   overflow: visible;
-}
-
-/* EXCEPTION: Inside PageLayout slots, component-content should also fill width */
-.page-layout-region .draggable-component.child-component .component-content {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
 }
 
 /* Keep selection overlay contained within the component */
