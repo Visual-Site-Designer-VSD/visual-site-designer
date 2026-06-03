@@ -1,5 +1,6 @@
 import React from 'react'
-import ReactDOM from 'react-dom/client'
+import * as ReactDOM from 'react-dom'
+import { createRoot } from 'react-dom/client'
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime'
 import App from './App.tsx'
 import './index.css'
@@ -62,7 +63,7 @@ console.error = (...args) => {
   originalError.call(console, ...args);
 };
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>,
