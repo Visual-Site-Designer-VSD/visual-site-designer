@@ -13,6 +13,9 @@ const rootFrontend = resolve(__dirname, '../../../frontend');
  */
 export default defineConfig({
   plugins: [react()],
+  define: {
+    'process.env.NODE_ENV': JSON.stringify('production'),
+  },
   build: {
     outDir: resolve(__dirname, '../src/main/resources/frontend'),
     emptyOutDir: true,
@@ -34,7 +37,7 @@ export default defineConfig({
         extend: true,
         exports: 'named',
         assetFileNames: (assetInfo) => {
-          if (assetInfo.name === 'style.css') return 'bundle.css';
+          if (assetInfo.name?.endsWith('.css')) return 'bundle.css';
           return assetInfo.name || 'asset';
         },
       },
