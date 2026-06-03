@@ -21,6 +21,9 @@ export interface BuilderMenubarProps {
   onPreview: () => void;
   onPreviewNewWindow: () => void;
   isPreviewWindowOpen?: boolean;
+  onDeployToPreview?: () => void;
+  isDeploying?: boolean;
+  isPreviewDeployed?: boolean;
   onExport: () => void;
   onImport: (pageDefinition: any) => void;
   onShowCSSEditor: () => void;
@@ -38,6 +41,9 @@ export const BuilderMenubar: React.FC<BuilderMenubarProps> = ({
   onPreview,
   onPreviewNewWindow,
   isPreviewWindowOpen = false,
+  onDeployToPreview,
+  isDeploying = false,
+  isPreviewDeployed = false,
   onExport,
   onImport,
   onShowCSSEditor,
@@ -259,6 +265,13 @@ export const BuilderMenubar: React.FC<BuilderMenubarProps> = ({
             onClick={onPreviewNewWindow}
             shortcut="Ctrl+Shift+P"
           />
+          {onDeployToPreview && (
+            <MenuItem
+              label={isDeploying ? "Deploying..." : isPreviewDeployed ? "Redeploy to Live Server" : "Deploy to Live Server"}
+              onClick={onDeployToPreview}
+              disabled={isDeploying}
+            />
+          )}
           <MenuItem label="Edit Mode" onClick={() => builderStore.setViewMode('edit')} />
           <MenuDivider />
           <MenuItem

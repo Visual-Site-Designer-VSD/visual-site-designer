@@ -15,6 +15,7 @@ import { ExportModal } from '../components/builder/ExportModal';
 import { ClipboardProvider } from '../components/clipboard';
 import { pageService } from '../services/pageService';
 import { previewBroadcast, openPreviewWindow } from '../services/previewBroadcastService';
+import * as previewRuntimeService from '../services/previewRuntimeService';
 import { PageDefinition } from '../types/builder';
 import { Page } from '../types/site';
 import './BuilderPage.css';
@@ -43,6 +44,8 @@ export const BuilderPage: React.FC = () => {
   const [isMultiPagePreview, setIsMultiPagePreview] = useState(false);
   const [previewWindow, setPreviewWindow] = useState<Window | null>(null);
   const [isPreviewWindowOpen, setIsPreviewWindowOpen] = useState(false);
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [isPreviewDeployed, setIsPreviewDeployed] = useState(false);
 
   // UI Preferences from store
   const uiPreferences = useUIPreferencesStore();
@@ -261,6 +264,42 @@ export const BuilderPage: React.FC = () => {
       alert('Failed to open preview window. Please check your popup blocker settings.');
     }
   }, [siteId, pageId, loadPagesForPreview]);
+
+  // Deploy to Live Server — sends snapshot to the running preview server
+  const handleDeployToPreview = useCallback(async () => {
+    const effectiveSiteId = siteId ? parseInt(siteId) : (siteManager.currentSiteId || currentPageMeta?.siteId || null);
+    if (!effectiveSiteId) {
+      alert('Deploy to Live Server requires a saved site.\n\nGo to Site menu → Select or create a site, then add pages to it.');
+      return;
+    }
+
+    try {
+      // Save current page first
+      await handleSave();
+
+      setIsDeploying(true);
+      const status = await previewRuntimeService.deployToPreview(effectiveSiteId);
+
+      if (status.error) {
+        alert(status.error);
+        return;
+      }
+
+      if (status.deployed && status.url) {
+        setIsPreviewDeployed(true);
+        window.open(status.url, 'vsd-live-preview');
+
+        if (status.restartRequired) {
+          alert('Snapshot deployed, but plugin JARs changed.\nRestart the preview server from IntelliJ for backend changes to take effect.');
+        }
+      }
+    } catch (err) {
+      console.error('[BuilderPage] Failed to deploy to preview server:', err);
+      alert('Failed to deploy to preview server.\nMake sure the preview server is running (start it from the IntelliJ plugin).');
+    } finally {
+      setIsDeploying(false);
+    }
+  }, [siteId, siteManager.currentSiteId, currentPageMeta?.siteId, handleSave]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -671,6 +710,9 @@ export const BuilderPage: React.FC = () => {
           onPreview={handlePreview}
           onPreviewNewWindow={handlePreviewInNewWindow}
           isPreviewWindowOpen={isPreviewWindowOpen}
+          onDeployToPreview={handleDeployToPreview}
+          isDeploying={isDeploying}
+          isPreviewDeployed={isPreviewDeployed}
           onExport={() => setShowExportModal(true)}
           onImport={handleImport}
           onShowCSSEditor={() => setShowCSSEditor(!showCSSEditor)}
