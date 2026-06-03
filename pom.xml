@@ -23,6 +23,7 @@
         <module>vsd-cms-bom</module>
         <module>flashcard-cms-plugin-sdk</module>
         <module>site-runtime</module>
+        <module>preview-server</module>
         <module>core</module>
     </modules>
 

@@ -13,8 +13,8 @@ public class SpaController {
 
     @RequestMapping(value = {
             "/",
-            "/{path:^(?!api|static|css|js|images|favicon\\.ico|plugins).*$}",
-            "/{path:^(?!api|static|css|js|images|favicon\\.ico|plugins).*$}/**"
+            "/{path:^(?!api|static|css|js|images|favicon\\.ico|plugins|assets|actuator)[^.]*$}",
+            "/{path:^(?!api|static|css|js|images|favicon\\.ico|plugins|assets|actuator)[^.]*$}/**"
     })
     public String forward() {
         return "forward:/index.html";

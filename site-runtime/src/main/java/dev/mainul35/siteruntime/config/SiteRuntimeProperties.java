@@ -9,6 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "site.runtime")
 public class SiteRuntimeProperties {
 
+    private String dataDir;
     private ApiProperties api = new ApiProperties();
     private DatabaseProperties database = new DatabaseProperties();
     private CacheProperties cache = new CacheProperties();
@@ -227,7 +228,9 @@ public class SiteRuntimeProperties {
         public void setEndSessionUri(String endSessionUri) { this.endSessionUri = endSessionUri; }
     }
 
-    // Getters for nested properties
+    // Getters and setters
+    public String getDataDir() { return dataDir; }
+    public void setDataDir(String dataDir) { this.dataDir = dataDir; }
     public ApiProperties getApi() { return api; }
     public void setApi(ApiProperties api) { this.api = api; }
     public DatabaseProperties getDatabase() { return database; }

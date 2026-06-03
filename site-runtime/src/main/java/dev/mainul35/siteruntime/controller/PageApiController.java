@@ -21,6 +21,35 @@ public class PageApiController {
     private final PageDataService pageDataService;
 
     /**
+     * List all available pages with metadata.
+     * Used by the runtime SPA to build its route table.
+     */
+    @GetMapping
+    public ResponseEntity<?> listPages() {
+        try {
+            var pages = pageDataService.listPages();
+            return ResponseEntity.ok(pages);
+        } catch (Exception e) {
+            log.error("Failed to list pages", e);
+            return ResponseEntity.status(500)
+                    .body(Map.of("error", "Failed to list pages"));
+        }
+    }
+
+    /**
+     * Return the deployed pages manifest ({@code {"pages":[...], "plugins":[...]}}).
+     * The runtime SPA uses the plugin list to preload IIFE bundles before rendering.
+     */
+    @GetMapping("/_manifest")
+    public ResponseEntity<?> getManifest() {
+        var manifest = pageDataService.loadManifest();
+        if (manifest == null) {
+            return ResponseEntity.ok(Map.of("pages", java.util.List.of(), "plugins", java.util.List.of()));
+        }
+        return ResponseEntity.ok(manifest);
+    }
+
+    /**
      * Get page data by page name.
      * Returns page metadata + all resolved data sources as JSON.
      */

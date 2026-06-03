@@ -47,7 +47,7 @@ public class SecurityAutoConfiguration {
     private static final String[] PUBLIC_PATHS = {
             "/", "/index.html", "/favicon.ico",
             "/css/**", "/js/**", "/images/**", "/plugins/**", "/static/**",
-            "/api/pages/**"
+            "/api/pages/**", "/api/deploy/**"
     };
 
     private final SiteRuntimeProperties properties;

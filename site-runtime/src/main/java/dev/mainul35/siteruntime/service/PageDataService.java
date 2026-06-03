@@ -1,6 +1,5 @@
 package dev.mainul35.siteruntime.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.mainul35.siteruntime.config.SiteRuntimeProperties;
@@ -8,12 +7,17 @@ import dev.mainul35.siteruntime.data.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Service for loading and providing page data in exported sites.
@@ -133,11 +137,100 @@ public class PageDataService {
     }
 
     /**
-     * Load page definition from resources/pages/{pageName}.json
+     * List all available pages.
+     * Scans the dataDir/pages/ directory (or classpath pages/ folder) for *.json files.
+     */
+    public List<PageMeta> listPages() {
+        List<PageMeta> pages = new ArrayList<>();
+
+        // Check external dataDir first
+        String dataDir = properties.getDataDir();
+        if (dataDir != null && !dataDir.isEmpty()) {
+            Path pagesDir = Path.of(dataDir, "pages");
+            if (Files.isDirectory(pagesDir)) {
+                try (Stream<Path> stream = Files.list(pagesDir)) {
+                    stream.filter(p -> p.toString().endsWith(".json"))
+                            .filter(p -> !p.getFileName().toString().startsWith("_"))
+                            .forEach(p -> {
+                                try {
+                                    PageDefinition def = objectMapper.readValue(p.toFile(), PageDefinition.class);
+                                    pages.add(createPageMeta(def));
+                                } catch (IOException e) {
+                                    log.warn("Failed to read page definition: {}", p, e);
+                                }
+                            });
+                } catch (IOException e) {
+                    log.error("Failed to list pages from dataDir: {}", pagesDir, e);
+                }
+                return pages;
+            }
+        }
+
+        // Fallback: read pages list from manifest
+        JsonNode manifest = loadManifest();
+        if (manifest != null && manifest.has("pages") && manifest.get("pages").isArray()) {
+            for (JsonNode entry : manifest.get("pages")) {
+                PageMeta meta = new PageMeta();
+                meta.setPageName(entry.path("pageName").asText(null));
+                meta.setTitle(entry.path("title").asText(null));
+                meta.setPath(entry.path("path").asText(null));
+                meta.setDescription(entry.path("description").asText(null));
+                pages.add(meta);
+            }
+        }
+
+        return pages;
+    }
+
+    /**
+     * Load the pages manifest ({@code {"pages":[...], "plugins":[...]}}).
+     * Prefers the external dataDir, falls back to classpath {@code pages/_manifest.json}.
+     * Returns null if no manifest is available.
+     */
+    public JsonNode loadManifest() {
+        String dataDir = properties.getDataDir();
+        if (dataDir != null && !dataDir.isEmpty()) {
+            File externalManifest = Path.of(dataDir, "pages", "_manifest.json").toFile();
+            if (externalManifest.exists()) {
+                try (InputStream is = new FileInputStream(externalManifest)) {
+                    return objectMapper.readTree(is);
+                } catch (IOException e) {
+                    log.warn("Failed to read manifest from dataDir: {}", externalManifest, e);
+                }
+            }
+        }
+
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream("pages/_manifest.json")) {
+            if (is != null) {
+                return objectMapper.readTree(is);
+            }
+        } catch (IOException e) {
+            log.warn("Failed to read pages manifest from classpath", e);
+        }
+
+        return null;
+    }
+
+    /**
+     * Load page definition from dataDir/pages/{pageName}.json or classpath resources/pages/{pageName}.json
      */
     private PageDefinition loadPageDefinition(String pageName) {
-        String resourcePath = "pages/" + pageName + ".json";
+        // Check external dataDir first
+        String dataDir = properties.getDataDir();
+        if (dataDir != null && !dataDir.isEmpty()) {
+            File externalFile = Path.of(dataDir, "pages", pageName + ".json").toFile();
+            if (externalFile.exists()) {
+                try (InputStream is = new FileInputStream(externalFile)) {
+                    return objectMapper.readValue(is, PageDefinition.class);
+                } catch (IOException e) {
+                    log.error("Failed to load page definition from dataDir: {}", externalFile, e);
+                    return null;
+                }
+            }
+        }
 
+        // Fallback to classpath
+        String resourcePath = "pages/" + pageName + ".json";
         try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
             if (is == null) {
                 log.warn("Page definition not found: {}", resourcePath);
