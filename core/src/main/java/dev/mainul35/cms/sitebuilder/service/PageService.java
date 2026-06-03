@@ -7,6 +7,7 @@ import dev.mainul35.cms.sitebuilder.entity.Page;
 import dev.mainul35.cms.sitebuilder.entity.Site;
 import dev.mainul35.cms.sitebuilder.repository.PageRepository;
 import dev.mainul35.cms.sitebuilder.repository.SiteRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @Transactional
+@Slf4j
 public class PageService {
 
     private final PageRepository pageRepository;
@@ -34,8 +36,11 @@ public class PageService {
      * Get all pages for a site
      */
     public List<PageDto> getPagesBySite(Long siteId) {
-        return pageRepository.findBySiteIdOrderByDisplayOrderAsc(siteId)
-                .stream()
+        log.info("[DEBUG getPagesBySite] called with siteId={}, total pages in DB={}, count for this site={}",
+                siteId, pageRepository.count(), pageRepository.countBySiteId(siteId));
+        List<Page> pages = pageRepository.findBySiteIdOrderByDisplayOrderAsc(siteId);
+        log.info("[DEBUG getPagesBySite] derived query returned {} rows", pages.size());
+        return pages.stream()
                 .map(PageDto::fromEntity)
                 .collect(Collectors.toList());
     }
