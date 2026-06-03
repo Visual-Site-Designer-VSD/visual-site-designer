@@ -1,6 +1,9 @@
 package dev.mainul35.cms.config;
 
 import lombok.RequiredArgsConstructor;
+import org.h2.server.web.JakartaWebServlet;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
@@ -67,6 +70,11 @@ public class WebConfig implements WebMvcConfigurer {
                 .addResolver(new PathResourceResolver() {
                     @Override
                     protected Resource getResource(String resourcePath, Resource location) throws IOException {
+                        // Don't swallow paths owned by other servlets (H2 console, actuator).
+                        if (resourcePath.startsWith("h2-console") || resourcePath.startsWith("actuator")) {
+                            return null;
+                        }
+
                         Resource requestedResource = location.createRelative(resourcePath);
 
                         // If the resource exists (JS, CSS, images, etc.), serve it
@@ -79,5 +87,19 @@ public class WebConfig implements WebMvcConfigurer {
                         return new ClassPathResource("/static/index.html");
                     }
                 });
+    }
+
+    /**
+     * Spring Boot 4 removed H2ConsoleAutoConfiguration, so the H2 console servlet
+     * has to be registered explicitly. Toggle with spring.h2.console.enabled.
+     */
+    @Bean
+    @ConditionalOnProperty(name = "spring.h2.console.enabled", havingValue = "true")
+    public ServletRegistrationBean<JakartaWebServlet> h2ConsoleServletRegistration() {
+        ServletRegistrationBean<JakartaWebServlet> registration =
+                new ServletRegistrationBean<>(new JakartaWebServlet(), "/h2-console/*");
+        registration.setName("h2-console");
+        registration.setLoadOnStartup(1);
+        return registration;
     }
 }

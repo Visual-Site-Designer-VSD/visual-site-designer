@@ -37,10 +37,11 @@
         </dependency>
 
         <!-- H2 Database (for development) -->
+        <!-- Compile scope so we can register H2's JakartaWebServlet directly
+             (Spring Boot 4 removed H2ConsoleAutoConfiguration). -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <scope>runtime</scope>
         </dependency>
 
         <!-- PostgreSQL Driver (for production) -->
