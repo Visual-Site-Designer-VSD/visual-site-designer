@@ -106,10 +106,49 @@ page uses a plugin that is not installed and active, two pages share a route, or
 Pages with no saved content are skipped (and logged). The response is still the site; the new version is in the
 `X-VSD-Snapshot-Version` header.
 
+## Data sources and template bindings
+
+Pages can pull in data and put it into component props. Everything is resolved **on the server, per visitor**,
+before the page is sent; the browser only gets the finished definition. Authoring data (`dataContext`,
+`dataSource`, `dataSourceRef`, `templateBindings`, `iteratorConfig`) is removed from it, because data source
+headers may hold secrets.
+
+| In the page definition | Meaning |
+|---|---|
+| `dataContext.dataSources.<name>` | A named source. `<name>` becomes a template root: `{{<name>.items[0].title}}`. |
+| `dataSourceRef` / `dataSource` on a component | That component's data, available as `{{data...}}` to it and everything inside it. |
+| `templateBindings: { "text": "Hi {{auth.user.displayName}}" }` | Sets a prop. A value that is exactly one placeholder keeps its type (arrays, numbers); otherwise it is spliced into the text. |
+| `iteratorConfig: { dataPath, itemAlias, indexAlias?, keyPath?, emptyTemplate? }` | Repeats the component (with its children) for each item, max 200; `instanceId` becomes `<id>#<key>`. `emptyTemplate` renders when there are no items. |
+
+Always available roots: `auth` (`isAuthenticated`, `user.*`), `page` (`name`, `path`, `title`), `query` (the
+visitor's URL parameters, as text). Missing values give an empty string, never the raw `{{...}}`. Values are
+inserted as data and never re-scanned. Only lookups are supported: no expressions or code.
+
+Source types: `static` (`staticData`), `context` (`contextKey`, a path under `auth`/`page`/`query`) and `api`.
+`fieldMapping` (`{ target: "path" }` or `{ target: { path, transform, fallback } }`) reshapes the result.
+Sources are fetched in parallel, and only the ones a page actually uses. A source that fails or is slow leaves
+its values empty and never fails the page; the reason is logged, not shown.
+
+When someone signs in or out, the browser asks `GET /_vsd/api/page` for the page again, so bindings such as
+`{{auth.user.displayName}}` change in place.
+
+**API sources are off until you allow hosts.** The endpoint is authored in the builder, so the operator decides:
+
+```properties
+vsd.runtime.data.allowed-hosts=api.example.com      # exact hostnames; empty = no API sources
+vsd.runtime.data.allow-private-addresses=false         # loopback/private/link-local are refused unless true
+vsd.runtime.data.timeout=5s            vsd.runtime.data.page-deadline=8s
+vsd.runtime.data.max-response-bytes=1048576            vsd.runtime.data.max-calls-per-second=20
+```
+
+Endpoints must be absolute `http(s)` URLs without credentials; redirects are not followed; responses are size
+and time limited; visitors cannot change the URL (no templating inside endpoints). Sources are cached only when
+`cacheKey` or `cacheTtlMs` is set (default 60 s), keyed by URL, method and headers, never by visitor, so use
+caching for anything busy. Binding values are plain data: a plugin that renders a prop as raw HTML would also
+render data from your API as HTML, so treat API content as untrusted there.
+
 ## Not done yet (be aware)
 
-* **Data sources and `{{template}}` bindings are not wired.** `site-runtime`'s `PageDataService`
-  and fetchers are not used by the runtime yet.
 * **Plugin host is new, not extracted from `core`.** `core`'s `PluginManager` is untouched, so the
   two hosts exist side by side. The old `@EventHandler`/`/api/events` system is not bridged.
 * **Single node.** Sessions live in memory. A shared store also needs cross-node fan-out of

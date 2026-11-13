@@ -30,13 +30,16 @@ public class PageRenderer {
 
     private final SnapshotService snapshots;
     private final PluginHost plugins;
+    private final PageView views;
 
-    public PageRenderer(SnapshotService snapshots, PluginHost plugins) {
+    public PageRenderer(SnapshotService snapshots, PluginHost plugins, PageView views) {
+        this.views = views;
         this.snapshots = snapshots;
         this.plugins = plugins;
     }
 
-    public String render(SiteSnapshot.PageEntry page, Session session) {
+    public String render(SiteSnapshot.PageEntry page, Session session, Map<String, String> query) {
+        JsonNode definition = views.definition(page, session, query);
         SiteSnapshot site = snapshots.site();
 
         List<Map<String, Object>> pluginList = new ArrayList<>();
@@ -68,7 +71,7 @@ public class PageRenderer {
         pageObj.put("name", page.name());
         pageObj.put("path", page.path());
         pageObj.put("title", page.title());
-        pageObj.put("definition", page.definition());
+        pageObj.put("definition", definition);
 
         Map<String, Object> sessionObj = new LinkedHashMap<>();
         sessionObj.put("csrf", session.csrf());
@@ -84,7 +87,7 @@ public class PageRenderer {
         boot.put("api", "/_vsd/api");
 
         String title = HtmlUtils.htmlEscape(page.title() + " - " + site.title());
-        String description = page.definition().path("metaDescription").asText("");
+        String description = definition.path("metaDescription").asText("");
 
         return "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
                 + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
@@ -92,7 +95,7 @@ public class PageRenderer {
                 + (description.isBlank() ? "" : "<meta name=\"description\" content=\"" + HtmlUtils.htmlEscape(description) + "\">\n")
                 + "<link rel=\"stylesheet\" href=\"/_vsd/client/runtime.css\">\n"
                 + cssLinks
-                + "<style id=\"vsd-page-styles\">" + pageStyles(page.definition()) + "</style>\n"
+                + "<style id=\"vsd-page-styles\">" + pageStyles(definition) + "</style>\n"
                 + "</head>\n<body>\n<div id=\"vsd-root\"></div>\n"
                 + "<noscript>This site needs JavaScript to run.</noscript>\n"
                 + "<script id=\"vsd-boot\" type=\"application/json\">" + Json.forScript(Json.write(boot)) + "</script>\n"

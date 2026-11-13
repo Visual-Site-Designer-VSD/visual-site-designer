@@ -42,6 +42,6 @@ public class PageController {
         return ResponseEntity.ok()
                 .contentType(MediaType.TEXT_HTML)
                 .cacheControl(CacheControl.noStore()) // the shell embeds this visitor's session state
-                .body(renderer.render(page.get(), session));
+                .body(renderer.render(page.get(), session, PageView.query(request.getParameterMap())));
     }
 }

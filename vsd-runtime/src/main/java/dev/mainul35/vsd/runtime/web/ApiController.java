@@ -8,6 +8,7 @@ import dev.mainul35.vsd.runtime.event.EventDispatcher;
 import dev.mainul35.vsd.runtime.session.Session;
 import dev.mainul35.vsd.runtime.session.SessionService;
 import dev.mainul35.vsd.runtime.session.StateRules;
+import dev.mainul35.vsd.runtime.snapshot.SnapshotService;
 import dev.mainul35.vsd.runtime.util.Json;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -45,12 +46,35 @@ public class ApiController {
     private final EventDispatcher dispatcher;
     private final AuthService auth;
     private final RuntimeProperties props;
+    private final SnapshotService snapshots;
+    private final PageView views;
 
-    public ApiController(SessionService sessions, EventDispatcher dispatcher, AuthService auth, RuntimeProperties props) {
+    public ApiController(SessionService sessions, EventDispatcher dispatcher, AuthService auth, RuntimeProperties props,
+                         SnapshotService snapshots, PageView views) {
+        this.snapshots = snapshots;
+        this.views = views;
         this.sessions = sessions;
         this.dispatcher = dispatcher;
         this.auth = auth;
         this.props = props;
+    }
+
+    /**
+     * The page as this visitor should see it now. The client asks again after sign-in or sign-out, because
+     * bindings such as {{auth.user.displayName}} depend on who is signed in.
+     */
+    @GetMapping(value = "/page", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> page(@RequestParam("path") String path,
+                                       @RequestParam(value = "query", required = false) String query,
+                                       HttpServletRequest request, HttpServletResponse response) {
+        var entry = snapshots.byPath(path);
+        if (entry.isEmpty()) {
+            return json(404, "{\"error\":\"not_found\"}").build();
+        }
+        Session s = sessions.getOrCreate(request, response);
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("definition", views.definition(entry.get(), s, PageView.query(query)));
+        return json(200, Json.write(out)).build();
     }
 
     /** Current session snapshot. Clients call this to recover after their session expired. */

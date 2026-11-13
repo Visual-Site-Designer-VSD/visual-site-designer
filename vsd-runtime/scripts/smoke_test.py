@@ -87,6 +87,10 @@ check("session cookie is HttpOnly + SameSite=Lax",
 check("HTML is not cacheable (it embeds session state)", "no-store" in (resp.getheader("Cache-Control") or ""))
 check("page JSON is script-safe (no raw '</')", "</script" not in html.split('id="vsd-boot"')[1].split("</script>")[0].lower())
 check("boot pins the plugins the demo pages use", boot and {"auth-component-plugin", "navbar-component-plugin", "newsletter-form-plugin"} <= {p["id"] for p in boot["plugins"]})
+check("bindings are filled in on the server", "Signed in: false" in html and "Data comes from the server" in html)
+check("API data source is fetched and its iterator expanded", all(f"release-item#{k}" in html for k in ("r1", "r2", "r3")))
+check("authoring data and header secrets never reach the browser",
+      not any(w in html for w in ("never-reaches-the-browser", "dataContext", "templateBindings", "iteratorConfig", "X-Demo-Secret")))
 check("anonymous visitor has no user", ("SESSION", "$auth", "user") not in entries_by_key(boot["session"]))
 
 resp, _, about = a.load_page("/about")

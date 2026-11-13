@@ -2,78 +2,265 @@
   "version": "1.0",
   "pageName": "home",
   "metaDescription": "Live runtime demo: sign in and subscribe, then watch every part of the page and every tab follow.",
-  "grid": { "columns": 12, "gap": 16 },
-  "globalStyles": { "cssVariables": { "brand": "#2563eb" } },
+  "grid": {
+    "columns": 12,
+    "gap": 16
+  },
+  "globalStyles": {
+    "cssVariables": {
+      "brand": "#2563eb"
+    }
+  },
   "components": [
     {
       "instanceId": "nav-1",
       "pluginId": "navbar-component-plugin",
       "componentId": "Navbar",
       "displayOrder": 0,
-      "position": { "x": 0, "y": 0 },
-      "size": { "width": 0, "height": 0 },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "size": {
+        "width": 0,
+        "height": 0
+      },
       "props": {
         "brandText": "VSD Live Demo",
         "navItems": "[{\"label\":\"Home\",\"href\":\"/\"},{\"label\":\"About\",\"href\":\"/about\"}]"
       },
-      "styles": { "backgroundColor": "#111827", "color": "#ffffff" }
+      "styles": {
+        "backgroundColor": "#111827",
+        "color": "#ffffff"
+      }
     },
     {
       "instanceId": "main-1",
       "pluginId": "container-layout-plugin",
       "componentId": "Container",
       "displayOrder": 1,
-      "position": { "x": 0, "y": 0 },
-      "size": { "width": 0, "height": 0 },
-      "props": { "layoutMode": "flex-column", "heightMode": "wrap", "padding": "32px", "maxWidth": "720px", "centerContent": true },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "size": {
+        "width": 0,
+        "height": 0
+      },
+      "props": {
+        "layoutMode": "flex-column",
+        "heightMode": "wrap",
+        "padding": "32px",
+        "maxWidth": "720px",
+        "centerContent": true
+      },
       "styles": {},
       "children": [
         {
           "instanceId": "title-1",
           "pluginId": "label-component-plugin",
           "componentId": "Label",
-          "position": { "x": 0, "y": 0 },
-          "size": { "width": 0, "height": 0 },
-          "props": { "text": "One session, many plugins", "variant": "h1" },
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "size": {
+            "width": 0,
+            "height": 0
+          },
+          "props": {
+            "text": "One session, many plugins",
+            "variant": "h1"
+          },
           "styles": {}
         },
         {
           "instanceId": "intro-1",
           "pluginId": "label-component-plugin",
           "componentId": "Label",
-          "position": { "x": 0, "y": 0 },
-          "size": { "width": 0, "height": 0 },
-          "props": { "text": "Sign in below and the navbar changes. Subscribe and the form remembers it, here, on the About page and in every other tab.", "variant": "p" },
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "size": {
+            "width": 0,
+            "height": 0
+          },
+          "props": {
+            "text": "Sign in below and the navbar changes. Subscribe and the form remembers it, here, on the About page and in every other tab.",
+            "variant": "p"
+          },
           "styles": {}
+        },
+        {
+          "instanceId": "tagline-1",
+          "pluginId": "label-component-plugin",
+          "componentId": "Label",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "size": {
+            "width": 0,
+            "height": 0
+          },
+          "props": {
+            "text": "",
+            "variant": "p"
+          },
+          "styles": {},
+          "templateBindings": {
+            "text": "{{site.tagline}}"
+          }
+        },
+        {
+          "instanceId": "who-1",
+          "pluginId": "label-component-plugin",
+          "componentId": "Label",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "size": {
+            "width": 0,
+            "height": 0
+          },
+          "props": {
+            "text": "",
+            "variant": "p"
+          },
+          "styles": {},
+          "templateBindings": {
+            "text": "Signed in: {{auth.isAuthenticated}}. Name: {{auth.user.displayName}}"
+          }
+        },
+        {
+          "instanceId": "releases-h",
+          "pluginId": "label-component-plugin",
+          "componentId": "Label",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "size": {
+            "width": 0,
+            "height": 0
+          },
+          "props": {
+            "text": "Releases (from an API data source)",
+            "variant": "h2"
+          },
+          "styles": {}
+        },
+        {
+          "instanceId": "release-item",
+          "pluginId": "label-component-plugin",
+          "componentId": "Label",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "size": {
+            "width": 0,
+            "height": 0
+          },
+          "props": {
+            "text": "",
+            "variant": "p"
+          },
+          "styles": {},
+          "iteratorConfig": {
+            "dataPath": "releases.list",
+            "itemAlias": "r",
+            "indexAlias": "n",
+            "keyPath": "id"
+          },
+          "templateBindings": {
+            "text": "{{n}}. {{r.name}}: {{r.notes}}"
+          }
         },
         {
           "instanceId": "login-1",
           "pluginId": "auth-component-plugin",
           "componentId": "LoginForm",
-          "position": { "x": 0, "y": 0 },
-          "size": { "width": 0, "height": 0 },
-          "props": { "title": "Sign in", "subtitle": "Try demo@example.com / demo-pass", "showForgotPassword": false, "showRememberMe": false },
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "size": {
+            "width": 0,
+            "height": 0
+          },
+          "props": {
+            "title": "Sign in",
+            "subtitle": "Try demo@example.com / demo-pass",
+            "showForgotPassword": false,
+            "showRememberMe": false
+          },
           "styles": {}
         },
         {
           "instanceId": "logout-1",
           "pluginId": "auth-component-plugin",
           "componentId": "LogoutButton",
-          "position": { "x": 0, "y": 0 },
-          "size": { "width": 0, "height": 0 },
-          "props": { "text": "Sign out" },
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "size": {
+            "width": 0,
+            "height": 0
+          },
+          "props": {
+            "text": "Sign out"
+          },
           "styles": {}
         },
         {
           "instanceId": "news-1",
           "pluginId": "newsletter-form-plugin",
           "componentId": "NewsletterForm",
-          "position": { "x": 0, "y": 0 },
-          "size": { "width": 0, "height": 0 },
-          "props": { "title": "Newsletter", "subtitle": "Get the next release note.", "successMessage": "You are subscribed. Thank you!" },
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "size": {
+            "width": 0,
+            "height": 0
+          },
+          "props": {
+            "title": "Newsletter",
+            "subtitle": "Get the next release note.",
+            "successMessage": "You are subscribed. Thank you!"
+          },
           "styles": {}
         }
       ]
     }
-  ]
+  ],
+  "dataContext": {
+    "dataSources": {
+      "site": {
+        "type": "static",
+        "staticData": {
+          "tagline": "Data comes from the server, bindings fill the props."
+        }
+      },
+      "releases": {
+        "type": "api",
+        "endpoint": "http://127.0.0.1:8090/assets/releases.json",
+        "method": "GET",
+        "headers": {
+          "X-Demo-Secret": "never-reaches-the-browser"
+        },
+        "cacheTtlMs": 10000,
+        "fieldMapping": {
+          "list": {
+            "path": "releases",
+            "fallback": []
+          }
+        }
+      }
+    }
+  }
 }

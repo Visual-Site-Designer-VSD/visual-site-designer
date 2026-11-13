@@ -1,0 +1,5 @@
+{"releases":[
+  {"id":"r3","name":"v1.2","notes":"Live runtime with shared sessions"},
+  {"id":"r2","name":"v1.1","notes":"Plugin version pinning"},
+  {"id":"r1","name":"v1.0","notes":"First public build"}
+]}

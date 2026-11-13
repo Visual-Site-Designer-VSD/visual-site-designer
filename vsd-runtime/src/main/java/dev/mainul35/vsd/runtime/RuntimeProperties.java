@@ -40,6 +40,45 @@ public class RuntimeProperties {
     /** Users for the built-in config identity provider (development / small sites). */
     private List<User> users = new ArrayList<>();
 
+    /** Data sources used by page bindings ({@code vsd.runtime.data.*}). */
+    private Data data = new Data();
+
+    /**
+     * Limits for API data sources. A page author controls the endpoint, so the operator controls which
+     * hosts may be called: with no allowed hosts, API sources are refused and only STATIC and CONTEXT work.
+     */
+    public static class Data {
+        /** Hosts API data sources may call (exact, case-insensitive). */
+        private List<String> allowedHosts = new ArrayList<>();
+        /** Allow allowed hosts that resolve to loopback / private addresses (local development only). */
+        private boolean allowPrivateAddresses = false;
+        private Duration timeout = Duration.ofSeconds(5);
+        /** Longest a page waits for all of its data sources together. */
+        private Duration pageDeadline = Duration.ofSeconds(8);
+        private int maxResponseBytes = 1024 * 1024;
+        /** Calls per second to any one upstream (same URL, method, headers); visitors cannot multiply load past this. */
+        private int maxCallsPerSecond = 20;
+        private int cacheMaxEntries = 200;
+        private Duration defaultCacheTtl = Duration.ofSeconds(60);
+
+        public List<String> getAllowedHosts() { return allowedHosts; }
+        public void setAllowedHosts(List<String> allowedHosts) { this.allowedHosts = allowedHosts; }
+        public boolean isAllowPrivateAddresses() { return allowPrivateAddresses; }
+        public void setAllowPrivateAddresses(boolean allowPrivateAddresses) { this.allowPrivateAddresses = allowPrivateAddresses; }
+        public Duration getTimeout() { return timeout; }
+        public void setTimeout(Duration timeout) { this.timeout = timeout; }
+        public Duration getPageDeadline() { return pageDeadline; }
+        public void setPageDeadline(Duration pageDeadline) { this.pageDeadline = pageDeadline; }
+        public int getMaxResponseBytes() { return maxResponseBytes; }
+        public void setMaxResponseBytes(int maxResponseBytes) { this.maxResponseBytes = maxResponseBytes; }
+        public int getMaxCallsPerSecond() { return maxCallsPerSecond; }
+        public void setMaxCallsPerSecond(int maxCallsPerSecond) { this.maxCallsPerSecond = maxCallsPerSecond; }
+        public int getCacheMaxEntries() { return cacheMaxEntries; }
+        public void setCacheMaxEntries(int cacheMaxEntries) { this.cacheMaxEntries = cacheMaxEntries; }
+        public Duration getDefaultCacheTtl() { return defaultCacheTtl; }
+        public void setDefaultCacheTtl(Duration defaultCacheTtl) { this.defaultCacheTtl = defaultCacheTtl; }
+    }
+
     public static class User {
         private String id;
         private String username;
@@ -83,6 +122,8 @@ public class RuntimeProperties {
     public void setMaxValueBytes(int maxValueBytes) { this.maxValueBytes = maxValueBytes; }
     public int getMaxEventsPerSecond() { return maxEventsPerSecond; }
     public void setMaxEventsPerSecond(int maxEventsPerSecond) { this.maxEventsPerSecond = maxEventsPerSecond; }
+    public Data getData() { return data; }
+    public void setData(Data data) { this.data = data; }
     public List<User> getUsers() { return users; }
     public void setUsers(List<User> users) { this.users = users; }
 }

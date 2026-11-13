@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { RendererRegistry } from './registry';
+import type { Runtime } from './runtime';
 import type { ComponentInstance } from './types';
 
 /** A broken plugin must not take the whole page down. */
@@ -35,7 +36,28 @@ function Root({ component }: { component: ComponentInstance }) {
   );
 }
 
-export function App({ components }: { components: ComponentInstance[] }) {
+/**
+ * Bindings such as {{auth.user.displayName}} are filled in on the server for one visitor, so when the
+ * signed-in user changes the page is fetched again. A late answer to an older request is ignored.
+ */
+export function App({ components: initial, runtime }: { components: ComponentInstance[]; runtime: Runtime }) {
+  const [components, setComponents] = useState(initial);
+  const { user } = runtime.useAuth();
+  const userId = user?.id ?? null;
+  const firstRender = useRef(true);
+  const latest = useRef(0);
+
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    const mine = ++latest.current;
+    void runtime.fetchPage().then((next) => {
+      if (next && mine === latest.current) setComponents(next);
+    });
+  }, [userId, runtime]);
+
   const ordered = [...components].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
   return (
     <main className="vsd-page">

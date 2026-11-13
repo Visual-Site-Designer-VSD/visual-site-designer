@@ -1,6 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react';
 import { StateStore } from './store';
-import type { Boot, EventOutcome, RuntimeUser, Scope, WirePatch } from './types';
+import type { Boot, ComponentInstance, EventOutcome, RuntimeUser, Scope, WirePatch } from './types';
 
 const newId = (): string =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -129,6 +129,21 @@ export class Runtime {
     ) as RuntimeUser | undefined;
     return { user: user ?? null, login: this.login.bind(this), logout: this.logout.bind(this) };
   };
+
+  // ---- page data ----------------------------------------------------------------------------
+
+  /** The current page as this visitor should see it now (data and bindings resolved on the server). */
+  async fetchPage(): Promise<ComponentInstance[] | null> {
+    try {
+      const url = `${this.boot.api}/page?path=${encodeURIComponent(location.pathname)}&query=${encodeURIComponent(location.search)}`;
+      const res = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
+      if (!res.ok) return null;
+      const body = (await res.json()) as { definition?: { components?: ComponentInstance[] } };
+      return body.definition?.components ?? null;
+    } catch {
+      return null;
+    }
+  }
 
   // ---- transport ----------------------------------------------------------------------------
 

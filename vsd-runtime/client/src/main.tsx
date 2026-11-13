@@ -30,7 +30,7 @@ async function start() {
   const failed = await loadPlugins(boot);
   if (failed.length) console.error('[vsd] plugins failed to load:', failed.join(', '));
 
-  ReactDOMClient.createRoot(root).render(<App components={boot.page.definition.components ?? []} />);
+  ReactDOMClient.createRoot(root).render(<App components={boot.page.definition.components ?? []} runtime={runtime} />);
   runtime.connect();
 }
 
