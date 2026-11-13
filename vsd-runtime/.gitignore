@@ -1,0 +1,4 @@
+target/
+# Built by `npm run build` in client/ (see README)
+src/main/resources/vsd-client/
+client/node_modules/

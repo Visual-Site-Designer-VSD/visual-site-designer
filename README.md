@@ -1824,6 +1824,10 @@ classDiagram
 
 ## Chapter 11: Site Runtime Library
 
+> **Live runtime:** for serving a published site with server-side sessions, shared plugin state and
+> server-side event handlers, see [`vsd-runtime`](vsd-runtime/README.md). It is separate from this
+> export-time library.
+
 The **Site Runtime Library** (`site-runtime`) is a standalone runtime library that gets bundled with exported sites. When you export a site from VSD CMS, this library provides the runtime functionality for the exported site to work independently without needing the full VSD CMS platform.
 
 ### Purpose

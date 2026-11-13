@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { RendererProps } from '../types';
 import '../styles/AuthComponents.css';
+import { useRuntimeAuth } from '../runtimeBridge';
 
 /**
  * LogoutButton Renderer
@@ -9,6 +10,7 @@ import '../styles/AuthComponents.css';
 const LogoutButtonRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
   const props = component.props || {};
   const styles = component.styles || {};
+  const auth = useRuntimeAuth();
 
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -24,6 +26,17 @@ const LogoutButtonRenderer: React.FC<RendererProps> = ({ component, isEditMode }
     setIsLoading(true);
 
     try {
+      // Live runtime: end the server session; all plugins see the sign-out through shared state.
+      if (auth.logout) {
+        await auth.logout();
+        setShowConfirm(false);
+        const target = props.redirectUrl as string | undefined;
+        if (target && target !== window.location.pathname) {
+          window.location.href = target;
+        }
+        return;
+      }
+
       const response = await fetch((props.logoutEndpoint as string) || '/api/auth/logout', {
         method: 'POST',
         credentials: 'include',

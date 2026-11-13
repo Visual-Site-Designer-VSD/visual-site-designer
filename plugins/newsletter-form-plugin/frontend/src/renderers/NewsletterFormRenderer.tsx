@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { ComponentInstance } from '../types';
+import { getRuntime, useRuntimeSubscription } from '../runtimeBridge';
 
 // Cross-plugin imports using @vsd aliases - import renderers with direct props support
 import { LabelRenderer } from '@vsd/label-component-plugin';
@@ -58,6 +59,7 @@ export interface NewsletterFormProps {
  *   <ButtonRenderer text="Join" variant="primary" />
  */
 const NewsletterFormRenderer: React.FC<NewsletterFormProps> = (props) => {
+  const runtimeSubscription = useRuntimeSubscription('newsletter-form-plugin');
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -104,17 +106,32 @@ const NewsletterFormRenderer: React.FC<NewsletterFormProps> = (props) => {
   };
 
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isEditMode) return;
 
-    if (validateEmail(email)) {
-      setIsSubmitted(true);
-      setHasError(false);
-      console.log('Newsletter subscription:', email);
-    } else {
+    if (!validateEmail(email)) {
       setHasError(true);
+      return;
     }
+
+    // Live runtime: the server-side handler records the subscription in session state, and the
+    // success view below follows that state (so it also appears in other tabs and after reload).
+    const runtime = getRuntime();
+    if (runtime) {
+      setHasError(false);
+      const result = await runtime.emit(
+        'subscribe',
+        { pluginId: 'newsletter-form-plugin', componentId: 'NewsletterForm', instanceId: props.component?.instanceId },
+        { email },
+      );
+      if (!result.ok) setHasError(true);
+      return;
+    }
+
+    setIsSubmitted(true);
+    setHasError(false);
+    console.log('Newsletter subscription:', email);
   };
 
   // Handle input change
@@ -157,8 +174,8 @@ const NewsletterFormRenderer: React.FC<NewsletterFormProps> = (props) => {
     color: '#dc3545',
   };
 
-  // If submitted, show success message
-  if (isSubmitted && !isEditMode) {
+  // If submitted (locally, or recorded in the live runtime's session state), show success message
+  if ((isSubmitted || Boolean(runtimeSubscription)) && !isEditMode) {
     return (
       <div style={containerStyles}>
         <div style={successStyles}>{String(successMessage)}</div>

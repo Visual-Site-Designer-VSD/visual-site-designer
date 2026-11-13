@@ -1,0 +1,19 @@
+{
+  "siteName": "vsd-demo",
+  "title": "VSD Live Demo",
+  "snapshotVersion": "1",
+  "defaultPage": "home",
+  "pages": [
+    { "name": "home", "path": "/", "title": "Home", "file": "pages/home.json" },
+    { "name": "about", "path": "/about", "title": "About", "file": "pages/about.json" }
+  ],
+  "plugins": {
+    "container-layout-plugin": "1.0.0",
+    "label-component-plugin": "1.0.0",
+    "button-component-plugin": "1.0.0",
+    "textbox-component-plugin": "1.0.0",
+    "navbar-component-plugin": "1.0.0",
+    "auth-component-plugin": "1.0.0",
+    "newsletter-form-plugin": "1.0.0"
+  }
+}

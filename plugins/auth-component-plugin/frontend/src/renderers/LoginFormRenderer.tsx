@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { RendererProps } from '../types';
 import '../styles/AuthComponents.css';
+import { useRuntimeAuth } from '../runtimeBridge';
 
 /**
  * LoginForm Renderer
@@ -9,6 +10,7 @@ import '../styles/AuthComponents.css';
 const LoginFormRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
   const props = component.props || {};
   const styles = component.styles || {};
+  const auth = useRuntimeAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,6 +26,21 @@ const LoginFormRenderer: React.FC<RendererProps> = ({ component, isEditMode }) =
     setError(null);
 
     try {
+      // Live runtime: sign in through the server session. The identity then reaches every
+      // plugin on the page through shared state, so the page does not need to reload.
+      if (auth.login) {
+        const result = await auth.login(email, password);
+        if (!result.ok) {
+          setError(result.message || 'Invalid email or password');
+        } else {
+          const target = props.redirectUrl as string | undefined;
+          if (target && target !== window.location.pathname) {
+            window.location.href = target;
+          }
+        }
+        return;
+      }
+
       const response = await fetch(props.loginEndpoint as string || '/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -52,6 +69,16 @@ const LoginFormRenderer: React.FC<RendererProps> = ({ component, isEditMode }) =
     maxWidth: styles.maxWidth || '400px',
     width: '100%',
   };
+
+  // Live runtime: the session already has an identity, so show it instead of the form.
+  if (auth.user && !isEditMode) {
+    return (
+      <div className="auth-form login-form" style={containerStyle} data-signed-in="true">
+        <h2 className="auth-form-title">Signed in</h2>
+        <p className="auth-form-subtitle">You are signed in as {auth.user.displayName}.</p>
+      </div>
+    );
+  }
 
   const title = props.title as string | undefined;
   const subtitle = props.subtitle as string | undefined;

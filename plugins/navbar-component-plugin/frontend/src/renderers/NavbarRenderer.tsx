@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { RendererProps, NavItem } from '../types';
+import { useRuntimeUser } from '../runtimeBridge';
 
 /**
  * NavbarRenderer - Renders a navigation bar component
  * Supports multiple layouts, responsive design, multi-level dropdowns, and customizable styling
  */
 const NavbarRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
+  const runtimeUser = useRuntimeUser(); // live runtime only: the signed-in visitor
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [openDropdowns, setOpenDropdowns] = useState<Set<string>>(new Set());
@@ -348,6 +350,16 @@ const NavbarRenderer: React.FC<RendererProps> = ({ component, isEditMode }) => {
         <ul style={navListStyles}>
           {parsedNavItems.map((item, index) => renderNavItem(item, index))}
         </ul>
+      )}
+
+      {/* Signed-in visitor (live runtime only) */}
+      {runtimeUser && !isEditMode && (
+        <span
+          data-testid="navbar-user"
+          style={{ marginLeft: 'auto', padding: '0 12px', fontSize: '14px', whiteSpace: 'nowrap', color: 'inherit' }}
+        >
+          Signed in as {runtimeUser.displayName}
+        </span>
       )}
 
       {/* Mobile Menu Button */}

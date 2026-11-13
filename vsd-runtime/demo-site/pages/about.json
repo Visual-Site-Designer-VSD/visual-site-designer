@@ -1,0 +1,59 @@
+{
+  "version": "1.0",
+  "pageName": "about",
+  "grid": { "columns": 12, "gap": 16 },
+  "components": [
+    {
+      "instanceId": "nav-2",
+      "pluginId": "navbar-component-plugin",
+      "componentId": "Navbar",
+      "displayOrder": 0,
+      "position": { "x": 0, "y": 0 },
+      "size": { "width": 0, "height": 0 },
+      "props": {
+        "brandText": "VSD Live Demo",
+        "navItems": "[{\"label\":\"Home\",\"href\":\"/\"},{\"label\":\"About\",\"href\":\"/about\"}]"
+      },
+      "styles": { "backgroundColor": "#111827", "color": "#ffffff" }
+    },
+    {
+      "instanceId": "main-2",
+      "pluginId": "container-layout-plugin",
+      "componentId": "Container",
+      "displayOrder": 1,
+      "position": { "x": 0, "y": 0 },
+      "size": { "width": 0, "height": 0 },
+      "props": { "layoutMode": "flex-column", "heightMode": "wrap", "padding": "32px", "maxWidth": "720px", "centerContent": true },
+      "styles": {},
+      "children": [
+        {
+          "instanceId": "title-2",
+          "pluginId": "label-component-plugin",
+          "componentId": "Label",
+          "position": { "x": 0, "y": 0 },
+          "size": { "width": 0, "height": 0 },
+          "props": { "text": "About", "variant": "h1" },
+          "styles": {}
+        },
+        {
+          "instanceId": "body-2",
+          "pluginId": "label-component-plugin",
+          "componentId": "Label",
+          "position": { "x": 0, "y": 0 },
+          "size": { "width": 0, "height": 0 },
+          "props": { "text": "This is a second page of the same published site. The server session carries your sign-in and your subscription over from the home page.", "variant": "p" },
+          "styles": {}
+        },
+        {
+          "instanceId": "news-2",
+          "pluginId": "newsletter-form-plugin",
+          "componentId": "NewsletterForm",
+          "position": { "x": 0, "y": 0 },
+          "size": { "width": 0, "height": 0 },
+          "props": { "title": "Newsletter", "subtitle": "Same form, different page.", "successMessage": "Already subscribed in this session." },
+          "styles": {}
+        }
+      ]
+    }
+  ]
+}
