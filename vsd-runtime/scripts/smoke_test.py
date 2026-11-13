@@ -86,7 +86,7 @@ check("session cookie is HttpOnly + SameSite=Lax",
       any(k.lower() == "set-cookie" and "HttpOnly" in v and "SameSite=Lax" in v for k, v in resp.getheaders()))
 check("HTML is not cacheable (it embeds session state)", "no-store" in (resp.getheader("Cache-Control") or ""))
 check("page JSON is script-safe (no raw '</')", "</script" not in html.split('id="vsd-boot"')[1].split("</script>")[0].lower())
-check("boot pins all 7 plugins", boot and len(boot["plugins"]) == 7)
+check("boot pins the plugins the demo pages use", boot and {"auth-component-plugin", "navbar-component-plugin", "newsletter-form-plugin"} <= {p["id"] for p in boot["plugins"]})
 check("anonymous visitor has no user", ("SESSION", "$auth", "user") not in entries_by_key(boot["session"]))
 
 resp, _, about = a.load_page("/about")

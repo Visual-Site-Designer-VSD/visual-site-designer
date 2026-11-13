@@ -89,10 +89,25 @@ rt?.useAuth();                                      // { user, login, logout }
 await rt?.emit('subscribe', { pluginId: 'my-plugin' }, { email });
 ```
 
+## Publishing from the builder
+
+`POST /api/sites/{id}/publish` in `core` now writes a snapshot before marking the site published.
+Each page contributes its active saved version (or its latest). The version of every plugin the pages use is
+read from the installed, active plugins and pinned in `site.json`. Output:
+
+```
+<vsd.publish.dir>/<site-slug>/<version>/site.json + pages/*.json
+<vsd.publish.dir>/<site-slug>/latest      (text file naming the newest version)
+```
+
+`vsd.publish.dir` defaults to `published-sites`. Point the runtime at a version directory:
+`--vsd.runtime.snapshot-dir=<publish-dir>/<slug>/<version>`. Publishing fails with 409 and writes nothing if a
+page uses a plugin that is not installed and active, two pages share a route, or a definition is unusable.
+Pages with no saved content are skipped (and logged). The response is still the site; the new version is in the
+`X-VSD-Snapshot-Version` header.
+
 ## Not done yet (be aware)
 
-* **No publish step.** The snapshot is a directory you provide (`demo-site/` is hand-written in
-  the builder's page format). Nothing in `core` generates one yet.
 * **Data sources and `{{template}}` bindings are not wired.** `site-runtime`'s `PageDataService`
   and fetchers are not used by the runtime yet.
 * **Plugin host is new, not extracted from `core`.** `core`'s `PluginManager` is untouched, so the

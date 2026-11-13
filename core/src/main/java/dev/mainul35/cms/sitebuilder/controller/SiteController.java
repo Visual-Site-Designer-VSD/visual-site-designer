@@ -4,6 +4,9 @@ import dev.mainul35.cms.security.filter.JwtAuthenticationFilter.JwtUserPrincipal
 import dev.mainul35.cms.sitebuilder.dto.CreateSiteRequest;
 import dev.mainul35.cms.sitebuilder.dto.SiteDto;
 import dev.mainul35.cms.sitebuilder.dto.UpdateSiteRequest;
+import dev.mainul35.cms.sitebuilder.publish.PublishException;
+import dev.mainul35.cms.sitebuilder.publish.SitePublishService;
+import dev.mainul35.cms.sitebuilder.publish.SnapshotBuilder;
 import dev.mainul35.cms.sitebuilder.service.SiteService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -23,9 +26,11 @@ import java.util.Map;
 public class SiteController {
 
     private final SiteService siteService;
+    private final SitePublishService sitePublishService;
 
-    public SiteController(SiteService siteService) {
+    public SiteController(SiteService siteService, SitePublishService sitePublishService) {
         this.siteService = siteService;
+        this.sitePublishService = sitePublishService;
     }
 
     /**
@@ -179,8 +184,18 @@ public class SiteController {
                     .body(Map.of("error", "You don't have access to this site"));
         }
 
+        // Build the snapshot first: a site that cannot be served as published must not be marked published.
+        SnapshotBuilder.Result snapshot;
+        try {
+            snapshot = sitePublishService.publishSnapshot(id);
+        } catch (PublishException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
+        }
+
         return siteService.publishSite(id)
-                .map(site -> ResponseEntity.ok(site))
+                .map(site -> ResponseEntity.ok()
+                        .header("X-VSD-Snapshot-Version", snapshot.version())
+                        .body(site))
                 .orElse(ResponseEntity.notFound().build());
     }
 
