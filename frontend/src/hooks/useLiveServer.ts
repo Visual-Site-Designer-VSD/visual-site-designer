@@ -34,6 +34,7 @@ export function useLiveServer(siteId: number | null, save: () => Promise<unknown
   const win = useRef<Window | null>(null);
   const timers = useRef<number[]>([]);
   const running = useRef(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const clearTimers = () => {
     timers.current.forEach((t) => window.clearInterval(t));
@@ -94,14 +95,18 @@ export function useLiveServer(siteId: number | null, save: () => Promise<unknown
       win.current.focus();
       return;
     }
+    setNotice(null);
     if (siteId == null) {
-      window.alert('Open a site first. The live server runs the pages of the site you are designing.');
+      setNotice(
+        'The live server runs a saved site. This is the local demo project, which is not saved on the server. ' +
+          'Open a site from the dashboard (Sites), open one of its pages, save it, then choose Run on live server.',
+      );
       return;
     }
     // Open the window now, while the click still counts, so the pop-up blocker lets it through.
     const w = window.open('about:blank', WINDOW_NAME);
     if (!w) {
-      window.alert('Could not open the live preview window. Please allow pop-ups for this site and try again.');
+      setNotice('Could not open the live preview window. Allow pop-ups for this site in the browser and try again.');
       return;
     }
     try {
@@ -156,5 +161,7 @@ export function useLiveServer(siteId: number | null, save: () => Promise<unknown
     };
   }, []);
 
-  return { state, info, run, stop, openConsole };
+  const dismissNotice = useCallback(() => setNotice(null), []);
+
+  return { state, info, notice, dismissNotice, run, stop, openConsole };
 }

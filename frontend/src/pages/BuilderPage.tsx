@@ -651,6 +651,20 @@ export const BuilderPage: React.FC = () => {
   return (
     <ClipboardProvider>
     <div className={`builder-page ${viewMode === 'preview' ? 'preview-mode' : ''}`}>
+      {live.notice && (
+        <div
+          role="alert"
+          style={{
+            position: 'fixed', top: 64, left: '50%', transform: 'translateX(-50%)', zIndex: 10000,
+            maxWidth: 560, padding: '12px 16px', borderRadius: 8, background: '#fff4e5', color: '#663c00',
+            border: '1px solid #f0b95c', boxShadow: '0 4px 16px rgba(0,0,0,.2)', fontSize: 14,
+            display: 'flex', gap: 12, alignItems: 'flex-start',
+          }}
+        >
+          <span style={{ flex: 1 }}>{live.notice}</span>
+          <button onClick={live.dismissNotice} aria-label="Dismiss" style={{ border: 0, background: 'none', cursor: 'pointer', fontSize: 18 }}>×</button>
+        </div>
+      )}
       {/* Top Menubar - Show minimal toolbar in preview mode */}
       {viewMode === 'preview' ? (
         <div className="builder-toolbar preview-toolbar">
