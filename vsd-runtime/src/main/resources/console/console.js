@@ -7,6 +7,15 @@
   try { token = sessionStorage.getItem('vsd-admin-token') || ''; } catch (e) { /* private mode */ }
   var current = null; // name being edited, or null for a new one
 
+  // The builder opens this page as /_vsd/console/#token=... so the designer does not have to type the token.
+  // A fragment is never sent to the server; it is removed from the address bar right away.
+  var fromLink = /[#&]token=([^&]+)/.exec(location.hash);
+  if (fromLink) {
+    token = decodeURIComponent(fromLink[1]);
+    try { sessionStorage.setItem('vsd-admin-token', token); } catch (e) { /* private mode */ }
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+
   function el(tag, props, children) {
     var n = document.createElement(tag);
     Object.keys(props || {}).forEach(function (k) { n[k] = props[k]; });

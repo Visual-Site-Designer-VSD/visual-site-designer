@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { authService } from '../services/authService';
+import { authServerService } from '../services/authServerService';
 import './LoginPage.css';
 
 export const LoginPage: React.FC = () => {
@@ -15,6 +16,12 @@ export const LoginPage: React.FC = () => {
     rememberMe: false,
   });
   const [showRegister, setShowRegister] = useState(false);
+  // Offered only when an administrator turned it on (Settings > Security > Authorization server).
+  // If the answer cannot be read, keep showing it, as before.
+  const [ssoEnabled, setSsoEnabled] = useState(true);
+  useEffect(() => {
+    authServerService.publicConfig().then((c) => setSsoEnabled(c.ssoEnabled)).catch(() => undefined);
+  }, []);
   const [registerData, setRegisterData] = useState({
     username: '',
     email: '',
@@ -285,6 +292,7 @@ export const LoginPage: React.FC = () => {
             </button>
 
             {/* OAuth2 login buttons - VSD Auth Server SSO */}
+            {ssoEnabled && (<>
             <div className="oauth-divider">
               <span>Or continue with</span>
             </div>
@@ -295,6 +303,7 @@ export const LoginPage: React.FC = () => {
               </svg>
               Sign in with VSD Auth Server
             </a>
+            </>)}
           </form>
         )}
 

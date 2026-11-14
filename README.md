@@ -1505,6 +1505,22 @@ POST /api/auth/login
 
 For centralized authentication across multiple VSD applications, enable OAuth2 SSO with VSD Auth Server.
 
+#### Configure it in the admin console (no restart)
+
+Sign in as an administrator and open **Settings > Security > Authorization server**. Set the issuer address and press
+**Fill in the usual endpoints** (`/oauth2/authorize`, `/oauth2/token`, `/oauth2/jwks`, `/userinfo`), or type each address;
+enter the client ID and secret; press **Test connection**, then **Save**. It applies to the next sign-in. The page also shows
+the redirect address (`.../login/oauth2/code/vsd-auth`) to register at the auth server.
+
+* The auth server does **not** need to publish an OpenID discovery document, and the CMS now starts even when the auth
+  server is down. Nothing is contacted at startup.
+* The client secret is stored encrypted (AES-GCM, key derived from `app.security.settings-key`, or from `app.jwt.secret` if
+  that is not set) and is never sent back to the browser. If that key changes, the secret has to be entered again.
+* Plain `http://` addresses are accepted for `localhost` only.
+* Until something is saved, the `application.properties` values below apply. **Use application configuration** in the
+  admin console forgets the saved settings.
+* The sign-in page offers the button only while the settings are complete and switched on.
+
 #### SSO Configuration
 
 Enable SSO in `application.properties`:

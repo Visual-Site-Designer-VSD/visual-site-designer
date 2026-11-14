@@ -2,6 +2,8 @@ package dev.mainul35.cms.security.config;
 
 import dev.mainul35.cms.config.SecurityProperties;
 import dev.mainul35.cms.security.authserver.AuthServerJwtConverter;
+import dev.mainul35.cms.security.authserver.AuthServerSettingsService;
+import dev.mainul35.cms.security.authserver.DynamicJwtDecoder;
 import dev.mainul35.cms.security.entity.RoleName;
 import dev.mainul35.cms.security.filter.DynamicPublicApiFilter;
 import dev.mainul35.cms.security.filter.JwtAuthenticationFilter;
@@ -53,12 +55,7 @@ public class CmsSecurityConfig {
     private final SecurityProperties securityProperties;
     private final AuthServerJwtConverter authServerJwtConverter;
     private final OAuth2AuthenticationSuccessHandler oauth2SuccessHandler;
-
-    @Value("${app.auth-server.enabled:false}")
-    private boolean authServerEnabled;
-
-    @Value("${app.auth-server.jwk-set-uri:}")
-    private String authServerJwkSetUri;
+    private final AuthServerSettingsService authServerSettings;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -74,6 +71,8 @@ public class CmsSecurityConfig {
                         // Public endpoints - no authentication required
                         auth.requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/refresh").permitAll()
                         .requestMatchers("/api/auth/check").permitAll()
+                        // whether the sign-in page should offer the VSD Auth Server (no secrets in the answer)
+                        .requestMatchers("/api/auth/config").permitAll()
                         // OAuth2 token exchange endpoint (exchanges short-lived code for JWT)
                         .requestMatchers("/api/auth/oauth2/exchange").permitAll()
 
@@ -134,9 +133,11 @@ public class CmsSecurityConfig {
         // JWT filter runs after to authenticate non-public requests (passes through auth server tokens)
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
-        // Additionally configure OAuth2 if auth server is enabled
-        if (authServerEnabled && authServerJwkSetUri != null && !authServerJwkSetUri.isEmpty()) {
-            log.info("VSD Auth Server mode also enabled, using JWT validation from: {}", authServerJwkSetUri);
+        // Sign-in through the VSD Auth Server is always wired in. Whether it is on, and where the auth server is,
+        // is read from the settings (admin console) at the moment of each sign-in or token check, so it can be
+        // changed without a restart, and an unreachable auth server cannot stop the CMS from starting.
+        {
+            log.info("VSD Auth Server sign-in is wired in; it is turned on or off in the admin console");
 
             // OAuth2 Login for SSO flow (user clicks "Sign in with VSD Auth Server")
             http.oauth2Login(oauth2 -> oauth2
@@ -196,13 +197,7 @@ public class CmsSecurityConfig {
 
     @Bean
     public JwtDecoder jwtDecoder() {
-        if (authServerEnabled && authServerJwkSetUri != null && !authServerJwkSetUri.isEmpty()) {
-            return NimbusJwtDecoder.withJwkSetUri(authServerJwkSetUri).build();
-        }
-        // Return a dummy decoder when not using auth server
-        return token -> {
-            throw new UnsupportedOperationException("Auth server not enabled");
-        };
+        return new DynamicJwtDecoder(authServerSettings);
     }
 
     /**

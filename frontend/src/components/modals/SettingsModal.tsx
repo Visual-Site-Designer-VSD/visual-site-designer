@@ -3,6 +3,7 @@ import { ModalBase, ModalSection, ModalActions, ModalButton } from './ModalBase'
 import { useUIPreferencesStore } from '../../stores/uiPreferencesStore';
 import { useAuthStore } from '../../stores/authStore';
 import { PublicApiPatternsSection } from '../admin/PublicApiPatternsSection';
+import { AuthServerSection } from '../admin/AuthServerSection';
 import { ComponentManagementTab } from '../settings/ComponentManagementTab';
 import './SettingsModal.css';
 
@@ -266,6 +267,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
         {activeTab === 'security' && isAdmin() && (
           <div className="settings-panel">
+            <AuthServerSection />
             <PublicApiPatternsSection />
           </div>
         )}

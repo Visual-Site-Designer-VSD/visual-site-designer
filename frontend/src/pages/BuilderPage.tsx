@@ -15,6 +15,7 @@ import { ExportModal } from '../components/builder/ExportModal';
 import { ClipboardProvider } from '../components/clipboard';
 import { pageService } from '../services/pageService';
 import { previewBroadcast, openPreviewWindow } from '../services/previewBroadcastService';
+import { useLiveServer } from '../hooks/useLiveServer';
 import { PageDefinition } from '../types/builder';
 import { Page } from '../types/site';
 import './BuilderPage.css';
@@ -261,6 +262,9 @@ export const BuilderPage: React.FC = () => {
       alert('Failed to open preview window. Please check your popup blocker settings.');
     }
   }, [siteId, pageId, loadPagesForPreview]);
+
+  // "Run on live server": starts the runtime for this site and stops it when its window is closed.
+  const live = useLiveServer(siteId ? Number.parseInt(siteId) : null, () => handleSave());
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -671,6 +675,10 @@ export const BuilderPage: React.FC = () => {
           onPreview={handlePreview}
           onPreviewNewWindow={handlePreviewInNewWindow}
           isPreviewWindowOpen={isPreviewWindowOpen}
+          onRunLive={live.run}
+          onStopLive={live.stop}
+          onOpenLiveConsole={live.openConsole}
+          liveState={live.state}
           onExport={() => setShowExportModal(true)}
           onImport={handleImport}
           onShowCSSEditor={() => setShowCSSEditor(!showCSSEditor)}

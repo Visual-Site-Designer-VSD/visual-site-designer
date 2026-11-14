@@ -69,6 +69,19 @@ public class SitePublishService {
      */
     @Transactional(readOnly = true)
     public SnapshotBuilder.Result publishSnapshot(Long siteId) {
+        return snapshotInto(siteId, publishRoot, runtimeLink.declaredNames().orElse(null));
+    }
+
+    /**
+     * Builds a throw-away snapshot of the site's saved pages under {@code previewRoot}, for the live preview.
+     * Same rules as publishing, except that shared state is not checked against the declarations.
+     */
+    @Transactional(readOnly = true)
+    public SnapshotBuilder.Result previewSnapshot(Long siteId, Path previewRoot) {
+        return snapshotInto(siteId, previewRoot.toAbsolutePath().normalize(), null);
+    }
+
+    private SnapshotBuilder.Result snapshotInto(Long siteId, Path root, java.util.Set<String> declaredShared) {
         Site site = siteRepository.findById(siteId)
                 .orElseThrow(() -> new PublishException("Site " + siteId + " does not exist."));
 
@@ -94,7 +107,7 @@ public class SitePublishService {
         }
 
         String slug = safeDirName(site.getSiteSlug());
-        Path siteRoot = publishRoot.resolve(slug);
+        Path siteRoot = root.resolve(slug);
         try {
             Files.createDirectories(siteRoot);
         } catch (IOException e) {
@@ -103,8 +116,8 @@ public class SitePublishService {
         String version = LocalDateTime.now().format(VERSION);
         SnapshotBuilder.Result result = builder.build(
                 new SnapshotBuilder.SiteInfo(site.getSiteName(), site.getSiteName()),
-                inputs, installed, siteRoot, version, runtimeLink.declaredNames().orElse(null));
-        log.info("Published site {} as snapshot {} ({} page(s), plugins {})",
+                inputs, installed, siteRoot, version, declaredShared);
+        log.info("Built snapshot {} of site {} ({} page(s), plugins {})",
                 siteId, version, result.pages(), result.plugins());
         return result;
     }

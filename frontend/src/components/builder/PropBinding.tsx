@@ -139,7 +139,12 @@ export const PropBinding: React.FC<PropBindingProps> = ({ value, onChange }) => 
         <p className="prop-binding-note">{catalog.message ?? 'The runtime did not answer.'} Names cannot be checked.</p>
       )}
       {!error && catalog?.connected && catalog.definitions.length === 0 && (
-        <p className="prop-binding-note">No shared state is declared yet. Declare it in the runtime console first.</p>
+        <p className="prop-binding-note">
+          No shared state is declared yet.
+          {catalog.consoleUrl
+            ? ' Declare it in the runtime console first.'
+            : ' Choose Preview > Run on live server, then Preview > Open runtime console to declare it.'}
+        </p>
       )}
       {catalog?.configured && isWebUrl(catalog.consoleUrl) && (
         <p className="prop-binding-note">

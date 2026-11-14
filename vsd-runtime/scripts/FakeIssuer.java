@@ -22,7 +22,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * A stand-in for the VSD auth server so single sign-on can be tried locally.
- * It approves every sign-in at once as one fixed user and issues real RS256 tokens.
+ * It approves every sign-in at once as one fixed user and issues real RS256 tokens. It publishes no OIDC
+ * discovery document (a plain server), only /oauth2/authorize, /oauth2/token, /oauth2/jwks and /userinfo.
  *
  *   java -cp "<runtime classpath>" scripts/FakeIssuer.java [port]
  *
@@ -42,6 +43,10 @@ public class FakeIssuer {
 
         server.createContext("/oauth2/authorize", ex -> {
             Map<String, String> q = form(ex.getRequestURI().getRawQuery());
+            if (q.get("redirect_uri") == null || q.get("state") == null) {
+                send(ex, 400, "application/json", "{\"error\":\"invalid_request\"}");
+                return;
+            }
             String code = UUID.randomUUID().toString();
             codes.put(code, new String[]{q.get("nonce"), q.get("client_id")});
             String to = q.get("redirect_uri") + "?code=" + enc(code) + "&state=" + enc(q.get("state"));
@@ -52,7 +57,7 @@ public class FakeIssuer {
 
         server.createContext("/oauth2/token", ex -> {
             Map<String, String> f = form(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
-            String[] saved = codes.remove(f.get("code"));
+            String[] saved = f.get("code") == null ? null : codes.remove(f.get("code"));
             if (saved == null) {
                 send(ex, 400, "application/json", "{\"error\":\"invalid_grant\"}");
                 return;
@@ -69,11 +74,16 @@ public class FakeIssuer {
                         .build();
                 SignedJWT jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(key.getKeyID()).build(), claims);
                 jwt.sign(new RSASSASigner(key));
-                send(ex, 200, "application/json", "{\"id_token\":\"" + jwt.serialize() + "\",\"token_type\":\"Bearer\"}");
+                // Like a plain authorization server: an access token and an ID token, no discovery document.
+                send(ex, 200, "application/json", "{\"access_token\":\"fake-access-" + UUID.randomUUID() + "\",\"id_token\":\""
+                        + jwt.serialize() + "\",\"token_type\":\"Bearer\",\"expires_in\":300}");
             } catch (Exception e) {
                 send(ex, 500, "application/json", "{\"error\":\"server_error\"}");
             }
         });
+
+        server.createContext("/userinfo", ex -> send(ex, 200, "application/json",
+                "{\"sub\":\"ada@example.com\",\"email\":\"ada@example.com\",\"name\":\"Ada Lovelace\",\"display_name\":\"Ada Lovelace\"}"));
 
         server.createContext("/connect/logout", ex -> {
             Map<String, String> q = form(ex.getRequestURI().getRawQuery());

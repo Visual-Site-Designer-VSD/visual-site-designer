@@ -32,6 +32,8 @@ export interface RuntimeCatalog {
   /** Where designers declare shared state. */
   consoleUrl: string;
   strict: boolean;
+  /** Where the declarations were read from: the running runtime, the runtime's file, or nowhere. */
+  source?: 'runtime' | 'file' | 'none';
   definitions: SharedStateDefinition[];
 }
 

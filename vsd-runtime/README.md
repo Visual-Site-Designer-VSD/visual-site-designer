@@ -202,6 +202,16 @@ refused** for such a page. If the runtime cannot be reached, designers can still
 without the check (it is logged). A plugin can list the shared state it reads and writes in its manifest
 (`sharedState: { reads, writes }`); the builder shows that list with a tick or warning for each name.
 
+**Live preview from the builder:** the builder menu **Preview > Run on live server** saves the page, builds a throw-away
+snapshot of the site's saved pages and starts this runtime for it (on a free port, bound to `127.0.0.1`, with a random
+console token), then opens it in a window. The runtime stops again when that window is closed. If the builder tab itself
+goes away, the builder server stops it after `vsd.live-preview.idle-timeout-seconds` (default 45) without a heartbeat, and
+it also stops when the builder server shuts down. **Preview > Open runtime console** (while it runs) opens the console
+already signed in, so shared state can be declared. Declarations are kept in `vsd.live-preview.data-dir` (default
+`data/runtime-data` next to the builder), and the builder reads that file while no runtime is running, so the binding picker
+and the publish check keep working. Build the runtime once (`mvn -pl vsd-runtime -am package -DskipTests`); plugins come from
+`app.plugin.directory`, or from source folders listed in `vsd.live-preview.dev-plugin-dirs`.
+
 Limits to know: the writers list for **browser** writes is based on the plugin id the browser reports, so it stops
 plugins stepping on each other but not hostile code; use *Browser may write = off* for state that must be protected.
 Only the `SESSION` scope is covered (per-page shared state is not built yet).

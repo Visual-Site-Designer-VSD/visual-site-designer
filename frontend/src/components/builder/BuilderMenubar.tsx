@@ -21,6 +21,11 @@ export interface BuilderMenubarProps {
   onPreview: () => void;
   onPreviewNewWindow: () => void;
   isPreviewWindowOpen?: boolean;
+  /** "Run on live server": starts the runtime for the site and opens it; it stops when the window is closed. */
+  onRunLive?: () => void;
+  onStopLive?: () => void;
+  onOpenLiveConsole?: () => void;
+  liveState?: 'stopped' | 'starting' | 'running';
   onExport: () => void;
   onImport: (pageDefinition: any) => void;
   onShowCSSEditor: () => void;
@@ -38,6 +43,10 @@ export const BuilderMenubar: React.FC<BuilderMenubarProps> = ({
   onPreview,
   onPreviewNewWindow,
   isPreviewWindowOpen = false,
+  onRunLive,
+  onStopLive,
+  onOpenLiveConsole,
+  liveState = 'stopped',
   onExport,
   onImport,
   onShowCSSEditor,
@@ -251,14 +260,26 @@ export const BuilderMenubar: React.FC<BuilderMenubarProps> = ({
           <MenuItem label="Global Styles..." onClick={() => console.log('Global Styles')} />
         </Menu>
 
-        {/* View Menu */}
-        <Menu label="View">
+        {/* Preview Menu */}
+        <Menu label="Preview">
           <MenuItem label="Preview Mode" onClick={onPreview} />
           <MenuItem
             label={isPreviewWindowOpen ? "Preview Window (Open)" : "Preview in New Window"}
             onClick={onPreviewNewWindow}
             shortcut="Ctrl+Shift+P"
           />
+          <MenuDivider />
+          <MenuItem
+            label={liveState === 'starting' ? 'Starting live server…' : liveState === 'running' ? 'Show live preview' : 'Run on live server'}
+            onClick={() => onRunLive?.()}
+            disabled={!onRunLive || liveState === 'starting'}
+          />
+          {liveState === 'running' && <MenuItem label="Stop live server" onClick={() => onStopLive?.()} />}
+          {liveState === 'running' && <MenuItem label="Open runtime console" onClick={() => onOpenLiveConsole?.()} />}
+        </Menu>
+
+        {/* View Menu */}
+        <Menu label="View">
           <MenuItem label="Edit Mode" onClick={() => builderStore.setViewMode('edit')} />
           <MenuDivider />
           <MenuItem

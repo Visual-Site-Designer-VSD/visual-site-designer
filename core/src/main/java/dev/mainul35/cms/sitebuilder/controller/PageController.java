@@ -335,7 +335,11 @@ public class PageController {
                     try {
                         // Parse JSON string to JsonNode to avoid double-encoding
                         JsonNode jsonNode = objectMapper.readTree(definition);
-                        return ResponseEntity.ok(jsonNode);
+                        // Send it as text: the web layer's JSON library does not know this JsonNode (Jackson 2) and
+                        // would write it out as a bean, which left the builder with an unreadable page.
+                        return ResponseEntity.ok()
+                                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                                .body(objectMapper.writeValueAsString(jsonNode));
                     } catch (JsonProcessingException e) {
                         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                                 .body(Map.of("error", "Failed to parse page definition"));
