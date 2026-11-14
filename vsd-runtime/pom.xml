@@ -49,6 +49,13 @@
             <version>2.21</version>
         </dependency>
 
+        <!-- Verifies the signature of tokens issued by the VSD auth server (RS256, keys from its JWKS). -->
+        <dependency>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>nimbus-jose-jwt</artifactId>
+            <version>10.9.1</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

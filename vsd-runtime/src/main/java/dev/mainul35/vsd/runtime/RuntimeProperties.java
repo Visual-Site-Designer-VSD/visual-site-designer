@@ -43,6 +43,9 @@ public class RuntimeProperties {
     /** Data sources used by page bindings ({@code vsd.runtime.data.*}). */
     private Data data = new Data();
 
+    /** Sign-in through the VSD auth server ({@code vsd.runtime.sso.*}). */
+    private Sso sso = new Sso();
+
     /**
      * Limits for API data sources. A page author controls the endpoint, so the operator controls which
      * hosts may be called: with no allowed hosts, API sources are refused and only STATIC and CONTEXT work.
@@ -77,6 +80,75 @@ public class RuntimeProperties {
         public void setCacheMaxEntries(int cacheMaxEntries) { this.cacheMaxEntries = cacheMaxEntries; }
         public Duration getDefaultCacheTtl() { return defaultCacheTtl; }
         public void setDefaultCacheTtl(Duration defaultCacheTtl) { this.defaultCacheTtl = defaultCacheTtl; }
+    }
+
+    /**
+     * Sign-in through the VSD auth server (OpenID Connect authorization-code flow with PKCE,
+     * {@code vsd.runtime.sso.*}). Endpoints that the visitor's browser opens (authorization, end-session)
+     * use public URLs; endpoints the runtime calls itself (token, JWKS) may use internal ones.
+     */
+    public static class Sso {
+        private boolean enabled = false;
+        /** Expected {@code iss} claim, exactly as the auth server issues it. */
+        private String issuer;
+        private String authorizationEndpoint;
+        private String tokenEndpoint;
+        private String jwksUri;
+        /** Optional: where to send the visitor after sign-out so the auth server session ends too. */
+        private String endSessionEndpoint;
+        private String clientId;
+        /** Empty for a public client (PKCE only). */
+        private String clientSecret;
+        /** Public URL of this site's {@code /_vsd/auth/callback}; must be registered with the auth server. */
+        private String redirectUri;
+        private String scopes = "openid profile email";
+        /** Expected {@code aud}; defaults to the client id. */
+        private String audience;
+        /** If not empty, the user needs at least one of these roles (without the ROLE_ prefix) to sign in. */
+        private List<String> requiredRoles = new ArrayList<>();
+        /** Keep the username/password sign-in next to SSO. */
+        private boolean passwordLogin = true;
+        /** Allow http:// endpoints (local development only). */
+        private boolean allowInsecureHttp = false;
+        /** How long a visitor has to finish signing in at the auth server. */
+        private Duration flowTtl = Duration.ofMinutes(10);
+        private Duration clockSkew = Duration.ofSeconds(60);
+        private Duration timeout = Duration.ofSeconds(5);
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public String getIssuer() { return issuer; }
+        public void setIssuer(String issuer) { this.issuer = issuer; }
+        public String getAuthorizationEndpoint() { return authorizationEndpoint; }
+        public void setAuthorizationEndpoint(String authorizationEndpoint) { this.authorizationEndpoint = authorizationEndpoint; }
+        public String getTokenEndpoint() { return tokenEndpoint; }
+        public void setTokenEndpoint(String tokenEndpoint) { this.tokenEndpoint = tokenEndpoint; }
+        public String getJwksUri() { return jwksUri; }
+        public void setJwksUri(String jwksUri) { this.jwksUri = jwksUri; }
+        public String getEndSessionEndpoint() { return endSessionEndpoint; }
+        public void setEndSessionEndpoint(String endSessionEndpoint) { this.endSessionEndpoint = endSessionEndpoint; }
+        public String getClientId() { return clientId; }
+        public void setClientId(String clientId) { this.clientId = clientId; }
+        public String getClientSecret() { return clientSecret; }
+        public void setClientSecret(String clientSecret) { this.clientSecret = clientSecret; }
+        public String getRedirectUri() { return redirectUri; }
+        public void setRedirectUri(String redirectUri) { this.redirectUri = redirectUri; }
+        public String getScopes() { return scopes; }
+        public void setScopes(String scopes) { this.scopes = scopes; }
+        public String getAudience() { return audience; }
+        public void setAudience(String audience) { this.audience = audience; }
+        public List<String> getRequiredRoles() { return requiredRoles; }
+        public void setRequiredRoles(List<String> requiredRoles) { this.requiredRoles = requiredRoles; }
+        public boolean isPasswordLogin() { return passwordLogin; }
+        public void setPasswordLogin(boolean passwordLogin) { this.passwordLogin = passwordLogin; }
+        public boolean isAllowInsecureHttp() { return allowInsecureHttp; }
+        public void setAllowInsecureHttp(boolean allowInsecureHttp) { this.allowInsecureHttp = allowInsecureHttp; }
+        public Duration getFlowTtl() { return flowTtl; }
+        public void setFlowTtl(Duration flowTtl) { this.flowTtl = flowTtl; }
+        public Duration getClockSkew() { return clockSkew; }
+        public void setClockSkew(Duration clockSkew) { this.clockSkew = clockSkew; }
+        public Duration getTimeout() { return timeout; }
+        public void setTimeout(Duration timeout) { this.timeout = timeout; }
     }
 
     public static class User {
@@ -122,6 +194,8 @@ public class RuntimeProperties {
     public void setMaxValueBytes(int maxValueBytes) { this.maxValueBytes = maxValueBytes; }
     public int getMaxEventsPerSecond() { return maxEventsPerSecond; }
     public void setMaxEventsPerSecond(int maxEventsPerSecond) { this.maxEventsPerSecond = maxEventsPerSecond; }
+    public Sso getSso() { return sso; }
+    public void setSso(Sso sso) { this.sso = sso; }
     public Data getData() { return data; }
     public void setData(Data data) { this.data = data; }
     public List<User> getUsers() { return users; }

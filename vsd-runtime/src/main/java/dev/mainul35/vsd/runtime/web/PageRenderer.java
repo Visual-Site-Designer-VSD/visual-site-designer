@@ -2,6 +2,7 @@ package dev.mainul35.vsd.runtime.web;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import dev.mainul35.vsd.runtime.auth.sso.OidcClient;
 import dev.mainul35.vsd.runtime.plugin.LoadedPlugin;
 import dev.mainul35.vsd.runtime.plugin.PluginHost;
 import dev.mainul35.vsd.runtime.session.Session;
@@ -31,8 +32,10 @@ public class PageRenderer {
     private final SnapshotService snapshots;
     private final PluginHost plugins;
     private final PageView views;
+    private final OidcClient oidc;
 
-    public PageRenderer(SnapshotService snapshots, PluginHost plugins, PageView views) {
+    public PageRenderer(SnapshotService snapshots, PluginHost plugins, PageView views, OidcClient oidc) {
+        this.oidc = oidc;
         this.views = views;
         this.snapshots = snapshots;
         this.plugins = plugins;
@@ -85,6 +88,8 @@ public class PageRenderer {
         boot.put("plugins", pluginList);
         boot.put("session", sessionObj);
         boot.put("api", "/_vsd/api");
+        boot.put("sso", Map.of("enabled", oidc.enabled(), "passwordLogin", oidc.passwordLogin(),
+                "start", "/_vsd/auth/sso/start"));
 
         String title = HtmlUtils.htmlEscape(page.title() + " - " + site.title());
         String description = definition.path("metaDescription").asText("");

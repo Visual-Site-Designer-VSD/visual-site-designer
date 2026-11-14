@@ -147,6 +147,41 @@ and time limited; visitors cannot change the URL (no templating inside endpoints
 caching for anything busy. Binding values are plain data: a plugin that renders a prop as raw HTML would also
 render data from your API as HTML, so treat API content as untrusted there.
 
+## Single sign-on with the VSD auth server
+
+Visitors can sign in through the auth server (OpenID Connect authorization-code flow with PKCE). The login
+plugin then shows a **Sign in with VSD** button. Everything else is unchanged: the identity lands in
+`SESSION/$auth/user`, so `{{auth.*}}` bindings, the navbar and `ctx.user()` in handlers work as before.
+
+1. Register a **separate OAuth client** for the runtime on the auth server, with the exact redirect URI
+   `https://<your-site>/_vsd/auth/callback`.
+2. Configure (all `vsd.runtime.sso.*`):
+
+| Property | Meaning |
+|---|---|
+| `enabled` | `true` to turn SSO on. Startup fails if a required value is missing or a URL is not https. |
+| `issuer` | Expected `iss` claim, exactly as the auth server issues it. |
+| `authorization-endpoint` | **Public** URL, opened by the visitor's browser. |
+| `token-endpoint`, `jwks-uri` | Called by the runtime, so an **internal** URL is fine. |
+| `client-id`, `client-secret` | Secret may be empty for a public client (PKCE only). |
+| `redirect-uri` | Public callback URL, must end in `/_vsd/auth/callback`. |
+| `audience` | Expected `aud`; defaults to the client id. |
+| `required-roles` | Only users with one of these roles may sign in (`ROLE_` prefix optional). Empty = any auth server user. |
+| `end-session-endpoint` | Optional. Sign-out sends the visitor here so the auth server session ends too. |
+| `password-login` | `true` (default) keeps the password form next to the button. |
+| `allow-insecure-http` | Local development only. |
+
+How it behaves: only RS256 tokens are accepted, keys come from the JWKS, and `iss`, `aud`, `exp` and the `nonce`
+are checked. The `state` is one-time and tied to the visitor's session, so a callback from another browser is
+refused. After sign-in the session id and CSRF token rotate. The return path must be a path on this site
+(anything else goes to `/`). Tokens stay on the server. The session lasts until it is idle for
+`session-idle-timeout`; the token's expiry only matters at sign-in. Claims used: `sub` (username and fallback
+email), `user_id`, `display_name`, `email`, `roles` (`ROLE_ADMIN` becomes `ADMIN`) and `avatar_url`.
+
+Try it without the real server: `java -cp "$(cat target/cp.txt)" scripts/FakeIssuer.java` (after
+`mvn dependency:build-classpath -Dmdep.outputFile=target/cp.txt`) starts a stand-in issuer on port 9099
+that approves every sign-in as one fixed user. Never use it outside development.
+
 ## Not done yet (be aware)
 
 * **Plugin host is new, not extracted from `core`.** `core`'s `PluginManager` is untouched, so the
@@ -155,6 +190,8 @@ render data from your API as HTML, so treat API content as untrusted there.
   patches to open streams.
 * **Client-rendered.** No server-side HTML for components, so no SEO beyond title/description.
 * **Builder has no fake `window.VSD`.** Plugins just take their old path there.
-* **Sign-in is the dev `ConfigIdentityProvider`** (plain-text users). Provide your own
-  `IdentityProvider` bean (for example one calling the VSD auth server) for real use.
+* **Password sign-in is the dev `ConfigIdentityProvider`** (plain-text users). For real use turn on single
+  sign-on (below) and set `vsd.runtime.sso.password-login=false`.
+* **SSO has only been run against a stand-in issuer** (`scripts/FakeIssuer.java`) and mock-issuer tests, not
+  the real VSD auth server. Check its token claims and client registration before relying on it.
 * `runtimeBridge.ts` is copied into each plugin that uses it; it belongs in a shared package.

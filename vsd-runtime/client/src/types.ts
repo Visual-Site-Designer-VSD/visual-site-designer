@@ -16,6 +16,8 @@ export interface RuntimeUser {
   displayName: string;
   email?: string;
   roles: string[];
+  avatarUrl?: string;
+  provider?: 'password' | 'sso';
 }
 
 /** JSON embedded in the page shell by the server. */
@@ -26,6 +28,7 @@ export interface Boot {
   plugins: { id: string; version: string; css: boolean }[];
   session: { csrf: string; rev: number; entries: WirePatch[] };
   api: string;
+  sso: { enabled: boolean; passwordLogin: boolean; start: string };
 }
 
 export interface ComponentInstance {

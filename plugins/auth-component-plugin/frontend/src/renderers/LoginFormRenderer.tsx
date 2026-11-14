@@ -83,11 +83,31 @@ const LoginFormRenderer: React.FC<RendererProps> = ({ component, isEditMode }) =
   const title = props.title as string | undefined;
   const subtitle = props.subtitle as string | undefined;
 
+  // Live runtime with single sign-on: a button that goes to the VSD auth server. The password
+  // form stays unless the site turned it off.
+  const showSso = !isEditMode && auth.ssoEnabled && !!auth.startSso;
+  const showPasswordForm = isEditMode || !showSso || auth.passwordLogin !== false;
+
   return (
     <div className="auth-form login-form" style={containerStyle}>
       {title && <h2 className="auth-form-title">{title}</h2>}
       {subtitle && <p className="auth-form-subtitle">{subtitle}</p>}
 
+      {showSso && (
+        <button
+          type="button"
+          className="auth-form-submit"
+          data-sso="true"
+          onClick={() => auth.startSso?.()}
+        >
+          {props.ssoButtonText as string || 'Sign in with VSD'}
+        </button>
+      )}
+      {showSso && showPasswordForm && (
+        <p className="auth-form-footer">{props.ssoDividerText as string || 'or use your email and password'}</p>
+      )}
+
+      {showPasswordForm && (
       <form onSubmit={handleSubmit} className="auth-form-content">
         {error && <div className="auth-form-error">{error}</div>}
 
@@ -162,6 +182,7 @@ const LoginFormRenderer: React.FC<RendererProps> = ({ component, isEditMode }) =
           </p>
         )}
       </form>
+      )}
     </div>
   );
 };

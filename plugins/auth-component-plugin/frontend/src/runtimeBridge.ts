@@ -24,6 +24,10 @@ interface VsdRuntime {
     user: RuntimeUser | null;
     login(username: string, password: string): Promise<Outcome>;
     logout(): Promise<Outcome>;
+    /** Older runtimes do not have these three. */
+    ssoEnabled?: boolean;
+    passwordLogin?: boolean;
+    startSso?(returnTo?: string): void;
   };
 }
 
@@ -34,6 +38,9 @@ const OFFLINE = {
   user: null as RuntimeUser | null,
   login: null as null | ((u: string, p: string) => Promise<Outcome>),
   logout: null as null | (() => Promise<Outcome>),
+  ssoEnabled: false,
+  passwordLogin: true,
+  startSso: null as null | ((returnTo?: string) => void),
 };
 
 /**

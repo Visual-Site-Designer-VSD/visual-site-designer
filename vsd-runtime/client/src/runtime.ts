@@ -107,8 +107,27 @@ export class Runtime {
     if (res.ok) {
       if (res.json.csrf) this.csrf = res.json.csrf;
       this.store.apply((res.json.patches ?? []) as WirePatch[]);
+      // Signed in through the auth server: end its session too, or the next click signs back in.
+      const next = res.json.redirect;
+      if (typeof next === 'string' && /^https?:\/\//i.test(next)) location.assign(next);
     }
     return { ok: res.ok, message: res.ok ? undefined : res.json?.message };
+  }
+
+  /** True when the site lets visitors sign in through the VSD auth server. */
+  get ssoEnabled(): boolean {
+    return !!this.boot.sso?.enabled;
+  }
+
+  /** False when the site only allows single sign-on. */
+  get passwordLogin(): boolean {
+    return this.boot.sso?.passwordLogin !== false;
+  }
+
+  /** Sends the visitor to the auth server; they come back signed in, on the page they were on. */
+  startSso(returnTo: string = location.pathname + location.search): void {
+    const start = this.boot.sso?.start ?? '/_vsd/auth/sso/start';
+    location.assign(`${start}?return=${encodeURIComponent(returnTo)}`);
   }
 
   // ---- hooks (published for plugins) ---------------------------------------------------------
@@ -122,12 +141,26 @@ export class Runtime {
     return [value === undefined ? initial : value, set];
   };
 
-  useAuth = (): { user: RuntimeUser | null; login: Runtime['login']; logout: Runtime['logout'] } => {
+  useAuth = (): {
+    user: RuntimeUser | null;
+    login: Runtime['login'];
+    logout: Runtime['logout'];
+    ssoEnabled: boolean;
+    passwordLogin: boolean;
+    startSso: Runtime['startSso'];
+  } => {
     const user = useSyncExternalStore(
       this.store.subscribe,
       () => this.store.get('SESSION', '$auth', 'user'),
     ) as RuntimeUser | undefined;
-    return { user: user ?? null, login: this.login.bind(this), logout: this.logout.bind(this) };
+    return {
+      user: user ?? null,
+      login: this.login.bind(this),
+      logout: this.logout.bind(this),
+      ssoEnabled: this.ssoEnabled,
+      passwordLogin: this.passwordLogin,
+      startSso: this.startSso.bind(this),
+    };
   };
 
   // ---- page data ----------------------------------------------------------------------------
