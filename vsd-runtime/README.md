@@ -23,7 +23,7 @@ Needs Java 21, Maven, and Node (the client and plugin bundles are built with the
 
 ```bash
 # once: SDK + BOM into the local Maven repo, frontend toolchain
-mvn -q -DskipTests install -pl vsd-cms-bom,flashcard-cms-plugin-sdk -am
+mvn -q -DskipTests install -pl vsd-cms-bom,vsd-cms-plugin-sdk -am
 (cd frontend && npm ci)
 
 # browser client -> vsd-runtime/src/main/resources/vsd-client/

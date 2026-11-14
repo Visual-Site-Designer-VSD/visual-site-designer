@@ -21,7 +21,7 @@
 
     <modules>
         <module>vsd-cms-bom</module>
-        <module>flashcard-cms-plugin-sdk</module>
+        <module>vsd-cms-plugin-sdk</module>
         <module>site-runtime</module>
         <module>vsd-runtime</module>
         <module>core</module>

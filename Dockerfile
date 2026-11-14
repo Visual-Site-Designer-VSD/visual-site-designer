@@ -7,7 +7,7 @@ COPY pom.xml .
 
 # Copy all Maven modules (required for multi-module build)
 COPY vsd-cms-bom ./vsd-cms-bom
-COPY flashcard-cms-plugin-sdk ./flashcard-cms-plugin-sdk
+COPY vsd-cms-plugin-sdk ./vsd-cms-plugin-sdk
 COPY site-runtime ./site-runtime
 COPY core ./core
 COPY frontend ./frontend

@@ -86,8 +86,8 @@ Add the SDK dependency to your plugin's `pom.xml`:
 
 ```xml
 <dependency>
-    <groupId>com.flashcard</groupId>
-    <artifactId>flashcard-cms-plugin-sdk</artifactId>
+    <groupId>dev.mainul35</groupId>
+    <artifactId>vsd-cms-plugin-sdk</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 </dependency>
 ```
@@ -506,7 +506,7 @@ Props with `PropType.URL` or `PropType.IMAGE` automatically get an image picker 
 To build the SDK locally:
 
 ```bash
-cd flashcard-cms-plugin-sdk
+cd vsd-cms-plugin-sdk
 mvn clean install
 ```
 

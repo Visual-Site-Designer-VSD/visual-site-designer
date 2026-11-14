@@ -61,7 +61,7 @@ cd dynamic-site-builder
 
 # 2. Install the BOM and SDK (required once)
 cd vsd-cms-bom && mvn clean install && cd ..
-cd flashcard-cms-plugin-sdk && mvn clean install && cd ..
+cd vsd-cms-plugin-sdk && mvn clean install && cd ..
 
 # 3. Build everything
 mvn clean install -DskipTests
@@ -1715,7 +1715,7 @@ graph TD
 ```
 dynamic-site-builder/
 ├── vsd-cms-bom/              # Bill of Materials (dependency versions)
-├── flashcard-cms-plugin-sdk/ # Plugin SDK (artifact: vsd-cms-plugin-sdk)
+├── vsd-cms-plugin-sdk/ # Plugin SDK (artifact: vsd-cms-plugin-sdk)
 ├── core/                     # Main Spring Boot application
 │   ├── plugins/              # Runtime plugin JARs (loaded at startup)
 │   └── src/main/java/        # Core services, controllers
@@ -2294,7 +2294,7 @@ cd frontend
 npm test
 
 # All tests
-mvn test -pl core,flashcard-cms-plugin-sdk
+mvn test -pl core,vsd-cms-plugin-sdk
 ```
 
 ---
