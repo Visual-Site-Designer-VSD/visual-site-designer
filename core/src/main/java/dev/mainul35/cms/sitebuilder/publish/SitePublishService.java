@@ -7,6 +7,7 @@ import dev.mainul35.cms.sitebuilder.entity.Page;
 import dev.mainul35.cms.sitebuilder.entity.Site;
 import dev.mainul35.cms.sitebuilder.repository.PageRepository;
 import dev.mainul35.cms.sitebuilder.repository.SiteRepository;
+import dev.mainul35.cms.sitebuilder.runtimelink.RuntimeLinkService;
 import dev.mainul35.cms.sitebuilder.service.PageVersionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,13 +46,16 @@ public class SitePublishService {
     private final PluginRepository pluginRepository;
     private final SnapshotBuilder builder;
     private final Path publishRoot;
+    private final RuntimeLinkService runtimeLink;
 
     public SitePublishService(SiteRepository siteRepository,
                               PageRepository pageRepository,
                               PageVersionService pageVersionService,
                               PluginRepository pluginRepository,
                               ObjectMapper mapper,
+                              RuntimeLinkService runtimeLink,
                               @Value("${vsd.publish.dir:published-sites}") String publishDir) {
+        this.runtimeLink = runtimeLink;
         this.siteRepository = siteRepository;
         this.pageRepository = pageRepository;
         this.pageVersionService = pageVersionService;
@@ -99,7 +103,7 @@ public class SitePublishService {
         String version = LocalDateTime.now().format(VERSION);
         SnapshotBuilder.Result result = builder.build(
                 new SnapshotBuilder.SiteInfo(site.getSiteName(), site.getSiteName()),
-                inputs, installed, siteRoot, version);
+                inputs, installed, siteRoot, version, runtimeLink.declaredNames().orElse(null));
         log.info("Published site {} as snapshot {} ({} page(s), plugins {})",
                 siteId, version, result.pages(), result.plugins());
         return result;

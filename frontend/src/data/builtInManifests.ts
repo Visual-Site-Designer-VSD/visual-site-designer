@@ -1754,6 +1754,7 @@ const newsletterFormManifest: ComponentManifest = {
   },
   pluginId: 'newsletter-form-plugin',
   pluginVersion: '1.0.0',
+  sharedState: { reads: ['newsletter'], writes: ['newsletter'] },
   canHaveChildren: false,
   capabilities: {
     canHaveChildren: false,

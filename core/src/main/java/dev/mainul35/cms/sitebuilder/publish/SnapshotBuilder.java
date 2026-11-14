@@ -18,6 +18,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Writes an immutable site snapshot in the format the live runtime (vsd-runtime) serves:
@@ -56,6 +58,16 @@ public class SnapshotBuilder {
      */
     public Result build(SiteInfo site, List<PageInput> pages, Map<String, String> installedPlugins,
                         Path siteRoot, String version) {
+        return build(site, pages, installedPlugins, siteRoot, version, null);
+    }
+
+    /**
+     * @param declaredShared names of the shared state declared in the runtime console. When not null, a page whose
+     *                       bindings read ({@code {{shared.name...}}}) a state that is not in the set is refused.
+     *                       Null means the declarations are not known, so nothing is checked.
+     */
+    public Result build(SiteInfo site, List<PageInput> pages, Map<String, String> installedPlugins,
+                        Path siteRoot, String version, Set<String> declaredShared) {
         if (pages.isEmpty()) {
             throw new PublishException("Nothing to publish: the site has no pages with saved content.");
         }
@@ -93,6 +105,14 @@ public class SnapshotBuilder {
                 continue;
             }
             definitions.put(file, def);
+            if (declaredShared != null) {
+                for (String name : sharedReads(def)) {
+                    if (!declaredShared.contains(name)) {
+                        problems.add("Page '" + p.name() + "' reads shared state '" + name
+                                + "', which is not declared in the runtime console.");
+                    }
+                }
+            }
             collectPlugins(def.path("components"), p.name(), pluginUsers);
             if (p.home() && homeName == null) {
                 homeName = p.slug();
@@ -208,5 +228,17 @@ public class SnapshotBuilder {
         } catch (IOException | RuntimeException ignored) {
             // best effort
         }
+    }
+
+    private static final Pattern SHARED_READ = Pattern.compile("\\{\\{\\s*shared\\.([A-Za-z0-9_-]+)");
+
+    /** Names of the shared state a page definition reads in its template bindings. */
+    static Set<String> sharedReads(JsonNode definition) {
+        Set<String> names = new TreeSet<>();
+        Matcher m = SHARED_READ.matcher(definition.toString());
+        while (m.find()) {
+            names.add(m.group(1));
+        }
+        return names;
     }
 }

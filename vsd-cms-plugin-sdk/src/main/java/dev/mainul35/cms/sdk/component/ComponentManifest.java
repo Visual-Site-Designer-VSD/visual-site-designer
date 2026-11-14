@@ -98,6 +98,22 @@ public class ComponentManifest {
      */
     private List<String> allowedChildTypes;
 
+    /**
+     * Shared state this component reads or writes. Shared state is declared in the live runtime's console;
+     * the builder shows this list and warns when a name is not declared there. Optional.
+     */
+    private SharedStateUsage sharedState;
+
+    /** Names of shared state a component uses. */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SharedStateUsage {
+        private List<String> reads;
+        private List<String> writes;
+    }
+
     // ===== Export Template Fields =====
 
     /**

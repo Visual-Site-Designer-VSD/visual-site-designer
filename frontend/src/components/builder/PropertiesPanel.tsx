@@ -7,6 +7,8 @@ import { PageLinkSelector } from './PageLinkSelector';
 import { ImageRepositoryModal } from './ImageRepositoryModal';
 import { GradientPicker } from './GradientPicker';
 import { DataSourceEditor } from './DataSourceEditor';
+import { PropBinding } from './PropBinding';
+import { SharedStateUsage } from './SharedStateUsage';
 import { ResponsiveSettingsEditor } from './ResponsiveSettingsEditor';
 import './PropertiesPanel.css';
 
@@ -554,6 +556,16 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ selectedCompon
     });
   };
 
+  /** Sets or clears the live binding (a template such as "Total {{shared.cart.total}}") for one prop. */
+  const handleBindingChange = (propName: string, template: string | undefined) => {
+    const next = { ...(selectedComponent.templateBindings ?? {}) };
+    if (template === undefined || template === '') delete next[propName];
+    else next[propName] = template;
+    updateComponent(selectedComponent.instanceId, {
+      templateBindings: Object.keys(next).length > 0 ? next : undefined,
+    });
+  };
+
   const handleStyleChange = (styleName: string, value: string) => {
     updateComponentStyles(selectedComponent.instanceId, {
       ...selectedComponent.styles,
@@ -957,6 +969,8 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ selectedCompon
               return null;
             })()}
 
+            <SharedStateUsage manifest={manifest} />
+
             {manifest?.configurableProps && manifest.configurableProps.length > 0 ? (
               // Deduplicate configurableProps by name to prevent React duplicate key warnings
               manifest.configurableProps
@@ -971,6 +985,10 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ selectedCompon
                   {propDef.helpText && (
                     <small className="help-text">{propDef.helpText}</small>
                   )}
+                  <PropBinding
+                    value={selectedComponent.templateBindings?.[propDef.name]}
+                    onChange={(template) => handleBindingChange(propDef.name, template)}
+                  />
                 </div>
               ))
             ) : (

@@ -186,6 +186,22 @@ visitor's own (never another visitor's), and until a session has a value the sta
 which shared state a page reads, and the browser fetches the page again when one of those values changes (changes to other
 state do not trigger a fetch). `shared` is a reserved name, so a data source cannot use it.
 
+**In the builder:** the builder server asks the runtime which shared state is declared, so designers wire it without
+typing names from memory. Set these on the builder server (`core`):
+
+```
+vsd.runtime-link.url=http://localhost:8090
+vsd.runtime-link.admin-token=<the runtime's vsd.runtime.console.admin-token>
+```
+
+Then, in the Props tab, every prop has **Bind to live data**: pick a value from the declared shared state (its fields),
+the signed-in user, the page or a URL parameter, or type a template such as `Total {{shared.cart.total}}`. It is saved
+as the component's `templateBindings`, and the live runtime fills it in for each visitor (the canvas still shows the
+prop's normal value). A binding that reads shared state nobody declared is flagged right away, and **publishing is
+refused** for such a page. If the runtime cannot be reached, designers can still type names and publishing continues
+without the check (it is logged). A plugin can list the shared state it reads and writes in its manifest
+(`sharedState: { reads, writes }`); the builder shows that list with a tick or warning for each name.
+
 Limits to know: the writers list for **browser** writes is based on the plugin id the browser reports, so it stops
 plugins stepping on each other but not hostile code; use *Browser may write = off* for state that must be protected.
 Only the `SESSION` scope is covered (per-page shared state is not built yet).

@@ -143,4 +143,34 @@ class SnapshotBuilderTest {
         JsonNode site = MAPPER.readTree(root.resolve("v1/site.json").toFile());
         assertEquals("about", site.get("defaultPage").asText());
     }
+
+    private static String pageReading(String... bindings) {
+        StringBuilder sb = new StringBuilder("{\"pageName\":\"p\",\"components\":[");
+        for (int i = 0; i < bindings.length; i++) {
+            sb.append(i > 0 ? "," : "").append("{\"instanceId\":\"c").append(i)
+                    .append("\",\"pluginId\":\"label-plugin\",\"componentId\":\"X\",\"templateBindings\":{\"text\":\"")
+                    .append(bindings[i]).append("\"}}");
+        }
+        return sb.append("]}").toString();
+    }
+
+    @Test
+    void refusesPagesThatReadSharedStateThatIsNotDeclared() {
+        PublishException e = assertThrows(PublishException.class, () -> builder.build(SITE,
+                List.of(home(pageReading("Total {{shared.cart.total}}", "{{ shared.theme.dark }}", "{{auth.user.name}}"))),
+                INSTALLED, root, "v1", java.util.Set.of("theme")));
+        assertTrue(e.getMessage().contains("'cart'"), e.getMessage());
+        assertFalse(e.getMessage().contains("'theme'"), "declared state is fine");
+        assertFalse(Files.exists(root.resolve("v1")), "nothing is written when the check fails");
+    }
+
+    @Test
+    void acceptsDeclaredSharedStateAndSkipsTheCheckWhenDeclarationsAreUnknown() {
+        var ok = builder.build(SITE, List.of(home(pageReading("{{shared.cart.total}}"))), INSTALLED, root, "v1",
+                java.util.Set.of("cart"));
+        assertEquals(1, ok.pages());
+        // runtime not reachable: declarations unknown (null), so nothing can be checked
+        var unchecked = builder.build(SITE, List.of(home(pageReading("{{shared.anything.x}}"))), INSTALLED, root, "v2", null);
+        assertEquals(1, unchecked.pages());
+    }
 }

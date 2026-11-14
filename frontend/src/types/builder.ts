@@ -316,6 +316,12 @@ export interface ComponentManifest {
 
   /** Allowed child component types (if canHaveChildren is true) */
   allowedChildTypes?: string[];
+
+  /**
+   * Shared state (declared in the runtime console) this component reads or writes. The builder shows it and
+   * warns when a name is not declared.
+   */
+  sharedState?: { reads?: string[]; writes?: string[] };
 }
 
 /**

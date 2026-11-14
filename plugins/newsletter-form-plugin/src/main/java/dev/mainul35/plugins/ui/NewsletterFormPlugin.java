@@ -133,6 +133,11 @@ public class NewsletterFormPlugin implements UIComponentPlugin {
                 .description("A newsletter subscription form with email input and subscribe button")
                 .pluginId("newsletter-form-plugin")
                 .pluginVersion("1.0.0")
+                // Declared in the runtime console: the server-side handler writes it, the form reads it.
+                .sharedState(ComponentManifest.SharedStateUsage.builder()
+                        .reads(java.util.List.of("newsletter"))
+                        .writes(java.util.List.of("newsletter"))
+                        .build())
                 .reactComponentPath("/components/NewsletterForm.jsx")
                 .defaultProps(buildDefaultProps())
                 .defaultStyles(buildDefaultStyles())
