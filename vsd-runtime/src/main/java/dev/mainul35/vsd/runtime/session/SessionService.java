@@ -1,6 +1,7 @@
 package dev.mainul35.vsd.runtime.session;
 
 import dev.mainul35.vsd.runtime.RuntimeProperties;
+import dev.mainul35.vsd.runtime.shared.SharedStateService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -26,10 +27,12 @@ public class SessionService {
 
     private final SessionStore store;
     private final RuntimeProperties props;
+    private final SharedStateService shared;
 
-    public SessionService(SessionStore store, RuntimeProperties props) {
+    public SessionService(SessionStore store, RuntimeProperties props, SharedStateService shared) {
         this.store = store;
         this.props = props;
+        this.shared = shared;
     }
 
     /** The visitor's live session, if the cookie points at one that has not expired. */
@@ -54,6 +57,7 @@ public class SessionService {
             return existing.get();
         }
         Session s = store.create();
+        shared.seed(s);
         writeCookie(request, response, s);
         return s;
     }

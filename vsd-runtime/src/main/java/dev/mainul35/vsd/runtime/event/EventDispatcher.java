@@ -11,6 +11,7 @@ import dev.mainul35.vsd.runtime.RuntimeProperties;
 import dev.mainul35.vsd.runtime.plugin.LoadedPlugin;
 import dev.mainul35.vsd.runtime.plugin.PluginHost;
 import dev.mainul35.vsd.runtime.session.Session;
+import dev.mainul35.vsd.runtime.shared.SharedStateService;
 import dev.mainul35.vsd.runtime.snapshot.SnapshotService;
 import dev.mainul35.vsd.runtime.util.Json;
 import dev.mainul35.vsd.runtime.util.RateLimiter;
@@ -44,8 +45,11 @@ public class EventDispatcher {
     private final SnapshotService snapshots;
     private final RuntimeProperties props;
     private final RateLimiter limiter;
+    private final SharedStateService shared;
 
-    public EventDispatcher(PluginHost host, List<RuntimeEventHandler> beans, SnapshotService snapshots, RuntimeProperties props) {
+    public EventDispatcher(PluginHost host, List<RuntimeEventHandler> beans, SnapshotService snapshots, RuntimeProperties props,
+                           SharedStateService shared) {
+        this.shared = shared;
         this.snapshots = snapshots;
         this.props = props;
         this.limiter = new RateLimiter(props.getMaxEventsPerSecond(), 1000);
@@ -101,7 +105,7 @@ public class EventDispatcher {
             if (cached != null) {
                 return new Response(200, cached);
             }
-            EventState state = new EventState(session, props.getMaxValueBytes(), props.getMaxStateKeys());
+            EventState state = new EventState(session, props.getMaxValueBytes(), props.getMaxStateKeys(), shared, pluginId);
             RuntimeResult result;
             try {
                 result = handler.handle(new Ctx(session, snapshots.site().name(), page, state, clientIp), event);

@@ -133,7 +133,7 @@ check("POST without a session -> 401", status == 401)
 status, body = a.event("subscribe", {"email": "not-an-email"})
 check("invalid email -> failure with field error", status == 200 and body["status"] == "failure" and body["errors"].get("email"), body)
 status, s = a.req("GET", "/_vsd/api/session")
-check("failed handler changed no state", ("PLUGIN", "newsletter-form-plugin", "subscription") not in entries_by_key(s))
+check("failed handler changed no state", entries_by_key(s)[("SESSION", "shared", "newsletter")]["subscribed"] is False)
 
 eid = str(uuid.uuid4())
 status, body = a.event("subscribe", {"email": "me@example.com"}, event_id=eid)
@@ -144,7 +144,7 @@ rev_after = body["rev"]
 status, again = a.event("subscribe", {"email": "other@example.com"}, event_id=eid)
 check("retried eventId returns the original answer without re-running", again == body, again)
 status, s = a.req("GET", "/_vsd/api/session")
-check("state holds the first subscription only", entries_by_key(s)[("PLUGIN", "newsletter-form-plugin", "subscription")]["email"] == "me@example.com")
+check("state holds the first subscription only", entries_by_key(s)[("SESSION", "shared", "newsletter")]["email"] == "me@example.com")
 check("revision did not advance on the retry", s["rev"] == rev_after)
 
 status, body = a.event("subscribe", {"email": "a@b.co"}, plugin="auth-component-plugin")
@@ -167,11 +167,62 @@ check("oversized value rejected", status == 400)
 status, _ = w([{"op": "set", "scope": "BOGUS", "owner": "o", "key": "k", "value": 1}])
 check("unknown scope rejected", status == 400)
 
+
+# --- shared state (declared in the runtime console) ------------------------------------------------
+c = Client()
+c.load_page("/")
+cw = lambda p: c.req("POST", "/_vsd/api/state", {"patches": [p]})
+status, body = cw({"op": "set", "scope": "SESSION", "owner": "shared", "key": "newsletter", "plugin": "newsletter-form-plugin",
+                   "value": {"subscribed": True}})
+check("server-only shared state refuses browser writes", status == 400 and "server-side" in body.get("message", ""), body)
+status, body = cw({"op": "set", "scope": "SESSION", "owner": "shared", "key": "never-declared", "value": {}})
+check("undeclared shared state is refused", status == 400 and "not declared" in body.get("message", ""), body)
+status, body = cw({"op": "set", "scope": "SESSION", "owner": "freeform", "key": "k", "value": 1})
+check("undeclared session state is refused (strict mode)", status == 400, body)
+status, body = cw({"op": "set", "scope": "PLUGIN", "owner": "some-plugin", "key": "private", "value": 1})
+check("plugin-private state still works", status == 200, body)
+
+CONSOLE = "/_vsd/console/api"
+status, _ = Client().req("GET", CONSOLE + "/shared-state")
+check("console without credentials -> 401", status == 401)
+status, _ = Client().req("GET", CONSOLE + "/shared-state", headers={"X-VSD-Admin-Token": "wrong"})
+check("console with a wrong token -> 401", status == 401)
+adm = {"X-VSD-Admin-Token": "demo-admin"}
+status, listing = Client().req("GET", CONSOLE + "/shared-state", headers=adm)
+check("console lists the declared shared state", status == 200 and any(d["name"] == "newsletter" for d in listing["definitions"]), listing)
+
+name = "smoke" + RUN_ID
+definition = {"name": name, "kind": "OBJECT", "lifetime": "VISITOR",
+              "fields": {"count": {"type": "integer", "required": True}}, "writers": ["smoke-plugin"]}
+status, saved = Client().req("PUT", CONSOLE + "/shared-state/" + name, definition, headers=adm)
+check("console declares a new shared state", status == 200 and saved["defaultValue"] == {"count": 0}, saved)
+status, body = Client().req("PUT", CONSOLE + "/shared-state/" + name, dict(definition, writter=[]), headers=adm)
+check("console refuses a misspelled option", status == 400, body)
+
+d = Client()
+d.load_page("/")
+dw = lambda plugin, value: d.req("POST", "/_vsd/api/state", {"patches": [
+    {"op": "set", "scope": "SESSION", "owner": "shared", "key": name, "plugin": plugin, "value": value}]})
+status, body = dw("smoke-plugin", {"count": 3})
+check("a listed plugin writes valid shared state", status == 200, body)
+check("the write is in the visitor session", entries_by_key(d.req("GET", "/_vsd/api/session")[1])[("SESSION", "shared", name)] == {"count": 3})
+status, body = dw("other-plugin", {"count": 4})
+check("an unlisted plugin is refused", status == 400 and "may not write" in body.get("message", ""), body)
+status, body = dw("smoke-plugin", {"count": "many"})
+check("a value of the wrong shape is refused", status == 400 and "'count'" in body.get("message", ""), body)
+status, sessions_view = Client().req("GET", CONSOLE + "/sessions", headers=adm)
+check("console lists live sessions without exposing cookies", status == 200 and sessions_view["total"] >= 1
+      and all(len(x["handle"]) == 12 and x["handle"] != d.cookie for x in sessions_view["sessions"]), sessions_view)
+status, _ = Client().req("DELETE", CONSOLE + "/shared-state/" + name, headers=adm)
+check("console deletes the declaration", status == 200)
+status, body = dw("smoke-plugin", {"count": 5})
+check("writes to a deleted declaration are refused", status == 400, body)
+
 # --- isolation + SSE fan-out ----------------------------------------------------------------------
 b = Client()
 b.load_page("/")
 check("another visitor has their own empty session",
-      ("PLUGIN", "newsletter-form-plugin", "subscription") not in entries_by_key(b.req("GET", "/_vsd/api/session")[1]))
+      entries_by_key(b.req("GET", "/_vsd/api/session")[1])[("SESSION", "shared", "newsletter")]["subscribed"] is False)
 
 received = []
 stream_ready = threading.Event()
@@ -205,11 +256,11 @@ t1 = threading.Thread(target=listen, args=(a, tab2, fresh_rev), daemon=True)
 t1.start()
 stream_ready.wait(5)
 stream_ready.clear()
-t2 = threading.Thread(target=listen, args=(b, b_events, 0), daemon=True)
+t2 = threading.Thread(target=listen, args=(b, b_events, b.rev), daemon=True)
 t2.start()
 stream_ready.wait(5)
 time.sleep(0.2)
-a.req("POST", "/_vsd/api/state", {"patches": [{"op": "set", "scope": "SESSION", "owner": "demo", "key": "ping", "value": "hello"}]})
+a.req("POST", "/_vsd/api/state", {"patches": [{"op": "set", "scope": "PAGE", "owner": "home", "key": "ping", "value": "hello"}]})
 t1.join(5)
 got = [p for e, d in tab2 if e == "patch" for p in d["patches"]]
 check("SSE: a second tab receives the patch", any(p["key"] == "ping" and p["value"] == "hello" for p in got), tab2)
@@ -241,11 +292,11 @@ fix.cookie, fix.csrf = old_cookie, old_csrf
 status, _ = fix.req("GET", "/_vsd/api/session")
 check("the pre-login session id no longer works", status == 200 and fix.cookie != old_cookie)
 status, s = a.req("GET", "/_vsd/api/session")
-check("state survived the sign-in", ("PLUGIN", "newsletter-form-plugin", "subscription") in entries_by_key(s))
+check("state survived the sign-in", entries_by_key(s)[("SESSION", "shared", "newsletter")]["subscribed"] is True)
 status, _ = a.event("subscribe", {"email": "again@example.com"}, event_id=str(uuid.uuid4()))
 check("handler sees the signed-in user", status == 200)
 check("subscription records who was signed in",
-      entries_by_key(a.req("GET", "/_vsd/api/session")[1])[("PLUGIN", "newsletter-form-plugin", "subscription")]["signedInAs"] == "demo")
+      entries_by_key(a.req("GET", "/_vsd/api/session")[1])[("SESSION", "shared", "newsletter")]["signedInAs"] == "demo")
 
 lim = Client()
 lim.load_page("/")
@@ -256,7 +307,9 @@ status, body = a.req("POST", "/_vsd/api/auth/logout", {})
 check("logout succeeds and clears user + state", status == 200 and any(p["op"] == "remove" and p["owner"] == "$auth" for p in body["patches"]), body)
 a.csrf = body["csrf"]
 status, s = a.req("GET", "/_vsd/api/session")
-check("after logout no state remains", s["entries"] == [], s)
+left = entries_by_key(s)
+check("after logout only the starting values of shared state remain",
+      set(left) == {("SESSION", "shared", "newsletter")} and left[("SESSION", "shared", "newsletter")]["subscribed"] is False, s)
 
 print()
 print("ALL PASSED" if not failures else f"{len(failures)} FAILED: " + "; ".join(failures))

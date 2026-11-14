@@ -46,6 +46,33 @@ public class RuntimeProperties {
     /** Sign-in through the VSD auth server ({@code vsd.runtime.sso.*}). */
     private Sso sso = new Sso();
 
+    /** The runtime console ({@code vsd.runtime.console.*}). */
+    private Console console = new Console();
+
+    /** Where the runtime keeps its own data, such as the shared state declarations. */
+    private String dataDir = "runtime-data";
+
+    /**
+     * When true (default), session-wide state must be declared in the runtime console. Writes to
+     * undeclared session state are refused. Set to false only while migrating old plugins.
+     */
+    private boolean strictSharedState = true;
+
+    /** The runtime console: declare shared state and look at live sessions. */
+    public static class Console {
+        private boolean enabled = true;
+        /**
+         * Token for the console API ({@code X-VSD-Admin-Token}). Empty turns token access off; signed-in
+         * users with the ADMIN role can still use the console.
+         */
+        private String adminToken = "";
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public String getAdminToken() { return adminToken; }
+        public void setAdminToken(String adminToken) { this.adminToken = adminToken; }
+    }
+
     /**
      * Limits for API data sources. A page author controls the endpoint, so the operator controls which
      * hosts may be called: with no allowed hosts, API sources are refused and only STATIC and CONTEXT work.
@@ -194,6 +221,13 @@ public class RuntimeProperties {
     public void setMaxValueBytes(int maxValueBytes) { this.maxValueBytes = maxValueBytes; }
     public int getMaxEventsPerSecond() { return maxEventsPerSecond; }
     public void setMaxEventsPerSecond(int maxEventsPerSecond) { this.maxEventsPerSecond = maxEventsPerSecond; }
+    public Console getConsole() { return console; }
+    public void setConsole(Console console) { this.console = console; }
+    public String getDataDir() { return dataDir; }
+    public Path dataPath() { return Path.of(dataDir); }
+    public void setDataDir(String dataDir) { this.dataDir = dataDir; }
+    public boolean isStrictSharedState() { return strictSharedState; }
+    public void setStrictSharedState(boolean strictSharedState) { this.strictSharedState = strictSharedState; }
     public Sso getSso() { return sso; }
     public void setSso(Sso sso) { this.sso = sso; }
     public Data getData() { return data; }

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VSD Runtime Console</title>
+<link rel="stylesheet" href="/_vsd/console/console.css">
+</head>
+<body>
+<header>
+  <h1>Runtime console</h1>
+  <form id="token-form">
+    <label for="token">Admin token</label>
+    <input id="token" type="password" autocomplete="off" placeholder="X-VSD-Admin-Token">
+    <button type="submit">Use token</button>
+  </form>
+</header>
+
+<nav>
+  <button class="tab active" data-tab="state">Shared state</button>
+  <button class="tab" data-tab="sessions">Live sessions</button>
+</nav>
+
+<p id="message" role="status"></p>
+
+<main>
+  <section id="tab-state">
+    <p class="hint">Declare state here first. Plugins can only read and write what is declared. Each visitor gets their own copy.</p>
+    <div class="split">
+      <div>
+        <div class="row"><h2>Declared</h2><button id="new-state">New shared state</button></div>
+        <ul id="state-list" class="list"></ul>
+        <p id="strict-note" class="hint"></p>
+      </div>
+      <form id="editor" hidden>
+        <h2 id="editor-title">New shared state</h2>
+        <label>Name <input id="f-name" required pattern="[a-z][A-Za-z0-9_-]{0,63}" placeholder="cart"></label>
+        <label>Description <input id="f-description" maxlength="500"></label>
+        <div class="two">
+          <label>Shape
+            <select id="f-kind"><option value="OBJECT">Object (named fields)</option><option value="MAP">Map (any keys)</option></select>
+          </label>
+          <label>Lifetime
+            <select id="f-lifetime"><option value="VISITOR">Visitor (whole session)</option><option value="LOGIN">Login (only while signed in)</option></select>
+          </label>
+        </div>
+
+        <div id="object-part">
+          <h3>Fields</h3>
+          <table id="fields"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th></th></tr></thead><tbody></tbody></table>
+          <button type="button" id="add-field">Add field</button>
+        </div>
+        <div id="map-part" hidden class="two">
+          <label>Value type <select id="f-valuetype"></select></label>
+          <label>Most keys <input id="f-maxentries" type="number" min="1" max="1000" value="100"></label>
+        </div>
+
+        <label>Starting value (JSON, optional) <textarea id="f-default" rows="3" placeholder="Left empty: built from the field types"></textarea></label>
+        <label>Plugins allowed to write (comma separated, empty = any) <input id="f-writers" placeholder="cart-plugin, checkout-plugin"></label>
+        <label class="check"><input id="f-clientwritable" type="checkbox" checked> Browser code may write (turn off so only server-side handlers can)</label>
+        <div class="two">
+          <label>On sign-in <select id="f-onsignin"><option value="KEEP">Keep the value</option><option value="RESET">Reset to the starting value</option></select></label>
+          <label>On sign-out <select id="f-onsignout"><option value="CLEAR">Clear to the starting value</option><option value="KEEP">Keep the value</option></select></label>
+        </div>
+        <p class="hint" id="lifetime-note"></p>
+        <div class="row">
+          <button type="submit" class="primary">Save</button>
+          <button type="button" id="cancel">Cancel</button>
+          <button type="button" id="delete" class="danger" hidden>Delete</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <section id="tab-sessions" hidden>
+    <div class="row"><h2>Live sessions</h2><button id="refresh">Refresh</button></div>
+    <p class="hint">Visitors currently held by this runtime. Ids are shown as a short fingerprint, never the cookie value.</p>
+    <table id="sessions"><thead><tr><th>Session</th><th>User</th><th>Entries</th><th>Revision</th><th>Idle</th></tr></thead><tbody></tbody></table>
+    <h3 id="state-title" hidden>State of <span id="state-handle"></span></h3>
+    <pre id="session-state" hidden></pre>
+  </section>
+</main>
+<script src="/_vsd/console/console.js"></script>
+</body>
+</html>

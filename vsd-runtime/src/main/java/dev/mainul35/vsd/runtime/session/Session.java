@@ -65,6 +65,7 @@ public final class Session {
     void setCsrf(String csrf) { this.csrf = csrf; }
     long lastAccess() { return lastAccess; }
     void touch() { this.lastAccess = System.currentTimeMillis(); }
+    public long idleSeconds() { return Math.max(0, (System.currentTimeMillis() - lastAccess) / 1000); }
     public Optional<RuntimeUser> user() { return Optional.ofNullable(user); }
     public void setUser(RuntimeUser user) { this.user = user; }
 

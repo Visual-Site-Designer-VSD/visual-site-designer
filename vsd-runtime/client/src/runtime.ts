@@ -1,6 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react';
 import { StateStore } from './store';
-import type { Boot, ComponentInstance, EventOutcome, RuntimeUser, Scope, WirePatch } from './types';
+import type { Boot, ComponentInstance, EventOutcome, RuntimeUser, Scope, SharedDef, WirePatch } from './types';
 
 const newId = (): string =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -25,9 +25,11 @@ export class Runtime {
   private stream: EventSource | null = null;
   private reconnectDelay = 1000;
   private refreshing: Promise<void> | null = null;
+  private sharedDefs = new Map<string, SharedDef>();
 
   constructor(readonly boot: Boot) {
     this.csrf = boot.session.csrf;
+    this.setSharedDefs(boot.shared ?? []);
     this.store.replace(boot.session.entries, boot.session.rev);
   }
 
@@ -61,6 +63,40 @@ export class Runtime {
     }
     rollback();
     return false;
+  }
+
+  // ---- shared state (declared in the runtime console) ---------------------------------------
+
+  private setSharedDefs(defs: SharedDef[]): void {
+    this.sharedDefs = new Map(defs.map((d) => [d.name, d]));
+  }
+
+  /** The declaration of a shared state, or undefined if nobody declared it in the console. */
+  sharedDef(name: string): SharedDef | undefined {
+    return this.sharedDefs.get(name);
+  }
+
+  /** The current value of a shared state, or its starting value until the session has one. */
+  getShared<T = unknown>(name: string): T | undefined {
+    const v = this.store.get('SESSION', 'shared', name);
+    return (v !== undefined ? v : this.sharedDefs.get(name)?.default) as T | undefined;
+  }
+
+  /**
+   * Replaces a shared state. The server checks it against the declaration and `pluginId` (who is writing),
+   * and the answer says why a refused write was refused.
+   */
+  async setShared(name: string, value: unknown, pluginId?: string): Promise<EventOutcome> {
+    const rollback = this.store.setOptimistic('SESSION', 'shared', name, value);
+    const res = await this.request('POST', '/state', {
+      patches: [{ op: 'set', scope: 'SESSION', owner: 'shared', key: name, value, plugin: pluginId }],
+    });
+    if (res.ok) {
+      this.store.apply((res.json.patches ?? []) as WirePatch[]);
+      return { ok: true };
+    }
+    rollback();
+    return { ok: false, message: res.json?.message ?? 'Request failed' };
   }
 
   // ---- events -------------------------------------------------------------------------------
@@ -141,6 +177,16 @@ export class Runtime {
     return [value === undefined ? initial : value, set];
   };
 
+  /** Hook for a shared state: [value, set]. `pluginId` is the plugin using it (checked against the writers list). */
+  useShared = <T,>(name: string, pluginId?: string): [T | undefined, (v: T) => Promise<EventOutcome>] => {
+    const stored = useSyncExternalStore(
+      this.store.subscribe,
+      () => this.store.get('SESSION', 'shared', name),
+    ) as T | undefined;
+    const set = useCallback((v: T) => this.setShared(name, v, pluginId), [name, pluginId]);
+    return [stored !== undefined ? stored : (this.sharedDefs.get(name)?.default as T | undefined), set];
+  };
+
   useAuth = (): {
     user: RuntimeUser | null;
     login: Runtime['login'];
@@ -219,6 +265,7 @@ export class Runtime {
         if (res.ok) {
           const s = await res.json();
           this.csrf = s.csrf;
+          if (Array.isArray(s.shared)) this.setSharedDefs(s.shared as SharedDef[]);
           this.store.replace(s.entries as WirePatch[], s.rev);
           this.connect();
         }

@@ -29,6 +29,17 @@ export interface Boot {
   session: { csrf: string; rev: number; entries: WirePatch[] };
   api: string;
   sso: { enabled: boolean; passwordLogin: boolean; start: string };
+  shared: SharedDef[];
+}
+
+/** A shared state declared in the runtime console. The browser falls back to `default` until a value exists. */
+export interface SharedDef {
+  name: string;
+  kind: 'OBJECT' | 'MAP';
+  lifetime: 'VISITOR' | 'LOGIN';
+  default: unknown;
+  clientWritable: boolean;
+  writers: string[];
 }
 
 export interface ComponentInstance {

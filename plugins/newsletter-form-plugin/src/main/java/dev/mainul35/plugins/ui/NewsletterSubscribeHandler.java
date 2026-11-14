@@ -18,14 +18,15 @@ import java.util.regex.Pattern;
  * Server-side half of the newsletter form in the VSD live runtime.
  *
  * <p>The form sends a {@code subscribe} event. The handler validates the address and records
- * the subscription in this plugin's session state ({@code PLUGIN/newsletter-form-plugin/subscription}),
+ * the subscription in the shared state {@code newsletter} (declared in the runtime console),
  * which every open tab of the visitor sees at once. A production plugin would also hand the
  * address to its mailing-list service here; that part is deliberately not faked.
  */
 public class NewsletterSubscribeHandler implements RuntimeEventHandler {
 
     public static final String PLUGIN_ID = "newsletter-form-plugin";
-    public static final StateKey SUBSCRIPTION = StateKey.plugin(PLUGIN_ID, "subscription");
+    /** Shared state "newsletter": it must be declared in the runtime console (see vsd-runtime/demo-data). */
+    public static final StateKey SUBSCRIPTION = StateKey.session("shared", "newsletter");
 
     private static final Logger log = LoggerFactory.getLogger(NewsletterSubscribeHandler.class);
     private static final Pattern EMAIL = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
@@ -49,6 +50,7 @@ public class NewsletterSubscribeHandler implements RuntimeEventHandler {
         }
 
         Map<String, Object> subscription = new LinkedHashMap<>();
+        subscription.put("subscribed", true);
         subscription.put("email", email);
         subscription.put("subscribedAt", Instant.now().toString());
         subscription.put("signedInAs", context.user().map(u -> u.username()).orElse(null));

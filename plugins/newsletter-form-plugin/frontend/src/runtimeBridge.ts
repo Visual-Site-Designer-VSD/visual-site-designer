@@ -6,10 +6,14 @@
  * Without it (builder, previews) the form behaves as before.
  */
 
+/** The shared state `newsletter`, declared in the runtime console. */
 export interface Subscription {
-  email: string;
-  subscribedAt: string;
+  subscribed: boolean;
+  email?: string;
+  subscribedAt?: string;
 }
+
+export const SHARED_STATE = 'newsletter';
 
 export interface EmitTarget {
   pluginId: string;
@@ -24,7 +28,7 @@ export interface Outcome {
 }
 
 interface VsdRuntime {
-  useSharedState<T>(scope: 'SESSION' | 'PAGE' | 'PLUGIN' | 'COMPONENT', owner: string, key: string, initial?: T): [T | undefined, (v: T) => void];
+  useShared<T>(name: string, pluginId?: string): [T | undefined, (v: T) => Promise<Outcome>];
   emit(type: string, target: EmitTarget, payload?: Record<string, unknown>): Promise<Outcome>;
 }
 
@@ -33,8 +37,8 @@ export const getRuntime = (): VsdRuntime | undefined =>
 
 const NOOP: [undefined, () => void] = [undefined, () => undefined];
 
-/** This plugin's subscription from session state (undefined when none, or without a runtime). */
+/** The visitor's subscription from the shared state (undefined without a runtime or if it is not declared). */
 export function useRuntimeSubscription(pluginId: string): Subscription | undefined {
   const rt = getRuntime();
-  return rt ? rt.useSharedState<Subscription>('PLUGIN', pluginId, 'subscription')[0] : NOOP[0];
+  return rt?.useShared ? rt.useShared<Subscription>(SHARED_STATE, pluginId)[0] : NOOP[0];
 }

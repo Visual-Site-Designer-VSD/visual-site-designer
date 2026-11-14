@@ -4,6 +4,7 @@ import dev.mainul35.cms.sdk.runtime.StateKey;
 import dev.mainul35.cms.sdk.runtime.StatePatch;
 import dev.mainul35.vsd.runtime.session.InMemorySessionStore;
 import dev.mainul35.vsd.runtime.session.Session;
+import dev.mainul35.vsd.runtime.shared.SharedTestSupport;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -21,7 +22,7 @@ class EventStateTest {
 
     @Test
     void writesAreStagedUntilTheDispatcherAppliesThem() {
-        EventState state = new EventState(session, 1024, 10);
+        EventState state = new EventState(session, 1024, 10, SharedTestSupport.lenient(), "p");
         state.set(K, "v");
         assertTrue(session.get(K).isEmpty(), "session untouched while the handler runs");
         assertEquals("v", state.get(K).orElseThrow(), "handler reads its own write");
@@ -33,7 +34,7 @@ class EventStateTest {
 
     @Test
     void discardingPendingWritesLeavesNoTrace() {
-        EventState state = new EventState(session, 1024, 10);
+        EventState state = new EventState(session, 1024, 10, SharedTestSupport.lenient(), "p");
         state.set(K, "v");
         // a failing handler simply never has its pending list applied
         assertTrue(session.get(K).isEmpty());
@@ -43,7 +44,7 @@ class EventStateTest {
     @Test
     void stagedRemovalHidesExistingValue() {
         session.apply(List.of(StatePatch.set(K, "old")));
-        EventState state = new EventState(session, 1024, 10);
+        EventState state = new EventState(session, 1024, 10, SharedTestSupport.lenient(), "p");
         state.remove(K);
         assertTrue(state.get(K).isEmpty());
         assertTrue(state.snapshot().isEmpty());
@@ -52,17 +53,17 @@ class EventStateTest {
 
     @Test
     void handlersMayWriteReservedOwnersButNotInvalidNames() {
-        EventState state = new EventState(session, 1024, 10);
+        EventState state = new EventState(session, 1024, 10, SharedTestSupport.lenient(), "p");
         state.set(StateKey.session("$auth", "user"), Map.of("id", "u1"));
         assertThrows(IllegalArgumentException.class, () -> state.set(StateKey.session("bad/owner", "k"), 1));
     }
 
     @Test
     void enforcesValueSizeAndKeyCount() {
-        EventState small = new EventState(session, 16, 10);
+        EventState small = new EventState(session, 16, 10, SharedTestSupport.lenient(), "p");
         assertThrows(IllegalArgumentException.class, () -> small.set(K, "x".repeat(100)));
 
-        EventState few = new EventState(session, 1024, 2);
+        EventState few = new EventState(session, 1024, 2, SharedTestSupport.lenient(), "p");
         few.set(StateKey.plugin("p", "a"), 1);
         few.set(StateKey.plugin("p", "b"), 1);
         assertThrows(IllegalArgumentException.class, () -> few.set(StateKey.plugin("p", "c"), 1));

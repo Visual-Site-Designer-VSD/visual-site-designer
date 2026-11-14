@@ -5,6 +5,7 @@ import dev.mainul35.cms.sdk.runtime.StateKey;
 import dev.mainul35.cms.sdk.runtime.StatePatch;
 import dev.mainul35.vsd.runtime.session.Session;
 import dev.mainul35.vsd.runtime.session.StateRules;
+import dev.mainul35.vsd.runtime.shared.SharedStateService;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -23,11 +24,15 @@ final class EventState implements RuntimeState {
     private final int maxValueBytes;
     private final int maxKeys;
     private final List<StatePatch> pending = new ArrayList<>();
+    private final SharedStateService shared;
+    private final String pluginId;
 
-    EventState(Session session, int maxValueBytes, int maxKeys) {
+    EventState(Session session, int maxValueBytes, int maxKeys, SharedStateService shared, String pluginId) {
         this.session = session;
         this.maxValueBytes = maxValueBytes;
         this.maxKeys = maxKeys;
+        this.shared = shared;
+        this.pluginId = pluginId;
     }
 
     List<StatePatch> pending() {
@@ -55,6 +60,7 @@ final class EventState implements RuntimeState {
         // Handlers are server code, so they may write reserved owners; names are still validated.
         StateRules.check(key, true);
         Object normalized = StateRules.normalize(value, maxValueBytes);
+        shared.checkWrite(session, key, normalized, false, pluginId, false);
         if (session.get(key).isEmpty() && session.size() + countNew() >= maxKeys) {
             throw new IllegalArgumentException("Too many state entries");
         }
@@ -63,6 +69,7 @@ final class EventState implements RuntimeState {
 
     @Override
     public void remove(StateKey key) {
+        shared.checkWrite(session, key, null, true, pluginId, false);
         pending.add(StatePatch.remove(key));
     }
 

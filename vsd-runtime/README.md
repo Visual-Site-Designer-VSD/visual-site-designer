@@ -147,6 +147,44 @@ and time limited; visitors cannot change the URL (no templating inside endpoints
 caching for anything busy. Binding values are plain data: a plugin that renders a prop as raw HTML would also
 render data from your API as HTML, so treat API content as untrusted there.
 
+## Shared state and the runtime console
+
+Plugins are built separately, so the runtime does not let them invent shared state on their own. Anything
+shared between plugins (a cart, a theme, a checkout draft) is **declared first** in the runtime console. The
+runtime then checks every write against the declaration.
+
+Open `http://localhost:8090/_vsd/console/` (demo token: `demo-admin`). Declare a state once:
+
+| Setting | Meaning |
+|---|---|
+| Name | For example `cart`. Lives at `SESSION/shared/cart` in each visitor's session. |
+| Shape | **Object** (named, typed fields) or **Map** (any keys, one value type). |
+| Lifetime | **Visitor**: lives with the session. **Login**: exists only while signed in; empty and read-only when signed out, fresh at each sign-in, gone at sign-out. |
+| Starting value | What a new session starts with. Left empty, it is built from the field types. |
+| Writers | Plugin ids allowed to write. Empty means any plugin. |
+| Browser may write | Turn off so that only server-side handlers can change it. |
+| On sign-in / sign-out | Visitor state is kept at sign-in and cleared at sign-out by default. Each can be changed per state. |
+
+An account switch on the same session without a sign-out starts clean, like a sign-out followed by a sign-in.
+
+**In a plugin**: `window.VSD.runtime.useShared('cart', 'my-plugin-id')` returns `[value, set]`. `set(value)` answers
+`{ok, message}`, and the message says why a write was refused (not declared, wrong plugin, wrong shape, server-only,
+sign-in needed). Until a session has a value, `value` is the starting value. In a handler, write
+`StateKey.session("shared", "cart")` through `context.state()`.
+
+**Rules the runtime enforces:** undeclared shared state is refused; values must match the declared shape; shared state
+cannot be removed (write the starting value instead); with `vsd.runtime.strict-shared-state=true` (the default),
+free-form `SESSION` state is refused too, so use `PLUGIN` scope for state only your plugin needs.
+
+**Console access:** `X-VSD-Admin-Token` equal to `vsd.runtime.console.admin-token`, or a signed-in user with the `ADMIN`
+role. Declarations are saved in `<vsd.runtime.data-dir>/shared-state.json` (survives restarts and republishing). The
+console also lists live sessions (by a short fingerprint, never the cookie) and shows one session's state.
+
+Limits to know: the writers list for **browser** writes is based on the plugin id the browser reports, so it stops
+plugins stepping on each other but not hostile code; use *Browser may write = off* for state that must be protected.
+Only the `SESSION` scope is covered (per-page shared state is not built yet), and `{{shared.*}}` template bindings are not
+wired in yet.
+
 ## Single sign-on with the VSD auth server
 
 Visitors can sign in through the auth server (OpenID Connect authorization-code flow with PKCE). The login

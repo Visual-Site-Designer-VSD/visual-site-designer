@@ -7,6 +7,7 @@ import dev.mainul35.cms.sdk.runtime.StatePatch;
 import dev.mainul35.vsd.runtime.auth.sso.OidcClient;
 import dev.mainul35.vsd.runtime.session.Session;
 import dev.mainul35.vsd.runtime.session.SessionService;
+import dev.mainul35.vsd.runtime.shared.SharedStateService;
 import dev.mainul35.vsd.runtime.util.Json;
 import dev.mainul35.vsd.runtime.util.RateLimiter;
 import jakarta.servlet.http.HttpServletRequest;
@@ -34,12 +35,14 @@ public class AuthService {
     private final IdentityProvider provider;
     private final SessionService sessions;
     private final OidcClient oidc;
+    private final SharedStateService shared;
     private final RateLimiter loginLimiter = new RateLimiter(5, 60_000);
 
-    public AuthService(IdentityProvider provider, SessionService sessions, OidcClient oidc) {
+    public AuthService(IdentityProvider provider, SessionService sessions, OidcClient oidc, SharedStateService shared) {
         this.provider = provider;
         this.sessions = sessions;
         this.oidc = oidc;
+        this.shared = shared;
     }
 
     public record Result(int status, String json) {
@@ -67,8 +70,16 @@ public class AuthService {
         session.lock().lock();
         try {
             sessions.rotate(session, request, response);
+            // A different account on the same session without a sign-out in between: start clean, as after a sign-out.
+            RuntimeUser previous = session.user().orElse(null);
+            boolean accountChanged = previous != null && !previous.id().equals(user.id());
+            List<StatePatch> applied = new ArrayList<>();
+            if (accountChanged) {
+                applied.addAll(shared.onSignOut(session));
+            }
             session.setUser(user);
-            List<StatePatch> applied = session.apply(List.of(StatePatch.set(USER_KEY, toMap(user, via))));
+            applied.addAll(session.apply(List.of(StatePatch.set(USER_KEY, toMap(user, via)))));
+            applied.addAll(shared.onSignIn(session, accountChanged));
             return new Result(200, Json.write(body(session, applied, null)));
         } finally {
             session.lock().unlock();
@@ -83,7 +94,7 @@ public class AuthService {
             boolean viaSso = session.get(USER_KEY)
                     .filter(v -> v instanceof Map<?, ?> m && PROVIDER_SSO.equals(m.get("provider"))).isPresent();
             session.setUser(null);
-            List<StatePatch> applied = new ArrayList<>(session.clearAll());
+            List<StatePatch> applied = new ArrayList<>(shared.onSignOut(session));
             sessions.rotate(session, request, response);
             return new Result(200, Json.write(body(session, applied, viaSso ? oidc.endSessionUrl() : null)));
         } finally {

@@ -1,0 +1,40 @@
+[ {
+  "name" : "newsletter",
+  "description" : "Whether this visitor has subscribed to the newsletter",
+  "kind" : "OBJECT",
+  "lifetime" : "VISITOR",
+  "fields" : {
+    "subscribed" : {
+      "type" : "boolean",
+      "required" : true,
+      "maxLength" : 1000
+    },
+    "email" : {
+      "type" : "string",
+      "required" : false,
+      "maxLength" : 254
+    },
+    "subscribedAt" : {
+      "type" : "string",
+      "required" : false,
+      "maxLength" : 1000
+    },
+    "signedInAs" : {
+      "type" : "string",
+      "required" : false,
+      "maxLength" : 1000
+    }
+  },
+  "valueType" : "any",
+  "maxEntries" : 100,
+  "defaultValue" : {
+    "subscribed" : false,
+    "email" : "",
+    "subscribedAt" : "",
+    "signedInAs" : ""
+  },
+  "writers" : [ "newsletter-form-plugin" ],
+  "clientWritable" : false,
+  "onSignIn" : "KEEP",
+  "onSignOut" : "CLEAR"
+} ]

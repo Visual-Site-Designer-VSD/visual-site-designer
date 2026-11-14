@@ -16,6 +16,8 @@ import dev.mainul35.vsd.runtime.auth.AuthService;
 import dev.mainul35.vsd.runtime.session.InMemorySessionStore;
 import dev.mainul35.vsd.runtime.session.Session;
 import dev.mainul35.vsd.runtime.session.SessionService;
+import dev.mainul35.vsd.runtime.shared.SharedStateService;
+import dev.mainul35.vsd.runtime.shared.SharedTestSupport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -61,6 +63,7 @@ class SsoTest {
     private SsoService sso;
     private SessionService sessions;
     private InMemorySessionStore store;
+    private SharedStateService shared;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -103,8 +106,9 @@ class SsoTest {
     private void build() {
         oidc = new OidcClient(props);
         store = new InMemorySessionStore();
-        sessions = new SessionService(store, props);
-        AuthService auth = new AuthService((u, p) -> Optional.empty(), sessions, oidc);
+        shared = SharedTestSupport.service(props);
+        sessions = new SessionService(store, props, shared);
+        AuthService auth = new AuthService((u, p) -> Optional.empty(), sessions, oidc, shared);
         sso = new SsoService(oidc, auth);
     }
 
@@ -322,7 +326,7 @@ class SsoTest {
         props.getSso().setPasswordLogin(false);
         build();
         assertFalse(oidc.passwordLogin());
-        AuthService auth = new AuthService((u, p) -> Optional.of(new RuntimeUser("1", "u", "U", null, Set.of())), sessions, oidc);
+        AuthService auth = new AuthService((u, p) -> Optional.of(new RuntimeUser("1", "u", "U", null, Set.of())), sessions, oidc, shared);
         Session s = store.create();
         AuthService.Result r = auth.login(s, "u", "p", "1.1.1.1", new MockHttpServletRequest(), new MockHttpServletResponse());
         assertEquals(403, r.status());
@@ -349,7 +353,7 @@ class SsoTest {
         idToken.set(sign(key, claims(st.query.get("nonce")).build()));
         assertTrue(callback(st.session, "c", st.query.get("state")).ok());
 
-        AuthService auth = new AuthService((u, p) -> Optional.empty(), sessions, oidc);
+        AuthService auth = new AuthService((u, p) -> Optional.empty(), sessions, oidc, shared);
         AuthService.Result out = auth.logout(st.session, new MockHttpServletRequest(), new MockHttpServletResponse());
         Map<?, ?> body = new com.fasterxml.jackson.databind.ObjectMapper().readValue(out.json(), LinkedHashMap.class);
         assertTrue(String.valueOf(body.get("redirect")).startsWith(ISSUER + "/logout"));

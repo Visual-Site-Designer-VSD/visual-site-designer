@@ -175,7 +175,7 @@ const NewsletterFormRenderer: React.FC<NewsletterFormProps> = (props) => {
   };
 
   // If submitted (locally, or recorded in the live runtime's session state), show success message
-  if ((isSubmitted || Boolean(runtimeSubscription)) && !isEditMode) {
+  if ((isSubmitted || Boolean(runtimeSubscription?.subscribed)) && !isEditMode) {
     return (
       <div style={containerStyles}>
         <div style={successStyles}>{String(successMessage)}</div>

@@ -6,6 +6,7 @@ import dev.mainul35.vsd.runtime.auth.sso.OidcClient;
 import dev.mainul35.vsd.runtime.plugin.LoadedPlugin;
 import dev.mainul35.vsd.runtime.plugin.PluginHost;
 import dev.mainul35.vsd.runtime.session.Session;
+import dev.mainul35.vsd.runtime.shared.SharedStateService;
 import dev.mainul35.vsd.runtime.snapshot.SiteSnapshot;
 import dev.mainul35.vsd.runtime.snapshot.SnapshotService;
 import dev.mainul35.vsd.runtime.util.Json;
@@ -33,8 +34,11 @@ public class PageRenderer {
     private final PluginHost plugins;
     private final PageView views;
     private final OidcClient oidc;
+    private final SharedStateService shared;
 
-    public PageRenderer(SnapshotService snapshots, PluginHost plugins, PageView views, OidcClient oidc) {
+    public PageRenderer(SnapshotService snapshots, PluginHost plugins, PageView views, OidcClient oidc,
+                        SharedStateService shared) {
+        this.shared = shared;
         this.oidc = oidc;
         this.views = views;
         this.snapshots = snapshots;
@@ -88,6 +92,7 @@ public class PageRenderer {
         boot.put("plugins", pluginList);
         boot.put("session", sessionObj);
         boot.put("api", "/_vsd/api");
+        boot.put("shared", shared.publicView());
         boot.put("sso", Map.of("enabled", oidc.enabled(), "passwordLogin", oidc.passwordLogin(),
                 "start", "/_vsd/auth/sso/start"));
 

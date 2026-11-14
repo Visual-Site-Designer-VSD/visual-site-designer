@@ -8,6 +8,7 @@ import dev.mainul35.vsd.runtime.event.EventDispatcher;
 import dev.mainul35.vsd.runtime.session.Session;
 import dev.mainul35.vsd.runtime.session.SessionService;
 import dev.mainul35.vsd.runtime.session.StateRules;
+import dev.mainul35.vsd.runtime.shared.SharedStateService;
 import dev.mainul35.vsd.runtime.snapshot.SnapshotService;
 import dev.mainul35.vsd.runtime.util.Json;
 import jakarta.servlet.http.HttpServletRequest;
@@ -48,9 +49,11 @@ public class ApiController {
     private final RuntimeProperties props;
     private final SnapshotService snapshots;
     private final PageView views;
+    private final SharedStateService shared;
 
     public ApiController(SessionService sessions, EventDispatcher dispatcher, AuthService auth, RuntimeProperties props,
-                         SnapshotService snapshots, PageView views) {
+                         SnapshotService snapshots, PageView views, SharedStateService shared) {
+        this.shared = shared;
         this.snapshots = snapshots;
         this.views = views;
         this.sessions = sessions;
@@ -85,6 +88,7 @@ public class ApiController {
         out.put("csrf", s.csrf());
         out.put("rev", s.rev());
         out.put("entries", s.snapshotEntries());
+        out.put("shared", shared.publicView());
         return json(200, Json.write(out)).build();
     }
 
@@ -148,10 +152,16 @@ public class ApiController {
                 Map<String, Object> m = (Map<String, Object>) o;
                 StateKey key = StateRules.parse(String.valueOf(m.get("scope")), String.valueOf(m.get("owner")),
                         String.valueOf(m.get("key")), false);
+                // The browser says which plugin is writing. That is a guard against plugins stepping on each
+                // other, not against hostile code: for that, declare the state with clientWritable=false.
+                String writer = m.get("plugin") instanceof String w && w.length() <= 128 ? w : null;
                 if ("remove".equals(m.get("op"))) {
+                    shared.checkWrite(g.session, key, null, true, writer, true);
                     patches.add(StatePatch.remove(key));
                 } else if ("set".equals(m.get("op"))) {
-                    patches.add(StatePatch.set(key, StateRules.normalize(m.get("value"), props.getMaxValueBytes())));
+                    Object value = StateRules.normalize(m.get("value"), props.getMaxValueBytes());
+                    shared.checkWrite(g.session, key, value, false, writer, true);
+                    patches.add(StatePatch.set(key, value));
                 } else {
                     return json(400, error("Invalid op")).build();
                 }
