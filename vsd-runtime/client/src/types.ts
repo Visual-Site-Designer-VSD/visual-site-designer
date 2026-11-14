@@ -23,7 +23,7 @@ export interface RuntimeUser {
 /** JSON embedded in the page shell by the server. */
 export interface Boot {
   site: { name: string; title: string; version: string };
-  page: { name: string; path: string; title: string; definition: PageDefinition };
+  page: { name: string; path: string; title: string; definition: PageDefinition; sharedUsed?: string[] };
   pages: { name: string; path: string; title: string }[];
   plugins: { id: string; version: string; css: boolean }[];
   session: { csrf: string; rev: number; entries: WirePatch[] };

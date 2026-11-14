@@ -34,8 +34,9 @@ import java.util.concurrent.TimeUnit;
  *   <li>{@code templateBindings}: {@code {"propName": "Hello {{auth.user.displayName}}"}} sets a prop.</li>
  *   <li>{@code iteratorConfig}: the component is repeated for each item of {@code dataPath}, with the item
  *       (and optionally its index) available under the configured names.</li>
- *   <li>Always available: {@code auth} (isAuthenticated, user), {@code page} (name, path, title) and
- *       {@code query} (the visitor's URL parameters, as text).</li>
+ *   <li>Always available: {@code auth} (isAuthenticated, user), {@code page} (name, path, title),
+ *       {@code query} (the visitor's URL parameters, as text) and {@code shared} (this visitor's shared state,
+ *       declared in the runtime console: {@code {{shared.cart.total}}}).</li>
  * </ul>
  *
  * <p>The result contains none of the authoring data ({@code dataContext}, {@code dataSource},
@@ -46,7 +47,7 @@ import java.util.concurrent.TimeUnit;
 public class PageResolver {
 
     private static final Logger log = LoggerFactory.getLogger(PageResolver.class);
-    private static final Set<String> RESERVED = Set.of("auth", "page", "query", "data");
+    private static final Set<String> RESERVED = Set.of("auth", "page", "query", "data", "shared");
     private static final Set<String> AUTHORING_ONLY =
             Set.of("dataSource", "dataSourceRef", "templateBindings", "iteratorConfig", "children");
     private static final int MAX_DEPTH = 32;
@@ -75,6 +76,11 @@ public class PageResolver {
      * @param query      the visitor's URL parameters
      */
     public JsonNode resolve(JsonNode definition, JsonNode user, Map<String, String> query, JsonNode pageMeta) {
+        return resolve(definition, user, query, pageMeta, null);
+    }
+
+    /** @param shared the visitor's shared state by name (declared values, or their starting values), or null for none */
+    public JsonNode resolve(JsonNode definition, JsonNode user, Map<String, String> query, JsonNode pageMeta, JsonNode shared) {
         if (definition == null || !definition.isObject()) {
             return definition;
         }
@@ -87,6 +93,7 @@ public class PageResolver {
         baseVars.put("auth", auth);
         baseVars.put("page", pageMeta == null ? F.objectNode() : pageMeta);
         baseVars.put("query", queryNode);
+        baseVars.put("shared", shared == null || !shared.isObject() ? F.objectNode() : shared);
         Scope base = new Scope(baseVars);
 
         Map<String, SourceSpec> named = parseNamed(definition.path("dataContext").path("dataSources"));

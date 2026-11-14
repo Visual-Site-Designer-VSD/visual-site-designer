@@ -79,6 +79,7 @@ public class PageRenderer {
         pageObj.put("path", page.path());
         pageObj.put("title", page.title());
         pageObj.put("definition", definition);
+        pageObj.put("sharedUsed", views.usedShared(page));
 
         Map<String, Object> sessionObj = new LinkedHashMap<>();
         sessionObj.put("csrf", session.csrf());

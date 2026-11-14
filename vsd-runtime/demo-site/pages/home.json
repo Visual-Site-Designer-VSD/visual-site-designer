@@ -131,7 +131,7 @@
           },
           "styles": {},
           "templateBindings": {
-            "text": "Signed in: {{auth.isAuthenticated}}. Name: {{auth.user.displayName}}"
+            "text": "Signed in: {{auth.isAuthenticated}}. Name: {{auth.user.displayName}}. Subscribed: {{shared.newsletter.subscribed}} {{shared.newsletter.email}}"
           }
         },
         {

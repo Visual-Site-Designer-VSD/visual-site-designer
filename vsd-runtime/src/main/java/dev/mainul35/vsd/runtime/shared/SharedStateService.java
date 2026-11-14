@@ -139,6 +139,18 @@ public class SharedStateService {
 
     // ---- for the browser ----------------------------------------------------------------------
 
+    /**
+     * This visitor's value of every declared shared state, for template bindings. Login-lifetime state that
+     * does not exist yet (signed out) shows its starting value, the same as the browser does.
+     */
+    public Map<String, Object> values(Session session) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (SharedStateDef d : registry.all()) {
+            out.put(d.getName(), session.get(key(d.getName())).orElse(d.getDefaultValue()));
+        }
+        return out;
+    }
+
     /** What the browser needs to know: names, lifetime and starting values (it falls back to these). */
     public List<Map<String, Object>> publicView() {
         List<Map<String, Object>> out = new ArrayList<>();

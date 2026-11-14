@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import dev.mainul35.vsd.runtime.auth.AuthService;
 import dev.mainul35.vsd.runtime.data.PageResolver;
 import dev.mainul35.vsd.runtime.session.Session;
+import dev.mainul35.vsd.runtime.shared.SharedStateService;
 import dev.mainul35.vsd.runtime.snapshot.SiteSnapshot;
 import dev.mainul35.vsd.runtime.util.Json;
 import org.springframework.stereotype.Component;
@@ -12,7 +13,13 @@ import org.springframework.stereotype.Component;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /** The page definition as one visitor should see it: data fetched, bindings filled in, authoring data removed. */
 @Component
@@ -21,10 +28,30 @@ public class PageView {
     private static final int MAX_PARAMS = 20;
     private static final int MAX_VALUE_CHARS = 256;
 
-    private final PageResolver resolver;
+    private static final Pattern SHARED_REF = Pattern.compile("\\{\\{\\s*shared\\.([A-Za-z0-9_-]+)");
 
-    public PageView(PageResolver resolver) {
+    private final PageResolver resolver;
+    private final SharedStateService shared;
+    private final Map<String, List<String>> sharedUsed = new ConcurrentHashMap<>();
+
+    public PageView(PageResolver resolver, SharedStateService shared) {
         this.resolver = resolver;
+        this.shared = shared;
+    }
+
+    /**
+     * Names of the shared state this page's bindings read ({@code {{shared.cart.total}}} gives {@code cart}).
+     * The browser fetches the page again when the visitor's value of one of them changes.
+     */
+    public List<String> usedShared(SiteSnapshot.PageEntry page) {
+        return sharedUsed.computeIfAbsent(page.path(), p -> {
+            Set<String> names = new TreeSet<>();
+            Matcher m = SHARED_REF.matcher(page.definition().toString());
+            while (m.find()) {
+                names.add(m.group(1));
+            }
+            return List.copyOf(names);
+        });
     }
 
     public JsonNode definition(SiteSnapshot.PageEntry page, Session session, Map<String, String> query) {
@@ -33,7 +60,8 @@ public class PageView {
         meta.put("name", page.name());
         meta.put("path", page.path());
         meta.put("title", page.title());
-        return resolver.resolve(page.definition(), user, query, meta);
+        JsonNode sharedValues = Json.MAPPER.valueToTree(shared.values(session));
+        return resolver.resolve(page.definition(), user, query, meta, sharedValues);
     }
 
     /** First value of each URL parameter, with sane names and lengths. */

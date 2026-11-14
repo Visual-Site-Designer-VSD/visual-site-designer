@@ -211,14 +211,18 @@ export class Runtime {
 
   // ---- page data ----------------------------------------------------------------------------
 
-  /** The current page as this visitor should see it now (data and bindings resolved on the server). */
-  async fetchPage(): Promise<ComponentInstance[] | null> {
+  /**
+   * The current page as this visitor should see it now (data and bindings resolved on the server), and the
+   * names of the shared state its bindings read, so the caller knows what to watch.
+   */
+  async fetchPage(): Promise<{ components: ComponentInstance[]; sharedUsed: string[] } | null> {
     try {
       const url = `${this.boot.api}/page?path=${encodeURIComponent(location.pathname)}&query=${encodeURIComponent(location.search)}`;
       const res = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
       if (!res.ok) return null;
-      const body = (await res.json()) as { definition?: { components?: ComponentInstance[] } };
-      return body.definition?.components ?? null;
+      const body = (await res.json()) as { definition?: { components?: ComponentInstance[] }; sharedUsed?: string[] };
+      const components = body.definition?.components;
+      return components ? { components, sharedUsed: body.sharedUsed ?? [] } : null;
     } catch {
       return null;
     }

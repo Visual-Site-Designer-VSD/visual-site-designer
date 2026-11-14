@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { RendererRegistry } from './registry';
 import type { Runtime } from './runtime';
 import type { ComponentInstance } from './types';
@@ -37,13 +37,19 @@ function Root({ component }: { component: ComponentInstance }) {
 }
 
 /**
- * Bindings such as {{auth.user.displayName}} are filled in on the server for one visitor, so when the
- * signed-in user changes the page is fetched again. A late answer to an older request is ignored.
+ * Bindings such as {{auth.user.displayName}} and {{shared.cart.total}} are filled in on the server for one
+ * visitor, so when the signed-in user or a shared state the page reads changes, the page is fetched again.
+ * A late answer to an older request is ignored.
  */
 export function App({ components: initial, runtime }: { components: ComponentInstance[]; runtime: Runtime }) {
   const [components, setComponents] = useState(initial);
+  const [sharedUsed, setSharedUsed] = useState<string[]>(runtime.boot.page.sharedUsed ?? []);
   const { user } = runtime.useAuth();
   const userId = user?.id ?? null;
+  // Bindings such as {{shared.cart.total}} read the visitor's shared state, so watch the values the page uses.
+  const sharedKey = useSyncExternalStore(runtime.store.subscribe, () =>
+    sharedUsed.map((n) => JSON.stringify(runtime.getShared(n)) ?? '').join(''),
+  );
   const firstRender = useRef(true);
   const latest = useRef(0);
 
@@ -54,9 +60,12 @@ export function App({ components: initial, runtime }: { components: ComponentIns
     }
     const mine = ++latest.current;
     void runtime.fetchPage().then((next) => {
-      if (next && mine === latest.current) setComponents(next);
+      if (next && mine === latest.current) {
+        setComponents(next.components);
+        setSharedUsed((prev) => (prev.join() === next.sharedUsed.join() ? prev : next.sharedUsed));
+      }
     });
-  }, [userId, runtime]);
+  }, [userId, sharedKey, runtime]);
 
   const ordered = [...components].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
   return (

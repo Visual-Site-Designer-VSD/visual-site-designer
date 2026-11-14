@@ -247,4 +247,41 @@ class PageResolverTest {
         assertEquals(node(page), out);
         assertNull(out.get("dataContext"));
     }
+
+    private static JsonNode resolveShared(String page, String shared) {
+        return resolver(NO_API).resolve(node(page), null, Map.of(), node("{\"name\":\"home\"}"), node(shared));
+    }
+
+    @Test
+    void sharedStateIsAvailableToBindings() {
+        JsonNode out = resolveShared("""
+                {"components":[{"instanceId":"a","templateBindings":{
+                  "text":"Total {{shared.cart.total}} for {{shared.my-cart.owner}}",
+                  "whole":"{{shared.cart.items}}","n":"{{shared.cart.total}}"}}]}
+                """, "{\"cart\":{\"total\":42,\"items\":[1,2]},\"my-cart\":{\"owner\":\"ada\"}}");
+        assertEquals("Total 42 for ada", out.at("/components/0/props/text").asText());
+        assertEquals(2, out.at("/components/0/props/whole").size(), "a whole-value placeholder keeps its type");
+        assertEquals(42, out.at("/components/0/props/n").asInt());
+    }
+
+    @Test
+    void missingSharedStateIsEmptyAndNothingIsLeakedThroughOtherRoots() {
+        JsonNode out = resolveShared("""
+                {"components":[{"instanceId":"a","templateBindings":{"t":"[{{shared.nope.x}}]","u":"[{{shared}}]"}}]}
+                """, "{\"cart\":{\"total\":1}}");
+        assertEquals("[]", out.at("/components/0/props/t").asText());
+        // the page without a shared object at all still renders
+        JsonNode none = resolver(NO_API).resolve(node("{\"components\":[{\"instanceId\":\"a\",\"templateBindings\":{\"t\":\"[{{shared.cart.total}}]\"}}]}"),
+                null, Map.of(), node("{}"), null);
+        assertEquals("[]", none.at("/components/0/props/t").asText());
+    }
+
+    @Test
+    void aDataSourceCannotTakeTheNameShared() {
+        JsonNode out = resolveShared("""
+                {"dataContext":{"dataSources":{"shared":{"type":"static","data":{"x":"from-source"}}}},
+                 "components":[{"instanceId":"a","templateBindings":{"t":"{{shared.x}}"}}]}
+                """, "{\"x\":\"from-state\"}");
+        assertEquals("from-state", out.at("/components/0/props/t").asText());
+    }
 }

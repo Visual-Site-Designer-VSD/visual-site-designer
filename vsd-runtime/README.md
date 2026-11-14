@@ -180,10 +180,15 @@ free-form `SESSION` state is refused too, so use `PLUGIN` scope for state only y
 role. Declarations are saved in `<vsd.runtime.data-dir>/shared-state.json` (survives restarts and republishing). The
 console also lists live sessions (by a short fingerprint, never the cookie) and shows one session's state.
 
+**In page bindings:** a visitor's shared state is available as `{{shared.<name>...}}`, for example `{{shared.cart.total}}`.
+A binding that is the whole value keeps its type, so `{{shared.cart.items}}` can fill a list prop. Values are the
+visitor's own (never another visitor's), and until a session has a value the starting value shows. The runtime works out
+which shared state a page reads, and the browser fetches the page again when one of those values changes (changes to other
+state do not trigger a fetch). `shared` is a reserved name, so a data source cannot use it.
+
 Limits to know: the writers list for **browser** writes is based on the plugin id the browser reports, so it stops
 plugins stepping on each other but not hostile code; use *Browser may write = off* for state that must be protected.
-Only the `SESSION` scope is covered (per-page shared state is not built yet), and `{{shared.*}}` template bindings are not
-wired in yet.
+Only the `SESSION` scope is covered (per-page shared state is not built yet).
 
 ## Single sign-on with the VSD auth server
 

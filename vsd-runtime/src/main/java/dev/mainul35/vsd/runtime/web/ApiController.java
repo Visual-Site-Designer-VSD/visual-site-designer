@@ -77,6 +77,7 @@ public class ApiController {
         Session s = sessions.getOrCreate(request, response);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("definition", views.definition(entry.get(), s, PageView.query(query)));
+        out.put("sharedUsed", views.usedShared(entry.get()));
         return json(200, Json.write(out)).build();
     }
 
