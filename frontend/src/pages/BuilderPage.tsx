@@ -264,7 +264,7 @@ export const BuilderPage: React.FC = () => {
   }, [siteId, pageId, loadPagesForPreview]);
 
   // "Run on live server": starts the runtime for this site and stops it when its window is closed.
-  const live = useLiveServer(siteId ? Number.parseInt(siteId) : null, () => handleSave());
+  const live = useLiveServer(siteId ? Number.parseInt(siteId) : (siteManager.currentSiteId ?? null), () => handleSave());
 
   // Keyboard shortcuts
   useEffect(() => {

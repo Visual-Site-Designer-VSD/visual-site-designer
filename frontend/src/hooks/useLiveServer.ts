@@ -98,8 +98,8 @@ export function useLiveServer(siteId: number | null, save: () => Promise<unknown
     setNotice(null);
     if (siteId == null) {
       setNotice(
-        'The live server runs a saved site. This is the local demo project, which is not saved on the server. ' +
-          'Open a site from the dashboard (Sites), open one of its pages, save it, then choose Run on live server.',
+        'The live server runs a saved site, and none is selected. ' +
+          'Choose Site > Select Site (or Site > New Site), then run it again.',
       );
       return;
     }
